@@ -1,9 +1,9 @@
 
 include("simulation_fncs.jl")
 
-using SeqFISHPointDecoding
+using SeqFISHSyndromeDecoding
 include("test_synd_decode_fncs.jl")
-using SeqFISHPointDecoding: add_code_cols!, syndrome_find_message_paths!, DotAdjacencyGraph,
+using SeqFISHSyndromeDecoding: add_code_cols!, syndrome_find_message_paths!, DotAdjacencyGraph,
     set_n, set_q, set_H
 
 
@@ -105,7 +105,7 @@ println("full decode perfect")
         erasure_penalty = 4.0
         converge_thresh = 100 * ndots
         skip_thresh = 2000
-        params = SeqFISHPointDecoding.DecodeParams(
+        params = DecodeParams(
             lat_thresh,
             z_thresh,
             lat_var_factor,
@@ -164,7 +164,7 @@ println("full decode drops")
         erasure_penalty = 4.0
         converge_thresh = 100 * ndots
         skip_thresh = 2000
-        params = SeqFISHPointDecoding.DecodeParams(
+        params = DecodeParams(
             lat_thresh,
             z_thresh,
             lat_var_factor,

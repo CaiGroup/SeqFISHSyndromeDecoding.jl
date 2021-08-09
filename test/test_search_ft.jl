@@ -1,7 +1,7 @@
 using Test
 
 #include("search_fenwick_tree.jl")
-using SeqFISHPointDecoding: search
+using SeqFISHSyndromeDecoding: search
 using DataStructures
 
 ft = FenwickTree(ones(12))

@@ -3,7 +3,7 @@ using Random
 Random.seed!(1)
 include("simulation_fncs.jl")
 
-using SeqFISHPointDecoding
+using SeqFISHSyndromeDecoding
 
 using DelimitedFiles
 using Profile
@@ -60,7 +60,7 @@ erasure_penalty = 4.0
 converge_thresh = 100 * ndots
 skip_thresh = 2000
 
-params = SeqFISHPointDecoding.DecodeParams(
+params = DecodeParams(
     lat_thresh,
     z_thresh,
     lat_var_factor,

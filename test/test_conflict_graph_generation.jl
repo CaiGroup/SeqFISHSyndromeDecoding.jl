@@ -4,12 +4,12 @@ Random.seed!(1)
 
 #push!(LOAD_PATH, pwd())
 #using syndrome_decoding
-using SeqFISHPointDecoding
+using SeqFISHSyndromeDecoding
 #using syndrome_decoding: add_code_cols!, DotAdjacencyGraph, objective_function,
 #remove_high_cost_cpaths, codebooks, make_cw_dict, syndrome_find_message_paths!,
 #get_cpath_conflict_graph_remove_redundant_cpaths!, get_cpath_conflict_graph_pairwise, get_cpath_conflict_graph2
 
-using SeqFISHPointDecoding: add_code_cols!, DotAdjacencyGraph, objective_function,
+using SeqFISHSyndromeDecoding: add_code_cols!, DotAdjacencyGraph, objective_function,
 remove_high_cost_cpaths, codebooks, make_cw_dict, syndrome_find_message_paths!,
 get_cpath_conflict_graph_remove_redundant_cpaths!, get_cpath_conflict_graph_pairwise, get_cpath_conflict_graph2
 

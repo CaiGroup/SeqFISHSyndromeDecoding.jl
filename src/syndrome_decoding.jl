@@ -3,9 +3,9 @@ using DataFrames
 using LightGraphs
 import LightGraphs.neighbors
 using NearestNeighbors
-using Distributions
+#using Distributions
 using DataStructures
-using Distributed
+#using Distributed
 
 """
     decode_syndromes!(

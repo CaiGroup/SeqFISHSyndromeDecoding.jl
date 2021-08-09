@@ -1,6 +1,6 @@
 
 
-using SeqFISHPointDecoding: ℤnRingElem, set_q, set_n, set_H, SyndromeComponent, check_mpath_decodable, get_decode_table
+using SeqFISHSyndromeDecoding: ℤnRingElem, set_q, set_n, set_H, SyndromeComponent, check_mpath_decodable, get_decode_table
 
 using Test
 using DelimitedFiles

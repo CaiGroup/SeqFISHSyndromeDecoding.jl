@@ -1,5 +1,5 @@
-using SeqFISHPointDecoding
-using SeqFISHPointDecoding: syndrome_find_message_paths!, DotAdjacencyGraph,
+using SeqFISHSyndromeDecoding
+using SeqFISHSyndromeDecoding: syndrome_find_message_paths!, DotAdjacencyGraph,
 make_cw_dict, get_cw_pos_inds, add_code_cols!, compute_syndromes, neighbors
 
 using DelimitedFiles

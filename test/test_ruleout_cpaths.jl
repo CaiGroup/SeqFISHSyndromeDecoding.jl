@@ -1,6 +1,6 @@
 
 #using syndrome_decoding: syndrome_find_message_paths!
-using SeqFISHPointDecoding: syndrome_find_message_paths!
+using SeqFISHSyndromeDecoding: syndrome_find_message_paths!
 using test_synd_decode_fncs
 using rule_out_cpaths: sort_cpaths_by_cost!, find_min_var_consensus_cpaths!,
 rule_out_high_cost_cpaths!, init_min_cost_consensus_state, get_cpath_list
