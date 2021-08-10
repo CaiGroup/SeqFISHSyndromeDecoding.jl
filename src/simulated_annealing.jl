@@ -46,8 +46,8 @@ function simulated_annealing(cpaths_df :: DataFrame,
     cpath_partial_conflict_transition_indices :: Vector{Vector{Int64}},
                              sa_params,
                              ndots :: Int)
-    println("Begin Simulated Annealing")
-    println("n cpaths: ", nrow(cpaths_df))
+    #println("Begin Simulated Annealing")
+    #println("n cpaths: ", nrow(cpaths_df))
     simulated_annealing_rejectionless_disrupt_subcpath(cpaths_df, cpath_conflict_cpath_indices, cpath_partial_conflict_indices,
     cpath_partial_conflict_transition_indices, sa_params, ndots)
     #simulated_annealing_metropolis(cpaths_df, A, sa_params)

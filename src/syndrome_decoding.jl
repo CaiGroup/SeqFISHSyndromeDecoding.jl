@@ -136,10 +136,10 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: M
         cpath_df[cc, "cc"] .= cc_i
         cpath_df[cc, "cc_size"] .= length(cc)
         cc_cpath_df = cpath_df[cc,:]
-        println("cc: ", cc_i)
-        println("npaths: ", nrow(cc_cpath_df))
+        #println("cc: ", cc_i)
+        #println("npaths: ", nrow(cc_cpath_df))
         if nrow(cc_cpath_df) > params.skip_thresh
-            println("skip")
+            println("skip "* cc * " size ", length(cc))
             continue
         end
 
