@@ -102,7 +102,7 @@ function simulated_annealing_rejectionless_disrupt_subcpath(cpaths_df :: DataFra
             i += 1
         end
     end
-    println("maximum iterations: $lchain")
+    #println("maximum iterations: $lchain")
     #end
     state.state
 end
@@ -344,7 +344,7 @@ function simulated_annealing_rejectionless(cpaths_df,
         #println("expected proportion rejected: ", (expected_metropolis_itertions-i)/expected_metropolis_itertions)
         #println("expected prop rejections:", expected_rejections/(sa_params.l_chain+expected_rejections))
     end
-    println("maximum iterations: $lchain")
+    #println("maximum iterations: $lchain")
     #end
     state.state
 end
