@@ -677,7 +677,7 @@ of cpaths from the input cpaths_df that conflict with the cpath that has the
 same index in cpaths_df as the nested vector in cpath_nbr_cpath_indices
 """
 function get_cpath_conflict_graph_remove_redundant_cpaths!(cpaths_df, ndots, n)
-    println("Building Adjacency Graph")
+    #println("Building Adjacency Graph")
     cpaths = cpaths_df.cpath
     costs = cpaths_df.cost
     n_cpaths = length(cpaths)
@@ -868,7 +868,7 @@ function remove_redundant_cpath_update_nbr_inds!(nbr_array, redundant_codepath_i
 end
 
 function get_cpath_conflict_graph2(cpaths_in :: DataFrame, n, ndrops)# :: Vector{Vector{Int}})
-    println("Building Adjacency Graph")
+    #println("Building Adjacency Graph")
     #println("cpaths:")
     #println(cpaths)
     cpaths = deepcopy(cpaths_in)
@@ -903,7 +903,7 @@ function get_cpath_conflict_graph2(cpaths_in :: DataFrame, n, ndrops)# :: Vector
 end
 
 function get_cpath_conflict_graph_pairwise(cpaths)
-    println("Building Adjacency Graph")
+    #println("Building Adjacency Graph")
     #println("cpaths:")
     #println(cpaths)
     n_cpaths = length(cpaths)
