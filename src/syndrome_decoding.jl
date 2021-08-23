@@ -110,6 +110,9 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: M
 
     n = length(cb[1,:])
     ndots = nrow(pnts)
+    #len_cpath = length.(cpath_df[!, "cpath"])
+    #cpath_df = cpath_df[len_cpath .>= n - params.ndrops, !]
+    filter!(:cpath => cpath -> length(cpath) >= n - params.ndrops, cpath_df)
     cost(cpath) = obj_function(cpath, pnts, n, params)
     pnts[!,"decoded"] = fill(0, nrow(pnts))
     pnts[!, "mpath"] = [[] for i = 1:length(pnts.x)]
@@ -254,37 +257,10 @@ function DotAdjacencyGraph(pnts :: DataFrame, lat_thresh :: Real, z_thresh :: Re
         end_pnt = (cw_pos_bnds[round]-1)
         push!(trees, make_KDTree(pnts[start_pnt:end_pnt, :]))
     end
-    #trees = [make_KDTree(pnts[(cw_pos_bnds[round-1-ndrops]):(cw_pos_bnds[round]-1),:]) for round in 1:n]
-
-    # now add edges to the graph
-    """
-    for cᵢ in 2:n
-        for pnt in cw_pos_bnds[cᵢ]:(cw_pos_bnds[cᵢ+1]-1)
-            neighbors = inrange(tree, [pnts.x[pnt], pnts.y[pnt]], lat_thresh, true)
-            for neighbor in neighbors
-                if neighbor < cw_pos_bnds[cᵢ]
-                    if "z" in names(pnts)
-                        if abs(pnts.z[pnt] - pnts.z[neighbor] <= z_thresh)
-                            add_edge!(g, pnt, neighbor)
-                        end
-                    else
-                        add_edge!(g, pnt, neighbor)
-                    end
-                end
-            end
-        end
-    end
-    """
 
     DotAdjacencyGraph(g, cw_pos_bnds, n, trees, lat_thresh, pnts, ndrops)
 end
 
-"""
-function DotAdjacencyGraph(pnts :: DataFrame, g :: SimpleDiGraph, n :: Int)
-    cw_pos_bnds = get_cw_pos_bounds(pnts, n)
-    DotAdjacencyGraph(g, cw_pos_bnds, n)
-end
-"""
 
 """
 """
@@ -373,10 +349,10 @@ function compute_syndromes(pnts :: DataFrame, g :: DotAdjacencyGraph)
 
             # get neighbors of that dot
             for neighbor in neighbors(g, dot)
-                end_ind = synd_ind+length(syndromes[neighbor])-1
-                syndromes[dot][synd_ind:end_ind] += syndromes[neighbor]
-                syndrome_path_length[dot][synd_ind:end_ind] += syndrome_path_length[neighbor]
-                syndrome_coeff_positions[dot][synd_ind:end_ind] += syndrome_coeff_positions[neighbor]
+                @inbounds end_ind = synd_ind+length(syndromes[neighbor])-1
+                @inbounds syndromes[dot][synd_ind:end_ind] += syndromes[neighbor]
+                @inbounds syndrome_path_length[dot][synd_ind:end_ind] += syndrome_path_length[neighbor]
+                @inbounds syndrome_coeff_positions[dot][synd_ind:end_ind] += syndrome_coeff_positions[neighbor]
                 synd_ind = end_ind + 1
             end
         end
@@ -517,7 +493,9 @@ function recursive_get_synd_neighbors(
 
     # if this is the last dot in the message, return number of dot in an array
     if synd_ind == 1
-        return Int[dot]
+        cpath = Int[dot]
+        sizehint!(cpath, g.n)
+        return cpath #Int[dot]
     end
 
     #otherwise, get neighbor of the dot that produced the zero syndrome
