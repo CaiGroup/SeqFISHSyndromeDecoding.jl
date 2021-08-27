@@ -108,9 +108,9 @@ function get_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: Matrix, para
     g = DotAdjacencyGraph(pnts, params.lat_thresh, params.z_thresh, n, params.ndrops)
 
     cost(cpath) = obj_function(cpath, pnts, n, params)
-    code_paths, values = syndrome_find_message_paths!(pnts, g, cb, params.ndrops)
+    code_paths, gene_nums = syndrome_find_message_paths!(pnts, g, cb, params.ndrops)
     costs = cost.(code_paths)
-    cpath_df = DataFrame(cpath = code_paths, cost = costs, value = values)
+    cpath_df = DataFrame(cpath = code_paths, cost = costs, gene_number = gene_nums)
     sort!(cpath_df, :cost)
     cpath_df = remove_high_cost_cpaths(cpath_df, params.free_dot_cost, n, params.ndrops)
     cpath_df = threshold_cpaths(cpath_df, pnts, params.lat_thresh, params.z_thresh)
@@ -185,7 +185,7 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: M
         append!(mpaths, mpath_df)
 
         for mpath_row in eachrow(mpath_df)
-            pnts.decoded[mpath_row.cpath] .= mpath_row.value
+            pnts.decoded[mpath_row.cpath] .= mpath_row.gene_number
             for dt in mpath_row.cpath
                 pnts.mpath[dt] = mpath_row.cpath
             end
@@ -198,10 +198,10 @@ end
 function choose_optimal_codepaths(pnts :: DataFrame, cb_df :: DataFrame, H :: Matrix, params :: DecodeParams, cpath_df :: DataFrame)
     cb = Matrix(UInt8.(cb_df[!, 2:end]))
     gene = cb_df[!, 1]
-    value = Array(1:length(gene))
+    gene_number = Array(1:length(gene))
     decoded = choose_optimal_codepaths(pnts, cb, H, params, cpath_df)
-    gene_value_df = DataFrame("gene_name" => gene, "gene_number" => value)
-    decoded_joined = rightjoin(gene_value_df, decoded, on=:value)
+    gene_df = DataFrame("gene_name" => gene, "gene_number" => gene_number)
+    decoded_joined = rightjoin(gene_df, decoded, on=:gene_number)
 end
 
 """
