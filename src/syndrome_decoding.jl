@@ -23,7 +23,7 @@ Split up points into weakly connected components, then finds possible codeword m
 and runs simulated annealing to assign them. The pnts dataframe should have hybridization, x, y, and z columns
 """
 
-function decode_syndromes!(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: Matrix, params :: DecodeParams)
+function decode_syndromes!(pnts :: DataFrame, cb, H :: Matrix, params :: DecodeParams)
     println("start syndrome decoding")
     cpath_df = get_codepaths(pnts, cb, H, params)
 
@@ -35,6 +35,18 @@ function decode_syndromes!(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: Matrix, 
     return choose_optimal_codepaths(pnts, cb, H, params, cpath_df)
 end
 
+"""
+function decode_syndromes!(pnts :: DataFrame, cb_df :: DataFrame, H :: Matrix, params :: DecodeParams)
+
+    cb = Matrix(UInt8.(cb_df[!, 2:end]))
+    gene = cb_df[!, "Gene"]
+    value = Array(1:length(gene))
+    decoded = decode_syndromes!(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: Matrix, params :: DecodeParams)
+    gene_value_df = DataFrame("Gene" => gene, "value" => value)
+    decoded_joined = rightjoin(gene_value_df, decoded, on=:value)
+
+end
+"""
 
 function obj_function(cpath, pnts, cw_n, params)
     lat_var_factor = params.lat_var_factor
@@ -96,15 +108,21 @@ function get_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: Matrix, para
     g = DotAdjacencyGraph(pnts, params.lat_thresh, params.z_thresh, n, params.ndrops)
 
     cost(cpath) = obj_function(cpath, pnts, n, params)
-    code_paths, values = syndrome_find_message_paths!(pnts, g, cb, params.ndrops)
+    code_paths, gene_nums = syndrome_find_message_paths!(pnts, g, cb, params.ndrops)
     costs = cost.(code_paths)
-    cpath_df = DataFrame(cpath = code_paths, cost = costs, value = values)
+    cpath_df = DataFrame(cpath = code_paths, cost = costs, gene_number = gene_nums)
     sort!(cpath_df, :cost)
     cpath_df = remove_high_cost_cpaths(cpath_df, params.free_dot_cost, n, params.ndrops)
     cpath_df = threshold_cpaths(cpath_df, pnts, params.lat_thresh, params.z_thresh)
 
     return cpath_df
 end
+
+function get_codepaths(pnts :: DataFrame, cb_df :: DataFrame, H :: Matrix, params :: DecodeParams)
+    cb = Matrix(UInt8.(cb_df[!, 2:end]))
+    return get_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: Matrix, params :: DecodeParams)
+end
+
 
 function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: Matrix, params :: DecodeParams, cpath_df :: DataFrame)
 
@@ -167,7 +185,7 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: M
         append!(mpaths, mpath_df)
 
         for mpath_row in eachrow(mpath_df)
-            pnts.decoded[mpath_row.cpath] .= mpath_row.value
+            pnts.decoded[mpath_row.cpath] .= mpath_row.gene_number
             for dt in mpath_row.cpath
                 pnts.mpath[dt] = mpath_row.cpath
             end
@@ -175,6 +193,15 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: M
     end
     println("found $nmpaths mpaths")
     mpaths
+end
+
+function choose_optimal_codepaths(pnts :: DataFrame, cb_df :: DataFrame, H :: Matrix, params :: DecodeParams, cpath_df :: DataFrame)
+    cb = Matrix(UInt8.(cb_df[!, 2:end]))
+    gene = cb_df[!, 1]
+    gene_number = Array(1:length(gene))
+    decoded = choose_optimal_codepaths(pnts, cb, H, params, cpath_df)
+    gene_df = DataFrame("gene_name" => gene, "gene_number" => gene_number)
+    decoded_joined = rightjoin(gene_df, decoded, on=:gene_number)
 end
 
 """
@@ -204,8 +231,17 @@ Add columns giving the coefficient and position the dot encodes in a codeword
 and its associated syndrome component.
 """
 function add_code_cols!(pnts :: DataFrame)
-    pos = get_pos.(pnts.hyb)
-    coeff = get_coeff.(pnts.hyb, pos)
+    if "Round" in names(pnts)
+        pos = pnts.Round
+    else
+        pos = get_pos.(pnts.hyb)
+    end
+
+    if "pseudocolor" in names(pnts)
+        coeff = pnts.pseudocolor
+    else
+        coeff = get_coeff.(pnts.hyb, pos)
+    end
 
     sc = SyndromeComponent.(coeff, pos)
     pnts.pos = pos
