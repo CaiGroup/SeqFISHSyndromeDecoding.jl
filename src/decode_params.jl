@@ -22,6 +22,13 @@ mutable struct DecodeParams
     skip_thresh :: Int64
 end
 
+
+"""
+    DecodeParams()
+
+Constructor for DecodeParams object that sets default values for every parameter. Dost function parameters must be set
+by the user. If they are not, the decoding functions will throw an error.
+"""
 function DecodeParams()
     prms = DecodeParams(fill(0.0, 16)...)
     c_final = 1
@@ -73,17 +80,23 @@ Sets the decay rate of the simulated annealing temperature between markov chains
 set_cooling_timescale(prms :: DecodeParams, ct :: Real) = (prms.cooling_timescale = Float64(ct))
 
 """
-the penalty that an erasure adds to a cost function is ep*length(codepath)
+    set_erasure_penalty(prms :: DecodeParams, ep :: Real)
+
+The penalty that each dot dropped from a barcode adds to the cost function of the corrected barcode is ep. For example a barcode with one drop adds 1*ep to the cost of the barcode.
 """
 set_erasure_penalty(prms :: DecodeParams, ep :: Real) = (prms.erasure_penalty = Float64(ep))
 
 """
+    set_converge_multiplier(prms :: DecodeParams, ct :: Integer)
+
 If the rejectionless simulated annealing algorithm favors the current state by
 more than probablity (ct/(ct+1)) over all transitioning to any other state, converge
 """
 set_converge_multiplier(prms :: DecodeParams, ct :: Integer) = (prms.converge_multiplier = ct)
 
 """
+    set_skip_thresh(prms :: DecodeParams, st :: Integer)
+
 Connected components with more codepaths than this threshold are discarded.
 """
 set_skip_thresh(prms :: DecodeParams, st :: Integer) = (prms.skip_thresh = st)
