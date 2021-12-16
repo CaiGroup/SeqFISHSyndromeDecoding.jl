@@ -22,7 +22,6 @@ and decoding result indicated as the row of the codebook matrix matched to.
 Split up points into weakly connected components, then finds possible codeword messages
 and runs simulated annealing to assign them. The pnts dataframe should have hybridization, x, y, and z columns
 """
-
 function decode_syndromes!(pnts :: DataFrame, cb, H :: Matrix, params :: DecodeParams)
     println("start syndrome decoding")
     cpath_df = get_codepaths(pnts, cb, H, params)
@@ -82,7 +81,7 @@ function check_inputs(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: Matrix, param
 end
 
 """
-get_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: Matrix, params :: DecodeParams)
+    get_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: Matrix, params :: DecodeParams)
 
 Computes codepaths with syndrome decoding, removes codepaths that exceed the cost
 of not decoding their component dots, and
@@ -118,12 +117,22 @@ function get_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: Matrix, para
     return cpath_df
 end
 
+"""
+    get_codepaths(pnts :: DataFrame, cb_df :: DataFrame, H :: Matrix, params :: DecodeParams)
+
+Computes codepaths with syndrome decoding, removes codepaths that exceed the cost
+of not decoding their component dots, and
+and returns DataFrame of candidate codepaths.
+"""
 function get_codepaths(pnts :: DataFrame, cb_df :: DataFrame, H :: Matrix, params :: DecodeParams)
     cb = Matrix(UInt8.(cb_df[!, 2:end]))
     return get_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: Matrix, params :: DecodeParams)
 end
 
+"""
+    choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: Matrix, params :: DecodeParams, cpath_df :: DataFrame)
 
+"""
 function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: Matrix, params :: DecodeParams, cpath_df :: DataFrame)
 
     n = length(cb[1,:])
@@ -149,7 +158,7 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: M
     cpath_df[!, "cc_size"] .= 0
 
     n_ccs = length(ccs)
-    println("n_ccs: ", n_ccs)
+    #println("n_ccs: ", n_ccs)
 
     mpaths = cpath_df[1:0, :]
     nmpaths = 0
@@ -160,7 +169,7 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: M
         #println("cc: ", cc_i)
         #println("npaths: ", nrow(cc_cpath_df))
         if nrow(cc_cpath_df) > params.skip_thresh
-            println("skip ", cc_i, " size ", length(cc))
+            #println("skip ", cc_i, " size ", length(cc))
             continue
         end
 
@@ -191,7 +200,7 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: M
             end
         end
     end
-    println("found $nmpaths mpaths")
+    #println("found $nmpaths mpaths")
     mpaths
 end
 
@@ -888,7 +897,7 @@ function get_cpath_conflict_graph2(cpaths_in :: DataFrame, n, ndrops)# :: Vector
     cpaths = deepcopy(cpaths_in)
     n_cpaths = nrow(cpaths)
 
-    println("n_cpaths: $n_cpaths")
+    #println("n_cpaths: $n_cpaths")
     A = SimpleGraph(n_cpaths)
 
     cpaths["i"]= Array(1:n_cpaths)
