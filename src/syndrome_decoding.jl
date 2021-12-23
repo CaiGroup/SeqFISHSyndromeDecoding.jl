@@ -20,7 +20,7 @@ Arguments
 	- `x` : x spatial coordinate of psfs
 	- `y` : y spatial coordinate of psfs
     - `z` : z spatial coordinate of psfs
-	- `s` : the sigma width parameter of the psfs 
+	- `s` : the sigma width parameter of the psfs
     - `w` : the weight (or brightness) of the psfs
     Additionally, there the data frame must either have columns
     - `Round` : the barcoding round in which the psf was found
@@ -107,7 +107,7 @@ Arguments
 	- `x` : x spatial coordinate of psfs
 	- `y` : y spatial coordinate of psfs
     - `z` : z spatial coordinate of psfs
-	- `s` : the sigma width parameter of the psfs 
+	- `s` : the sigma width parameter of the psfs
     - `w` : the weight (or brightness) of the psfs
     Additionally, there the data frame must either have columns
     - `Round` : the barcoding round in which the psf was found
@@ -172,8 +172,23 @@ end
     choose_optimal_codepaths(pnts :: DataFrame, cb_df :: DataFrame, H :: Matrix, params :: DecodeParams, cpath_df :: DataFrame)
 
 Arguments
+    - `pnts`: DataFrame of seqFISH psfs. Must include columns:
+	- `x` : x spatial coordinate of psfs
+	- `y` : y spatial coordinate of psfs
+    - `z` : z spatial coordinate of psfs
+	- `s` : the sigma width parameter of the psfs
+    - `w` : the weight (or brightness) of the psfs
+    Additionally, there the data frame must either have columns
+    - `Round` : the barcoding round in which the psf was found
+    - `pseudocolor` : the pseudocolor of the barcoding round in which the psf was found
+    or the Round and pseudocolor can be computed from the hybridization
+    - `hyb` : the hybridization in which the dot was found
+    where Round = ceil(hyb / q), pseudocolor = (hyb - (Round - 1) * q) % q, and q is the number of pseudocolors.
 
--
+- `cb` : The codebook.
+- `H` : The parity check Matrix
+- `params` : DecodeParams object holding the parameters for decoding
+- `cpath_df` : A DataFrame output from the `get_codepaths` function, defined above.
 
 Choose best codepaths from previouly found candidates that may have been found with less strict parameters. Reevaluates the costs for each candidate and trims according
 to the passed parameters.
@@ -454,7 +469,7 @@ function compute_syndromes(pnts :: DataFrame, g :: DotAdjacencyGraph)
 end
 
 """
-find_nsnds(g :: DotAdjacencyGraph)
+    find_nsnds(g :: DotAdjacencyGraph)
 
 Counts the number of paths in the dot adjacency graph that run through each dot to
 determine the size of syndrome component arrays to preallocate.
