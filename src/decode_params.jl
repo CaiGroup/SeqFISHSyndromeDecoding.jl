@@ -102,13 +102,21 @@ Arguments:
 set_lw_var_cost_coeff(prms :: DecodeParams, lwvf :: Real) = (prms.lw_var_factor = Float64(lwvf))
 
 """
-    set_s_cost_coeff(prms :: DecodeParams, sf :: Real)
+    set_s_var_cost_coeff(prms :: DecodeParams, sf :: Real)
 
 Arguments:
     -`prms`: DecodeParams Object
     -`svf`: The σ variance penalty coefficient in the cost function.
 """
 set_s_var_cost_coeff(prms :: DecodeParams, svf :: Real) = (prms.s_var_factor = Float64(svf))
+
+"""
+    set_erasure_penalty(prms :: DecodeParams, ep :: Real)
+
+The penalty that each dot dropped from a barcode adds to the cost function of the corrected barcode is ep. For example a barcode with one drop adds 1*ep to the cost of the barcode.
+"""
+set_erasure_penalty(prms :: DecodeParams, ep :: Real) = (prms.erasure_penalty = Float64(ep))
+
 
 """
     set_free_dot_cost(prms :: DecodeParams, fdc :: Real)
@@ -168,12 +176,6 @@ Sets the decay rate of the simulated annealing temperature between markov chains
 """
 set_cooling_timescale(prms :: DecodeParams, ct :: Real) = (prms.cooling_timescale = Float64(ct))
 
-"""
-    set_erasure_penalty(prms :: DecodeParams, ep :: Real)
-
-The penalty that each dot dropped from a barcode adds to the cost function of the corrected barcode is ep. For example a barcode with one drop adds 1*ep to the cost of the barcode.
-"""
-set_erasure_penalty(prms :: DecodeParams, ep :: Real) = (prms.erasure_penalty = Float64(ep))
 
 """
     set_converge_multiplier(prms :: DecodeParams, ct :: Integer)

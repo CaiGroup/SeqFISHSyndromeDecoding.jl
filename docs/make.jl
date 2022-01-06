@@ -2,10 +2,18 @@ push!(LOAD_PATH,"../src/")
 using Documenter
 using SeqFISHSyndromeDecoding
 
+_PAGES = [
+    "index.md",
+    "installation.md"#,
+]
+#    "api_reference.md"
+#]
+
 makedocs(
     sitename = "SeqFISHSyndromeDecoding",
     format = Documenter.HTML(),
-    modules = [SeqFISHSyndromeDecoding]
+    modules = [SeqFISHSyndromeDecoding],
+    pages = _PAGES
 )
 
 # Documenter can also automatically deploy documentation to gh-pages.
