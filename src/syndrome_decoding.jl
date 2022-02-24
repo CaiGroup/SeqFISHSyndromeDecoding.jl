@@ -6,6 +6,7 @@ using NearestNeighbors
 #using Distributions
 using DataStructures
 #using Distributed
+using Statistics
 
 """
     decode_syndromes!(
@@ -57,12 +58,14 @@ function obj_function(cpath, pnts, cw_n, params)
 
     lat_var_cost = (var(pnts.x[cpath]) + var(pnts.y[cpath])) * lat_var_factor
     z_var_cost = var(pnts.z[cpath]) * z_var_factor
-    lw_var_cost = var(log2.(pnts.w[cpath])) * lw_var_factor
+    #lw_var_cost = var(log2.(pnts.w[cpath])) * lw_var_factor
+    w_var_cost = var(pnts.w[cpath])/mean(pnts.w[cpath]) * lw_var_factor
     s_var_cost = var(pnts.s[cpath]) * s_var_factor
 
     length(cpath) == cw_n ? erasure_cost = 0 : erasure_cost = length(cpath) * dot_erasure_penalty
 
-    return lat_var_cost + z_var_cost + lw_var_cost + s_var_cost + erasure_cost
+    #return lat_var_cost + z_var_cost + lw_var_cost + s_var_cost + erasure_cost
+    return lat_var_cost + z_var_cost + w_var_cost + s_var_cost + erasure_cost
 end
 
 """
@@ -602,7 +605,7 @@ function remove_high_cost_cpaths(cpath_df :: DataFrame, free_dot_cost, n :: Int,
 
     while i <= nrow(cpath_df)
         if cpath_df.cost[i] >= length(cpath_df.cpath[i])*free_dot_cost
-            delete!(cpath_df, i)
+            deleteat!(cpath_df, i)
             n_erasure_paths_removed+= 1
         else
             i += 1
@@ -634,7 +637,7 @@ function threshold_cpaths(cpaths_df, pnts, lat_thresh, z_thresh)
             end
         end
         if exceeds_threshold
-            delete!(cpaths_df, row)
+            deleteat!(cpaths_df, row)
         else
             row += 1
         end
@@ -798,7 +801,7 @@ function get_cpath_conflict_graph_remove_redundant_cpaths!(cpaths_df, ndots, n)
         remove_redundant_cpath_update_nbr_inds!(cpath_nbr_cpath_indices, rsbcp_ind)
         remove_redundant_cpath_update_nbr_inds!(partial_conflicts, rsbcp_ind)
         remove_redundant_cpath_update_nbr_inds!(partial_conflict_transitions, rsbcp_ind)
-        delete!(cpaths_df, rsbcp_ind)
+        deleteat!(cpaths_df, rsbcp_ind)
     end
 
     return cpath_nbr_cpath_indices, partial_conflicts, partial_conflict_transitions#, cpath_sub_cpath_indices

@@ -95,7 +95,7 @@ function drop_random_dots!(pnts :: DataFrame, drop_rate)
     @assert drop_rate < 1
 
     to_drop = rand(length(pnts.x)) .≤ drop_rate
-    delete!(pnts, to_drop)
+    deleteat!(pnts, to_drop)
 end
 
 """

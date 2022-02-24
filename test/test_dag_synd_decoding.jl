@@ -143,7 +143,7 @@ println("full decode drops")
         n = length(cb[1,:])
 
         to_drop = rand(1:n , ntargets) + n*Array(0:(ntargets-1))
-        delete!(encoded, to_drop)
+        deleteat!(encoded, to_drop)
         g = encoded_2_dag!(encoded, cb, lat_thresh, z_thresh, ndrops)
         lat_thresh = 0.0
         z_thresh = 0.0

@@ -18,7 +18,7 @@ using DelimitedFiles
 using simulation_fncs
 using DataFrames
 using Profile
-using LightGraphs
+using Graphs
 
 rstdv = 0.01
 lat_thresh = 0.04
