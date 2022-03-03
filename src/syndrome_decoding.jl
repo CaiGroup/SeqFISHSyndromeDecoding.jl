@@ -58,14 +58,12 @@ function obj_function(cpath, pnts, cw_n, params)
 
     lat_var_cost = (var(pnts.x[cpath]) + var(pnts.y[cpath])) * lat_var_factor
     z_var_cost = var(pnts.z[cpath]) * z_var_factor
-    #lw_var_cost = var(log2.(pnts.w[cpath])) * lw_var_factor
-    w_var_cost = var(pnts.w[cpath])/mean(pnts.w[cpath]) * lw_var_factor
+    lw_var_cost = var(log2.(pnts.w[cpath])) * lw_var_factor
     s_var_cost = var(pnts.s[cpath]) * s_var_factor
 
     length(cpath) == cw_n ? erasure_cost = 0 : erasure_cost = length(cpath) * dot_erasure_penalty
 
-    #return lat_var_cost + z_var_cost + lw_var_cost + s_var_cost + erasure_cost
-    return lat_var_cost + z_var_cost + w_var_cost + s_var_cost + erasure_cost
+    return lat_var_cost + z_var_cost + lw_var_cost + s_var_cost + erasure_cost
 end
 
 """
