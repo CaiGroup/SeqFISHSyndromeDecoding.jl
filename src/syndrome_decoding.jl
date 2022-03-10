@@ -272,7 +272,7 @@ end
 Construct a dot adjacency graph where dots close to each other have directed
 edges pointing towards the dot representing an earlier symbor
 """
-function DotAdjacencyGraph(pnts :: DataFrame, lat_thresh :: Real, z_thresh :: Real, n, ndrops) #, q)
+function DotAdjacencyGraph(pnts :: DataFrame, lat_thresh :: Real, z_thresh :: Real, n, ndrops)
     g = SimpleDiGraph(nrow(pnts))
 
     # Find the indices of dots representing each place, cᵢ, in a codeword start.
@@ -294,7 +294,6 @@ end
 function get_cw_pos_bounds(pnts, n)
     cw_pos_bnds = [1]
     for cᵢ = 1:(n-1)
-        #if findfirst(x -> x>qm1*cᵢ, pnts.hyb) == nothing
         if findfirst(x -> x>cᵢ, pnts.pos) == nothing
             push!(cw_pos_bnds, length(pnts.hyb)+1)
         else
@@ -311,7 +310,6 @@ end
 
 Define SimpleDiGraph neighbors function for DotAdjacencyGraph
 """
-#neighbors(g :: DotAdjacencyGraph, n) = neighbors(g.g, n)
 function neighbors(g :: DotAdjacencyGraph, n)
     nbrs = inrange(g.trees[g.pnts.pos[n]], [g.pnts.x[n], g.pnts.y[n]], g.lat_thresh, true)
     pnts_prior_rnds = g.cw_pos_bnds[maximum([g.pnts.pos[n]-1-g.ndrops, 1])] - 1
@@ -345,7 +343,7 @@ function syndrome_find_message_paths!(pnts ::DataFrame,
                                       ndrops,
                                       cw_dict
                                       )
-    syndromes, syndrome_path_lengths, syndrome_coeff_positions = compute_syndromes(pnts, g)#, code)
+    syndromes, syndrome_path_lengths, syndrome_coeff_positions = compute_syndromes(pnts, g)
 
     cpaths, decode_cands = find_code_paths!(
                     g,
@@ -395,7 +393,7 @@ determine the size of syndrome component arrays to preallocate.
 """
 function find_nsnds(g :: DotAdjacencyGraph)
     n = g.n
-    n_pnts = nrow(g.pnts)#nv(g.g)
+    n_pnts = nrow(g.pnts)
     nsnds = fill(1,n_pnts)
 
     for bc_round in 0x02:g.n
@@ -522,7 +520,7 @@ function recursive_get_synd_neighbors(
     if synd_ind == 1
         cpath = Int[dot]
         sizehint!(cpath, g.n)
-        return cpath #Int[dot]
+        return cpath
     end
 
     #otherwise, get neighbor of the dot that produced the zero syndrome
@@ -748,7 +746,6 @@ function get_cpath_conflict_graph_remove_redundant_cpaths!(cpaths_df, ndots, n)
         sort!(nbr_cpath_indices)
         push!(cpath_nbr_cpath_indices, nbr_cpath_indices)
     end
-    #return cpath_nbr_cpath_indices, Vector{Int}[], Vector{Int}[]
 
     #check if cpath_sub_cpath_indices are redundant
     redundant_subcodepath_indices = []
@@ -765,11 +762,8 @@ function get_cpath_conflict_graph_remove_redundant_cpaths!(cpaths_df, ndots, n)
                     for k in dot_path_list[missing_dot] # for each index, k, of a cpath that passes through the missing dot
                         if isempty(cpaths[j] ∩ cpaths[k])
                             #ToDO: before supporting codes that allow for two drops, need to handle more cases here
-                            #println("Partial Conflict i: ", cpaths_df.cpath[i], ", j: ", cpaths_df.cpath[j])
                             push!(partial_conflicts[k], i)
-                            #println("Transition k: ", cpaths_df.cpath[k], ", j: ", cpaths_df.cpath[j])
                             push!(partial_conflict_transitions[k], j)
-                            #filter!(x -> x != i, cpath_nbr_cpath_indices[k])
                         end
                     end
                 end
