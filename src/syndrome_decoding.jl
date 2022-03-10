@@ -597,7 +597,6 @@ function remove_high_cost_cpaths(cpath_df :: DataFrame, free_dot_cost, n :: Int,
 
     # now remove code paths with erasures that are more costly than not score_decoding
     # their component dots.
-    #i = searchsorted(cpath_df.cost, (n-ndrops)*free_dot_cost).stop
     i = searchsorted(cpath_df.cost, (n-ndrops)*free_dot_cost).start
     n_erasure_paths_removed = 0
 
@@ -803,57 +802,9 @@ function get_cpath_conflict_graph_remove_redundant_cpaths!(cpaths_df, ndots, n)
     end
 
     return cpath_nbr_cpath_indices, partial_conflicts, partial_conflict_transitions#, cpath_sub_cpath_indices
-
-
-
-
-    #println("Neighbor Dictionary: ")
-    #println(cpath_neighbors_dict)
-    #println()
-    #=
-    #preallocate list of edges
-    edge_list = Edge[]
-    sizehint!(edge_list, nedges)
-
-    # get list of edges
-    for (cpath, nbr_dict) in enumerate(cpath_neighbors_dict)
-        for nbr in keys(nbr_dict)
-            if nbr_dict[nbr]
-                #println("found conflit between edge $cpath: ", cpaths[cpath], " and $nbr: ", cpaths[nbr])
-                push!(edge_list, Edge(cpath, nbr))
-            end
-        end
-    end=#
-
-
-    #edgelist = Edge[]
-    #sizehint!(edgelist, sum((dot_ncpaths.^2)))
-    #=
-    println("Building Adjacency Graph")
-
-    for i = 1:n_cpaths
-        for dt in cpaths[i]
-            for j in dot_path_list[dt]
-                #if (j, i) ∉ edgelist #edges(A)
-                #if (i, j) ∉ edges(A)
-                add_edge!(A, i, j)
-                #push!(edgelist, Edge(i, j))
-                #end
-            end
-            push!(dot_path_list[dt], i)
-        end
-    end
-    =#
-
-    #println("build graph from iterator")
-    #println(edge_list)
-    #A = SimpleGraphFromIterator(edge_list)
-
-
-    #return A, ccs
 end
 
-
+"""
 function get_cpath_conflict_graph_remove_redundant_cpaths_rA!(cpaths_df, ndots, n)# :: Vector{Vector{Int}})
     cpath_nbr_cpath_indices, partial_conflicts, partial_conflict_transitions = get_cpath_conflict_graph_remove_redundant_cpaths!(cpaths_df, ndots, n)
     ncpaths= length(cpath_nbr_cpath_indices)
@@ -864,6 +815,7 @@ function get_cpath_conflict_graph_remove_redundant_cpaths_rA!(cpaths_df, ndots, 
     end
     return A
 end
+"""
 
 function remove_redundant_cpath_update_nbr_inds!(nbr_array, redundant_codepath_ind)
     deleteat!(nbr_array, redundant_codepath_ind)
