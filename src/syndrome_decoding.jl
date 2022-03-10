@@ -3,9 +3,7 @@ using DataFrames
 using LightGraphs
 import LightGraphs.neighbors
 using NearestNeighbors
-#using Distributions
 using DataStructures
-#using Distributed
 using Statistics
 
 """
@@ -97,7 +95,6 @@ function get_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: Matrix, para
 
     check_inputs(pnts, cb, H, params)
 
-    #q = UInt8(length(unique(cb)))
     set_q(q)
     set_H(H)
     set_n(UInt8(n))
@@ -129,8 +126,6 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: M
 
     n = length(cb[1,:])
     ndots = nrow(pnts)
-    #len_cpath = length.(cpath_df[!, "cpath"])
-    #cpath_df = cpath_df[len_cpath .>= n - params.ndrops, !]
     filter!(:cpath => cpath -> length(cpath) >= n - params.ndrops, cpath_df)
     cost(cpath) = obj_function(cpath, pnts, n, params)
     pnts[!,"decoded"] = fill(0, nrow(pnts))
@@ -140,8 +135,6 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: M
     sort!(cpath_df, :cost)
     cpath_df = remove_high_cost_cpaths(cpath_df, params.free_dot_cost, n, params.ndrops)
     cpath_df = threshold_cpaths(cpath_df, pnts, params.lat_thresh, params.z_thresh)
-
-    #println("nrow(cpath_df): ", nrow(cpath_df))
 
     # build graph with by adding only edges in codepaths, and break into connected
     # components
@@ -158,8 +151,6 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: M
         cpath_df[cc, "cc"] .= cc_i
         cpath_df[cc, "cc_size"] .= length(cc)
         cc_cpath_df = cpath_df[cc,:]
-        #println("cc: ", cc_i)
-        #println("npaths: ", nrow(cc_cpath_df))
         if nrow(cc_cpath_df) > params.skip_thresh
             println("skip ", cc_i, " size ", length(cc))
             continue
@@ -283,7 +274,6 @@ edges pointing towards the dot representing an earlier symbor
 """
 function DotAdjacencyGraph(pnts :: DataFrame, lat_thresh :: Real, z_thresh :: Real, n, ndrops) #, q)
     g = SimpleDiGraph(nrow(pnts))
-    #tree = make_KDTree(pnts)
 
     # Find the indices of dots representing each place, cᵢ, in a codeword start.
     cw_pos_bnds = get_cw_pos_bounds(pnts, n)
@@ -691,7 +681,6 @@ of cpaths from the input cpaths_df that conflict with the cpath that has the
 same index in cpaths_df as the nested vector in cpath_nbr_cpath_indices
 """
 function get_cpath_conflict_graph_remove_redundant_cpaths!(cpaths_df, ndots, n)
-    #println("Building Adjacency Graph")
     cpaths = cpaths_df.cpath
     costs = cpaths_df.cost
     n_cpaths = length(cpaths)
@@ -762,7 +751,6 @@ function get_cpath_conflict_graph_remove_redundant_cpaths!(cpaths_df, ndots, n)
     #return cpath_nbr_cpath_indices, Vector{Int}[], Vector{Int}[]
 
     #check if cpath_sub_cpath_indices are redundant
-    #println("check if subpaths are redundant")
     redundant_subcodepath_indices = []
     partial_conflicts = [Int[] for i = 1:n_cpaths]
     partial_conflict_transitions = [Int[] for i = 1:n_cpaths]
@@ -772,8 +760,6 @@ function get_cpath_conflict_graph_remove_redundant_cpaths!(cpaths_df, ndots, n)
             if costs[j] > costs[i] && all([dot_path_list[missing_dot] ⊆ cpath_nbr_cpath_indices[j] for missing_dot in difference])
                 # the jth sub codepath is redundant, we can remove it.
                 push!(redundant_subcodepath_indices, j)
-                #println("j: $j, ", cpaths[j])
-                #println("i: $i, ", cpaths[i])
             else # find the dots that conflict with the whole path, but not some subpath, and the subpaths they do not conflict with
                 for missing_dot in difference
                     for k in dot_path_list[missing_dot] # for each index, k, of a cpath that passes through the missing dot
@@ -801,21 +787,9 @@ function get_cpath_conflict_graph_remove_redundant_cpaths!(cpaths_df, ndots, n)
         deleteat!(cpaths_df, rsbcp_ind)
     end
 
-    return cpath_nbr_cpath_indices, partial_conflicts, partial_conflict_transitions#, cpath_sub_cpath_indices
+    return cpath_nbr_cpath_indices, partial_conflicts, partial_conflict_transitions
 end
 
-"""
-function get_cpath_conflict_graph_remove_redundant_cpaths_rA!(cpaths_df, ndots, n)# :: Vector{Vector{Int}})
-    cpath_nbr_cpath_indices, partial_conflicts, partial_conflict_transitions = get_cpath_conflict_graph_remove_redundant_cpaths!(cpaths_df, ndots, n)
-    ncpaths= length(cpath_nbr_cpath_indices)
-
-    A = falses(ncpaths, ncpaths)
-    for i in 1:ncpaths, j in cpath_nbr_cpath_indices[i]
-        A[i,j] = 1
-    end
-    return A
-end
-"""
 
 function remove_redundant_cpath_update_nbr_inds!(nbr_array, redundant_codepath_ind)
     deleteat!(nbr_array, redundant_codepath_ind)
@@ -832,60 +806,4 @@ function remove_redundant_cpath_update_nbr_inds!(nbr_array, redundant_codepath_i
             end
         end
     end
-end
-
-function get_cpath_conflict_graph2(cpaths_in :: DataFrame, n, ndrops)# :: Vector{Vector{Int}})
-    #println("Building Adjacency Graph")
-    #println("cpaths:")
-    #println(cpaths)
-    cpaths = deepcopy(cpaths_in)
-    n_cpaths = nrow(cpaths)
-
-    println("n_cpaths: $n_cpaths")
-    A = SimpleGraph(n_cpaths)
-
-    cpaths["i"]= Array(1:n_cpaths)
-
-    start_dot_ind = 0
-    last_dot = 0
-    for i in 1:(n-ndrops)
-        sort!(cpaths, :cpath)
-        for (j, r) in enumerate(eachrow(cpaths))
-            #println("j: $j, r: $r")
-            #println(r.cpath)
-            dotj = popfirst!(r.cpath)
-            if dotj == last_dot
-                for k = start_dot_ind:j
-                    if (k,j) ∉ edges(A)
-                        add_edge!(A, k, j)
-                    end
-                end
-            else
-                last_dot = dotj
-                start_dot_ind = j
-            end
-        end
-    end
-
-end
-
-function get_cpath_conflict_graph_pairwise(cpaths)
-    #println("Building Adjacency Graph")
-    #println("cpaths:")
-    #println(cpaths)
-    n_cpaths = length(cpaths)
-    println("n_cpaths: $n_cpaths")
-    A = SimpleGraph(n_cpaths)
-
-    for i = 1:n_cpaths, j = (i+1):n_cpaths # ToDo: use smarter more efficient algorithm later
-        for dt in cpaths[i]
-            if dt in cpaths[j]
-                add_edge!(A, i, j)
-                break
-            end
-        end
-    end
-
-    println("Done building adjacency Graph")
-    return A
 end
