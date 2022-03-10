@@ -23,11 +23,11 @@ and runs simulated annealing to assign them. The pnts dataframe should have hybr
 """
 
 function decode_syndromes!(pnts :: DataFrame, cb, H :: Matrix, params :: DecodeParams)
-    println("start syndrome decoding")
+    #println("start syndrome decoding")
     cpath_df = get_codepaths(pnts, cb, H, params)
 
     if nrow(cpath_df) == 0
-        println("No viable code paths")
+        println("No viable barcodes")
         return
     end
 
@@ -143,7 +143,7 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: M
     cpath_df[!, "cc_size"] .= 0
 
     n_ccs = length(ccs)
-    println("n_ccs: ", n_ccs)
+    #println("n_ccs: ", n_ccs)
 
     mpaths = cpath_df[1:0, :]
     nmpaths = 0
@@ -183,7 +183,7 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: M
             end
         end
     end
-    println("found $nmpaths mpaths")
+    #println("found $nmpaths mpaths")
     mpaths
 end
 
