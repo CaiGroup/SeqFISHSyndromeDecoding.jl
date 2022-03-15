@@ -33,6 +33,12 @@ git-tree-sha1 = "9310d9495c1eb2e4fa1955dd478660e2ecab1fbb"
 uuid = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 version = "0.10.3"
 
+[[CSV]]
+deps = ["CodecZlib", "Dates", "FilePathsBase", "InlineStrings", "Mmap", "Parsers", "PooledArrays", "SentinelArrays", "Tables", "Unicode", "WeakRefStrings"]
+git-tree-sha1 = "49f14b6c56a2da47608fe30aed711b5882264d7a"
+uuid = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
+version = "0.9.11"
+
 [[Calculus]]
 deps = ["LinearAlgebra"]
 git-tree-sha1 = "f641eb0a4f00c343bbc32346e1217b86f3ce9dad"
@@ -231,6 +237,12 @@ git-tree-sha1 = "61feba885fac3a407465726d0c330b3055df897f"
 uuid = "842dd82b-1e85-43dc-bf29-5d0ee9dffc48"
 version = "1.1.2"
 
+[[InlineStrings]]
+deps = ["Parsers"]
+git-tree-sha1 = "8d70835a3759cdd75881426fced1508bb7b7e1b6"
+uuid = "842dd82b-1e85-43dc-bf29-5d0ee9dffc48"
+version = "1.1.1"
+
 [[InteractiveUtils]]
 deps = ["Markdown"]
 uuid = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
@@ -273,6 +285,14 @@ deps = ["Calculus", "DataStructures", "ForwardDiff", "LinearAlgebra", "MathOptIn
 git-tree-sha1 = "c48de82c5440b34555cb60f3628ebfb9ab3dc5ef"
 uuid = "4076af6c-e467-56ae-b986-b466b2749572"
 version = "0.23.2"
+
+[[LibCURL]]
+deps = ["LibCURL_jll", "MozillaCACerts_jll"]
+uuid = "b27032c2-a3e7-50c8-80cd-2d36dbcbfd21"
+
+[[LibCURL_jll]]
+deps = ["Artifacts", "LibSSH2_jll", "Libdl", "MbedTLS_jll", "Zlib_jll", "nghttp2_jll"]
+uuid = "deac9b47-8bc7-5906-a0fe-35ac56dc84c0"
 
 [[LibCURL]]
 deps = ["LibCURL_jll", "MozillaCACerts_jll"]

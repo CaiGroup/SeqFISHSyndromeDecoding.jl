@@ -6,6 +6,6 @@ Julia package for decoding SeqFISH experiments using syndrome decoding. To insta
 
 then type:
 
-add "https://github.com/CaiGroup/SeqFISHSyndromeDecoding"
+<pre> <code> add "https://github.com/CaiGroup/SeqFISHSyndromeDecoding" </code> </pre>
 
 and press enter. Exit the Julia package manager by pressing the delete key
