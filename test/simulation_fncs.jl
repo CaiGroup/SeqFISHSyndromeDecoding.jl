@@ -143,8 +143,8 @@ end
     add_localization_errors(pnts :: DataFrame, x_errors, y_errors)
 """
 function add_localization_errors!(pnts :: DataFrame, x_errors, y_errors)
-    pnts.x .+= x_errors
-    pnts.y .+= y_errors
+    pnts[:,"x"] .= pnts[:,"x"] + x_errors
+    pnts[:,"y"] .= pnts[:,"y"] + y_errors
 end
 
 """

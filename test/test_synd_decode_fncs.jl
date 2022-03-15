@@ -4,7 +4,7 @@ make_cw_dict, get_cw_pos_inds, add_code_cols!, compute_syndromes, neighbors
 
 using DelimitedFiles
 using Test
-using LightGraphs: nv, ne
+using Graphs: nv, ne
 using DataFrames
 
 q20_cb = readdlm("Eng2019_647.csv", ',', UInt8)

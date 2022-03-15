@@ -1,5 +1,3 @@
-
-
 using JuMP
 using GLPK
 

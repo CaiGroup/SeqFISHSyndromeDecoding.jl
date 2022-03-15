@@ -2,7 +2,7 @@ include("simulation_fncs.jl")
 
 using DelimitedFiles
 using SeqFISHSyndromeDecoding: DotAdjacencyGraph, syndrome_find_message_paths!, add_code_cols!
-using LightGraphs
+using Graphs
 using SeqFISHSyndromeDecoding
 
 q20_cb = readdlm("Eng2019_647.csv", ',', UInt8)

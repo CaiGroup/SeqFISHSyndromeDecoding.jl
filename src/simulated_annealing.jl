@@ -1,10 +1,8 @@
 using DataFrames
 using DataStructures
-#using Distributions
 using Statistics: var
-#using SparseArrays
 using LinearAlgebra
-using LightGraphs
+using Graphs
 
 include("search_fenwick_tree.jl")
 

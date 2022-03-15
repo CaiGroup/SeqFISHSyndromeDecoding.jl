@@ -1,7 +1,7 @@
 using DelimitedFiles
 using DataFrames
-using LightGraphs
-import LightGraphs.neighbors
+using Graphs
+import Graphs.neighbors
 using NearestNeighbors
 using DataStructures
 using Statistics
