@@ -442,7 +442,7 @@ function compute_syndromes(pnts :: DataFrame, g :: DotAdjacencyGraph)
 
         # for each dot representing a candidate coefficient
         for dot in cw_pos_inds
-            synd_ind = cw_pos < (1 + g.ndrops) ? 2 : 1
+            synd_ind = cw_pos <= (1 + g.ndrops) ? 2 : 1
 
             # get neighbors of that dot
             for neighbor in neighbors(g, dot)
@@ -556,16 +556,20 @@ function find_code_paths!(
                 ndots = get_number_of_dots(path_barcoding_rounds, cw_n_symbols)
                 if ndots >= cw_n_symbols - ndrops && ndots < cw_n_symbols
                     s = syndromes[dot_ind][synd_ind]
-                    dot_pos_sum = syndrome_coeff_positions[dot_ind][synd_ind]
+                    #dot_pos_sum = syndrome_coeff_positions[dot_ind][synd_ind]
 
                     # use bitwise masking to get the position of the missing dot
                     # positions are bitwise "one-hot" encoded from sums of powers of 2
-                    drop_pos_pow = dot_pos_sum ⊻ full_bin_pos_indicator
+                    drop_pos_pow = path_barcoding_rounds ⊻ full_bin_pos_indicator
                     if drop_pos_pow > 32
                         println("dot_pos_sum: $dot_pos_sum")
                     end
 
                     result = check_mpath_decodable(drop_pos_pow, s)
+                    println("ndots: $ndots")
+                    println("synd_ind: $synd_ind")
+                    println("result: $result")
+                    println("path_barcoding_rounds: $path_barcoding_rounds")
 
                     if result.decodable
                         println("")
@@ -604,7 +608,8 @@ Helper function to get number of dots in path using bitwise operations
 function get_number_of_dots(pos_indicator, n_barcoding_rounds)
     ndots = 0
     for r in 1:n_barcoding_rounds
-        ndots += (2^(r-1)) & pos_indicator
+        bc_round_has_dot = (((2^(r-1)) & pos_indicator) > 0)
+        ndots += bc_round_has_dot
     end
     return ndots
 end
