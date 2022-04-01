@@ -442,7 +442,7 @@ function compute_syndromes(pnts :: DataFrame, g :: DotAdjacencyGraph)
 
         # for each dot representing a candidate coefficient
         for dot in cw_pos_inds
-            synd_ind = 2
+            synd_ind = cw_pos < (1 + g.ndrops) ? 2 : 1
 
             # get neighbors of that dot
             for neighbor in neighbors(g, dot)
@@ -466,7 +466,11 @@ determine the size of syndrome component arrays to preallocate.
 function find_nsnds(g :: DotAdjacencyGraph)
     n = g.n
     n_pnts = nrow(g.pnts)
-    nsnds = fill(1,n_pnts)
+    #nsnds = fill(1,n_pnts)
+    nsnds = fill(0,n_pnts)
+    nsnds[1:(g.cw_pos_bnds[2+g.ndrops]-1)] .= 1
+    println("nsnds init: $nsnds")
+
 
     for bc_round in 0x02:g.n
         for pnt in g.cw_pos_bnds[bc_round]:(g.cw_pos_bnds[bc_round+0x01]-1)
@@ -476,6 +480,7 @@ function find_nsnds(g :: DotAdjacencyGraph)
             end
         end
     end
+    println("nsnds: $nsnds")
     nsnds
 end
 
@@ -537,44 +542,71 @@ function find_code_paths!(
     end
 
     for dot_ind in 1:nrow(pnts)
-        for (synd_ind, path_length) in enumerate(syndrome_path_lengths[dot_ind])
-            if path_length == cw_n_symbols && iszero(syndromes[dot_ind][synd_ind])
+        #for (synd_ind, path_length) in enumerate(syndrome_path_lengths[dot_ind])
+        for (synd_ind, path_barcoding_rounds) in enumerate(syndrome_coeff_positions[dot_ind])
+            if path_barcoding_rounds == full_bin_pos_indicator && iszero(syndromes[dot_ind][synd_ind])
                 code_path = recursive_get_synd_neighbors(pnts, g, dot_ind, synd_ind, syndromes)
+                @assert length(code_path) == (length(g.cw_pos_bnds) -1)
                 message = pnts.coeff[code_path]
                 if message in keys(cw_dict)
                     push!(cpaths, code_path)
                     push!(decode_cands, cw_dict[message])
                 end
-            elseif path_length >= cw_n_symbols - ndrops && path_length < cw_n_symbols
-                s = syndromes[dot_ind][synd_ind]
-                dot_pos_sum = syndrome_coeff_positions[dot_ind][synd_ind]
+            else
+                ndots = get_number_of_dots(path_barcoding_rounds, cw_n_symbols)
+                if ndots >= cw_n_symbols - ndrops && ndots < cw_n_symbols
+                    s = syndromes[dot_ind][synd_ind]
+                    dot_pos_sum = syndrome_coeff_positions[dot_ind][synd_ind]
 
-                # use bitwise masking to get the position of the missing dot
-                # positions are bitwise "one-hot" encoded from sums of powers of 2
-                drop_pos_pow = dot_pos_sum ⊻ full_bin_pos_indicator
-                if drop_pos_pow > 32
-                    println("dot_pos_sum: $dot_pos_sum")
-                end
+                    # use bitwise masking to get the position of the missing dot
+                    # positions are bitwise "one-hot" encoded from sums of powers of 2
+                    drop_pos_pow = dot_pos_sum ⊻ full_bin_pos_indicator
+                    if drop_pos_pow > 32
+                        println("dot_pos_sum: $dot_pos_sum")
+                    end
 
-                result = check_mpath_decodable(drop_pos_pow, s)
+                    result = check_mpath_decodable(drop_pos_pow, s)
 
-                if result.decodable
-                    code_path = recursive_get_synd_neighbors(pnts, g, dot_ind, synd_ind, syndromes)
-                    message = pnts.coeff[code_path]
-                    #convert drop_pos to standard integer format
-                    drop_pos = UInt8(log2(drop_pos_pow)) + 0x01
-
-                    insert!(message, drop_pos, result.coeff)
-                    if message in keys(cw_dict)
-                    # add imperfect codeword
-                        push!(cpaths, code_path)
-                        push!(decode_cands, cw_dict[message])
+                    if result.decodable
+                        println("")
+                        println("syndromes[dot_ind]: ", syndromes[dot_ind])
+                        println("synd_ind: $synd_ind")
+                        println("pnts:")
+                        println(pnts)
+                        code_path = recursive_get_synd_neighbors(pnts, g, dot_ind, synd_ind, syndromes)
+                        println("code_path: $code_path")
+                        println("g.cw_pos_bnds: ", g.cw_pos_bnds)
+                        println("g.ndrops: ", g.ndrops)
+                        @assert length(code_path) >= (length(g.cw_pos_bnds) -1 - g.ndrops)
+                        message = pnts.coeff[code_path]
+                        #convert drop_pos to standard integer format
+                        drop_pos = UInt8(log2(drop_pos_pow)) + 0x01
+                        println("message: ", message)
+                        println("drop_pos: $drop_pos")
+                        println("result.coeff(): ", result.coeff)
+                        insert!(message, drop_pos, result.coeff)
+                        if message in keys(cw_dict)
+                        # add imperfect codeword
+                            push!(cpaths, code_path)
+                            push!(decode_cands, cw_dict[message])
+                        end
                     end
                 end
             end
         end
     end
     return cpaths, decode_cands
+end
+
+"""
+Helper function to get number of dots in path using bitwise operations
+"""
+function get_number_of_dots(pos_indicator, n_barcoding_rounds)
+    ndots = 0
+    for r in 1:n_barcoding_rounds
+        ndots += (2^(r-1)) & pos_indicator
+    end
+    return ndots
 end
 
 """
@@ -585,21 +617,29 @@ function recursive_get_synd_neighbors(
      g :: DotAdjacencyGraph,
      dot :: Int,
      synd_ind :: Int,
-     syndromes
+     syndromes,
+     recursion_depth  = 1:: Int
      )
 
+    println("recursion_depth: $recursion_depth")
     # if this is the last dot in the message, return number of dot in an array
-    if synd_ind == 1
+    if synd_ind == 1 && dot < g.cw_pos_bnds[2+g.ndrops] && recursion_depth >= (length(g.cw_pos_bnds)-1-g.ndrops)
+        println("synd_ind: $synd_ind")
+        println("dot: $dot")
+        println("g.cw_pos_bnds[2+g.ndrops]: ", g.cw_pos_bnds[2+g.ndrops])
+        
         cpath = Int[dot]
         sizehint!(cpath, g.n)
         return cpath
     end
 
     #otherwise, get neighbor of the dot that produced the zero syndrome
+    println("dot $dot, synd_ind: $synd_ind")
+    println("length(syndromes[dot]): ", length(syndromes[dot]))
     neighbor, neighbor_synd_ind = get_synd_neighbor(pnts, g, dot, synd_ind, syndromes)
 
     # Add result to recursively defined array, and return
-    push!(recursive_get_synd_neighbors(pnts, g, neighbor, neighbor_synd_ind, syndromes), dot)
+    push!(recursive_get_synd_neighbors(pnts, g, neighbor, neighbor_synd_ind, syndromes, recursion_depth+1), dot)
 end
 
 """
@@ -613,26 +653,41 @@ function get_synd_neighbor(
     syndromes
     )
 
-    @assert synd_ind != 1
+    #@assert synd_ind != 1
 
     # keep track of number of syndromes from the dot that have been searched through
-    cum_n_syndromes = 1
+    #cum_n_syndromes = 1
+    println("dot: $dot, g.cw_pos_bnds[2+g.ndrops]: ", g.cw_pos_bnds[2+g.ndrops])
+    if dot < g.cw_pos_bnds[2+g.ndrops]
+        cum_n_syndromes = 1
+    else
+        cum_n_syndromes = 0
+    end
+    println("init cum_n_syndromes: $cum_n_syndromes")
+    #cum_n_syndromes = dot < g.cw_pos_bnds[2+g.ndrops] ? 1 : 0
 
     #for each neighbor
     dot_neighbors = neighbors(g, dot)
+    println("dot_neighbors: $dot_neighbors")
     for neighbor in dot_neighbors
         # move the index tracker to the index just past the end of where syndrome
         # components from this neighbor are stored.
+        println("length(syndromes[neighbor]): ", length(syndromes[neighbor]))
         cum_n_syndromes += length(syndromes[neighbor])
 
         #if the syndrome includes a component from this particular neighbor
         if synd_ind <= cum_n_syndromes
 
             # find the index of the neighbors syndrome component of interest
+            println("cum_n_syndromes: $cum_n_syndromes")
+            println("synd_ind: $synd_ind")
+            println("syndromes[neighbor]: ", syndromes[neighbor])
             neighbor_synd_ind = synd_ind - cum_n_syndromes + length(syndromes[neighbor])
+            println("neighbor_synd_ind: $neighbor_synd_ind")
             return [neighbor, neighbor_synd_ind]
         end
     end
+    error("We shouldn't have gotten here!")
 end
 
 """
