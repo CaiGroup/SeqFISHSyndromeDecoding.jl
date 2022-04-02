@@ -1,6 +1,6 @@
 using SeqFISHSyndromeDecoding
 using SeqFISHSyndromeDecoding: syndrome_find_message_paths!, DotAdjacencyGraph,
-make_cw_dict, get_cw_pos_inds, add_code_cols!, compute_syndromes, neighbors
+make_cw_dict, get_cw_pos_inds, add_code_cols!, compute_syndromes, neighbors, get_number_of_dots
 
 using DelimitedFiles
 using Test
@@ -150,10 +150,13 @@ function test_compute_syndromes(ntargets :: Int64, cb, ndrops)
     lat_thresh = 0.0
     z_thresh = 0.0
     pnts, g = construct_test_dag(ntargets, rstdv, lat_thresh, z_thresh, cb, ndrops)
-    syndromes, syndrome_path_length, syndrome_coeff_positions = compute_syndromes(pnts, g)
+    syndromes, syndrome_coeff_positions = compute_syndromes(pnts, g)
     final_pos_dots = get_cw_pos_inds(g, n)
     fpd_sndrs = syndromes[final_pos_dots]
-    fpd_pth_lns = syndrome_path_length[final_pos_dots]
+    ncws, npseudocolors = size(cb)
+    println(npseudocolors)
+    fpd_pth_lns = get_number_of_dots.(syndrome_coeff_positions[final_pos_dots], fill(npseudocolors, length(syndrome_coeff_positions[final_pos_dots])))
+    
     full_path_sums = []
     for i = eachindex(fpd_sndrs)
         full_len_paths = fpd_sndrs[i][fpd_pth_lns[i] .== UInt8(n)]

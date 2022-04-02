@@ -128,14 +128,11 @@ println("full decode perfect")
     end
 end
 
-
-
 println("full decode drops")
 @testset "full decode drops" begin
     for (i, cb) in enumerate(cbs), ntargets in [1, 2, 10, 100]
         H = pc_matrices[i]
         ndrops = 1
-
 
         encoded = construct_test_encoding(ntargets, cb)
         lat_thresh = 0.0
@@ -144,7 +141,6 @@ println("full decode drops")
 
         to_drop = rand(1:n , ntargets) + n*Array(0:(ntargets-1))
         deleteat!(encoded, to_drop)
-        g = encoded_2_dag!(encoded, cb, lat_thresh, z_thresh, ndrops)
         lat_thresh = 0.0
         z_thresh = 0.0
         free_dot_energy = 5.0

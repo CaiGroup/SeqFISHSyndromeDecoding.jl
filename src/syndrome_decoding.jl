@@ -417,14 +417,13 @@ function syndrome_find_message_paths!(pnts ::DataFrame,
                                       ndrops,
                                       cw_dict
                                       )
-    syndromes, syndrome_path_lengths, syndrome_coeff_positions = compute_syndromes(pnts, g)
+    syndromes, syndrome_coeff_positions = compute_syndromes(pnts, g)
 
     cpaths, decode_cands = find_code_paths!(
                     g,
                     pnts,
                     cw_dict,
                     syndromes,
-                    syndrome_path_lengths,
                     syndrome_coeff_positions,
                     ndrops
                     )
@@ -437,7 +436,7 @@ end
 Calculate the syndromes for paths in the message dag
 """
 function compute_syndromes(pnts :: DataFrame, g :: DotAdjacencyGraph)
-    syndromes, syndrome_path_length, syndrome_coeff_positions = init_syndromes(pnts, g)
+    syndromes, syndrome_coeff_positions = init_syndromes(pnts, g)
 
     for cw_pos in 1:g.n
         cw_pos_inds = get_cw_pos_inds(g, cw_pos)
@@ -450,13 +449,12 @@ function compute_syndromes(pnts :: DataFrame, g :: DotAdjacencyGraph)
             for neighbor in neighbors(g, dot)
                 @inbounds end_ind = synd_ind+length(syndromes[neighbor])-1
                 @inbounds syndromes[dot][synd_ind:end_ind] += syndromes[neighbor]
-                @inbounds syndrome_path_length[dot][synd_ind:end_ind] += syndrome_path_length[neighbor]
                 @inbounds syndrome_coeff_positions[dot][synd_ind:end_ind] += syndrome_coeff_positions[neighbor]
                 synd_ind = end_ind + 1
             end
         end
     end
-    return syndromes, syndrome_path_length, syndrome_coeff_positions
+    return syndromes, syndrome_coeff_positions
 end
 
 """
@@ -493,16 +491,14 @@ function init_syndromes(pnts :: DataFrame, g :: DotAdjacencyGraph)
     # initialize each syndrome partial sum with the contribution from each dot
     nsnds = find_nsnds(g)
     syndromes = Vector{Vector{SyndromeComponent}}()
-    syndrome_path_length = Vector{Vector{UInt8}}()
     syndrome_coeff_positions = Vector{Vector{UInt8}}()
     sizehint!(syndromes, nv(g.g))
     for (pnt, sc) in enumerate(pnts.sc)
         push!(syndromes, fill(sc, nsnds[pnt]))
-        push!(syndrome_path_length, fill(0x01, nsnds[pnt]))
         pos_pow = UInt8(0x02 ^ (pnts.pos[pnt] - 0x01))
         push!(syndrome_coeff_positions, fill(pos_pow, nsnds[pnt]))
     end
-    (syndromes, syndrome_path_length, syndrome_coeff_positions)
+    (syndromes, syndrome_coeff_positions)
 end
 
 """
@@ -524,7 +520,6 @@ function find_code_paths!(
                          pnts :: DataFrame,
                          cw_dict :: Dict,
                          syndromes,
-                         syndrome_path_lengths :: Vector{Vector{UInt8}},
                          syndrome_coeff_positions :: Vector{Vector{UInt8}},
                          ndrops
                          )
@@ -618,7 +613,7 @@ function recursive_get_synd_neighbors(
     end
 
     #otherwise, get neighbor of the dot that produced the zero syndrome
-    neighbor, neighbor_synd_ind = get_synd_neighbor(pnts, g, dot, synd_ind, syndromes)
+    neighbor, neighbor_synd_ind = get_synd_neighbor(g, dot, synd_ind, syndromes)
 
     # Add result to recursively defined array, and return
     push!(recursive_get_synd_neighbors(pnts, g, neighbor, neighbor_synd_ind, syndromes, recursion_depth+1), dot)
@@ -628,7 +623,6 @@ end
 Helper Function used to trace back groups of dots that produce zero syndrome, and therefore are codewords
 """
 function get_synd_neighbor(
-    pnts :: DataFrame,
     g :: DotAdjacencyGraph,
     dot :: Int,
     synd_ind :: Int,
