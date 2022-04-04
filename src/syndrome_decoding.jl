@@ -5,6 +5,7 @@ import Graphs.neighbors
 using NearestNeighbors
 using DataStructures
 using Statistics
+using Clustering
 
 """
     decode_syndromes!(
@@ -137,7 +138,7 @@ of not decoding their component dots, and
 and returns DataFrame of candidate codepaths.
 """
 function get_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: Matrix, params :: DecodeParams)
-    sort!(pnts, :hyb)
+    
     cb_dict = make_cw_dict(cb)
     alphabet = sort(unique(cb))
     q = UInt8(length(alphabet))
@@ -152,17 +153,36 @@ function get_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: Matrix, para
         get_decode_table()
     end
 
-    add_code_cols!(pnts)
-    g = DotAdjacencyGraph(pnts, params.lat_thresh, params.z_thresh, n, params.ndrops)
+    #break into clusters
+    if nrow(pnts) > 3
+        pnts_mat = Array([pnts.x pnts.y pnts.z]')
+        dbr = dbscan(pnts_mat, params.lat_thresh, min_neighbors=1, min_cluster_size=n-params.ndrops)
+        dbscan_clusters = [sort(vcat(dbc.core_indices,  dbc.boundary_indices)) for dbc in dbr]
+    elseif nrow(pnts) == 3
+        dbscan_clusters = [[1,2,3]]
+    else
+        dbscan_clusters = []
+    end
 
-    cost(cpath) = obj_function(cpath, pnts, n, params)
-    code_paths, gene_nums = syndrome_find_message_paths!(pnts, g, cb, params.ndrops)
-    costs = cost.(code_paths)
-    cpath_df = DataFrame(cpath = code_paths, cost = costs, gene_number = gene_nums)
-    sort!(cpath_df, :cost)
-    cpath_df = remove_high_cost_cpaths(cpath_df, params.free_dot_cost, n, params.ndrops)
-    cpath_df = threshold_cpaths(cpath_df, pnts, params.lat_thresh, params.z_thresh)
+    find_cluster_cpaths = function(dbscan_cluster)
+        clust_pnts = pnts[dbscan_cluster, :]
+        sort!(clust_pnts, :hyb)
+        add_code_cols!(clust_pnts)
+        g = DotAdjacencyGraph(clust_pnts, params.lat_thresh, params.z_thresh, n, params.ndrops)
 
+        cost(cpath) = obj_function(cpath, clust_pnts, n, params)
+        code_paths, gene_nums = syndrome_find_message_paths!(clust_pnts, g, cb, params.ndrops)
+        costs = cost.(code_paths)
+
+        cpath_df = DataFrame(cpath = code_paths, cost = costs, gene_number = gene_nums)
+        sort!(cpath_df, :cost)
+        cpath_df = remove_high_cost_cpaths(cpath_df, params.free_dot_cost, n, params.ndrops)
+        cpath_df = threshold_cpaths(cpath_df, clust_pnts, params.lat_thresh, params.z_thresh)
+        replace!.(i->dbscan_cluster[i], cpath_df.cpath)
+        return cpath_df
+    end
+
+    cpath_df = vcat(map(find_cluster_cpaths, dbscan_clusters)...)
     return cpath_df
 end
 
