@@ -155,11 +155,11 @@ function test_compute_syndromes(ntargets :: Int64, cb, ndrops)
     fpd_sndrs = syndromes[final_pos_dots]
     ncws, npseudocolors = size(cb)
     println(npseudocolors)
-    fpd_pth_lns = get_number_of_dots.(syndrome_coeff_positions[final_pos_dots], fill(npseudocolors, length(syndrome_coeff_positions[final_pos_dots])))
-    
+    fpd_pth_lns = [get_number_of_dots(p[1], npseudocolors) for p in syndrome_coeff_positions[final_pos_dots]]
+
     full_path_sums = []
     for i = eachindex(fpd_sndrs)
-        full_len_paths = fpd_sndrs[i][fpd_pth_lns[i] .== UInt8(n)]
+        full_len_paths = [fpd_sndrs[i][j] for j in 1:length(fpd_sndrs[i]) if fpd_pth_lns[i][j] == UInt8(n)]
         push!(full_path_sums, full_len_paths)
     end
     @test all(iszero.(full_path_sums))
