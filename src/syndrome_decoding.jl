@@ -252,10 +252,7 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: M
         cpath_df[cc, "cc"] .= cc_i
         cpath_df[cc, "cc_size"] .= length(cc)
         cc_cpath_df = cpath_df[cc,:]
-        if nrow(cc_cpath_df) > params.skip_thresh
-            #println("skip ", cc_i, " size ", length(cc))
-            continue
-        end
+        area = (maximum(cc_cpath_df[:,"x"]) - minimum(cc_cpath_df.x))*(maximum(cc_cpath_df.y) - minimum(cc_cpath_df.y))
 
         ndots_cc = length(cc)
         if nrow(cc_cpath_df) == 1
@@ -264,8 +261,13 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: M
         elseif nrow(cc_cpath_df) == 2
             costs = cc_cpath_df[!,"cost"]
             low_cost_state = (costs .== minimum(costs))
+        elseif nrow(cc_cpath_df)/area > params.skip_thresh
+            #println("skip ", cc_i, " size ", length(cc))
+            continue
         else
             cpath_nbrs, cpath_partial_conflicts, cpath_partial_conflict_transitions = get_cpath_conflict_graph_remove_redundant_cpaths!(cc_cpath_df, ndots, n)
+           
+            # get heuristic start point?
             if nrow(cc_cpath_df) < params.mip_sa_thresh
                 low_cost_state = MIP_solve(cc_cpath_df, cpath_nbrs)
             else
