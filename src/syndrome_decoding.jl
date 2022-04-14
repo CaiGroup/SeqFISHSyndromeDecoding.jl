@@ -250,6 +250,7 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: M
     #println("n_ccs: ", n_ccs)
 
     mpaths = cpath_df[1:0, :]
+    dense_cpaths = cpath_df[1:0, :]
     nmpaths = 0
     for (cc_i, cc) in enumerate(ccs)
         cpath_df[cc, "cc"] .= cc_i
@@ -265,7 +266,8 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: M
             costs = cc_cpath_df[!,"cost"]
             low_cost_state = (costs .== minimum(costs))
         elseif nrow(cc_cpath_df)/area > params.skip_thresh
-            #println("skip ", cc_i, " size ", length(cc))
+            println("skip ", cc_i, " size ", length(cc), " area: $area")
+            append!(dense_cpaths, cc_cpath_df)
             continue
         else
             cpath_nbrs, cpath_partial_conflicts, cpath_partial_conflict_transitions = get_cpath_conflict_graph_remove_redundant_cpaths!(cc_cpath_df, ndots, n)
@@ -290,7 +292,7 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: M
         end
     end
     #println("found $nmpaths mpaths")
-    mpaths
+    return mpaths, dense_cpaths
 end
 
 
