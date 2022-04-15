@@ -217,13 +217,18 @@ Choose best codepaths from previouly found candidates that may have been found w
 to the passed parameters.
 
 """
-function choose_optimal_codepaths(pnts :: DataFrame, cb_df :: DataFrame, H :: Matrix, params :: DecodeParams, cpath_df :: DataFrame)
+function choose_optimal_codepaths(pnts :: DataFrame, cb_df :: DataFrame, H :: Matrix, params :: DecodeParams, cpath_df :: DataFrame; ret_discarded :: Bool=false)
     cb = Matrix(UInt8.(cb_df[!, 2:end]))
     gene = cb_df[!, 1]
     gene_number = Array(1:length(gene))
-    decoded = choose_optimal_codepaths(pnts, cb, H, params, cpath_df)
+    decoded, discarded_cpaths = choose_optimal_codepaths(pnts, cb, H, params, cpath_df)
     gene_df = DataFrame("gene_name" => gene, "gene_number" => gene_number)
     decoded_joined = rightjoin(gene_df, decoded, on=:gene_number)
+    if ret_discarded
+        return decoded_joined, discarded_cpaths
+    else
+        return decoded_joined
+    end
 end
 
 function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: Matrix, params :: DecodeParams, cpath_df :: DataFrame)
@@ -265,7 +270,7 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: M
         elseif nrow(cc_cpath_df) == 2
             costs = cc_cpath_df[!,"cost"]
             low_cost_state = (costs .== minimum(costs))
-        elseif nrow(cc_cpath_df)/area > params.skip_thresh
+        elseif nrow(cc_cpath_df)/area > params.skip_thresh && nrow(cc_cpath_df) > params.skip_density_thresh
             println("skip ", cc_i, " size ", length(cc), " area: $area")
             append!(dense_cpaths, cc_cpath_df)
             continue

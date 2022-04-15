@@ -20,6 +20,7 @@ mutable struct DecodeParams
     erasure_penalty :: Float64
     converge_multiplier :: Int64
     skip_thresh :: Int64
+    skip_density_thresh :: Float64
 end
 
 
@@ -43,6 +44,7 @@ function DecodeParams()
     set_erasure_penalty(prms, 4.0)
     set_converge_multiplier(prms, 10000)
     set_skip_thresh(prms, 2000)
+    set_skip_density_thresh(prms, 50)
     return prms
 end
 
@@ -144,6 +146,16 @@ Arguments:
     -`st`: conflicting networks of barcode candidates containing more barcode candidates than this threshold will be discarded.
 """
 set_skip_thresh(prms :: DecodeParams, st :: Integer) = (prms.skip_thresh = st)
+
+"""
+    set_skip_density_thresh(prms :: DecodeParams, sdt :: Real)
+
+Arguments:
+    -`prms`: DecodeParams Object
+    -`sdt`: conflicting networks of barcode candidates that have a higher ratio of candidate barcodes to area of their bounding box in pixels than this threshold will be discarded.
+"""
+set_skip_density_thresh(prms :: DecodeParams, sdt :: Real) = (prms.skip_density_thresh = Float64(sdt))
+
 
 # Simulated Annealing Parameters
 
