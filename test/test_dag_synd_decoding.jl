@@ -105,6 +105,7 @@ println("full decode perfect")
         erasure_penalty = 4.0
         converge_thresh = 100 * ndots
         skip_thresh = 2000
+        skip_density_thresh = 2000
         params = DecodeParams(
             lat_thresh,
             z_thresh,
@@ -121,7 +122,8 @@ println("full decode perfect")
             (c₀/c_final-1)/log(n_chains),
             erasure_penalty,
             converge_thresh,
-            skip_thresh
+            skip_thresh,
+            skip_density_thresh
         )
         decode_syndromes!(pnts, cb, H, params)
         @test pnts.species == [Int(p) for p in pnts.decoded]
@@ -160,6 +162,7 @@ println("full decode drops")
         erasure_penalty = 4.0
         converge_thresh = 100 * ndots
         skip_thresh = 2000
+        skip_density_thresh=2000
         params = DecodeParams(
             lat_thresh,
             z_thresh,
@@ -176,7 +179,8 @@ println("full decode drops")
             (c₀/c_final-1)/log(n_chains),
             erasure_penalty,
             converge_thresh,
-            skip_thresh
+            skip_thresh,
+            skip_density_thresh
         )
         decode_syndromes!(encoded, cb, H, params)
         @test encoded.species == encoded.decoded

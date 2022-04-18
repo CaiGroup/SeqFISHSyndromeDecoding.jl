@@ -154,7 +154,6 @@ function test_compute_syndromes(ntargets :: Int64, cb, ndrops)
     final_pos_dots = get_cw_pos_inds(g, n)
     fpd_sndrs = syndromes[final_pos_dots]
     ncws, npseudocolors = size(cb)
-    println(npseudocolors)
     fpd_pth_lns = [get_number_of_dots(p[1], npseudocolors) for p in syndrome_coeff_positions[final_pos_dots]]
 
     full_path_sums = []
