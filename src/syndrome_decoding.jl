@@ -190,6 +190,7 @@ function get_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: Matrix, para
         cpath_df = threshold_cpaths(cpath_df, clust_pnts, params.lat_thresh, params.z_thresh)
         cpath_df[!,"x"] = mean.([clust_pnts.x[cpath] for cpath in cpath_df.cpath])
         cpath_df[!,"y"] = mean.([clust_pnts.y[cpath] for cpath in cpath_df.cpath])
+        cpath_df[!,"z"] = mean.([clust_pnts.z[cpath] for cpath in cpath_df.cpath])
         replace!.(i->dbscan_cluster[i], cpath_df.cpath)
         
         return cpath_df
