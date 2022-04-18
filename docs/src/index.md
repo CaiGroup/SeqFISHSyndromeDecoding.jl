@@ -58,6 +58,7 @@ set_erasure_penalty
 set_free_dot_cost
 set_mip_sa_thresh
 set_skip_thresh
+set_skip_density_thresh
 ```
 
 Simulated Annealing Parameters:

@@ -134,8 +134,18 @@ end
     get_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: Matrix, params :: DecodeParams)
 
 Computes codepaths with syndrome decoding, removes codepaths that exceed the cost
-of not decoding their component dots, and
-and returns DataFrame of candidate codepaths.
+of not decoding their component dots, and returns DataFrame of candidate codepaths.
+
+Arguments
+- `pnts`: DataFrame of seqFISH psfs. Must include columns:
+	- `x` : x spatial coordinate of psfs
+	- `y` : y spatial coordinate of psfs
+    - `z` : z spatial coordinate of psfs
+	- `s` : the sigma width parameter of the psfs
+    - `w` : the weight (or brightness) of the psfs
+- `cb` : The codebook.
+- `H` : The parity check Matrix
+- `params` : DecodeParams object holding the parameters for decoding    
 """
 function get_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: Matrix, params :: DecodeParams)
     
@@ -195,7 +205,7 @@ end
     choose_optimal_codepaths(pnts :: DataFrame, cb_df :: DataFrame, H :: Matrix, params :: DecodeParams, cpath_df :: DataFrame)
 
 Arguments
-    - `pnts`: DataFrame of seqFISH psfs. Must include columns:
+- `pnts`: DataFrame of seqFISH psfs. Must include columns:
 	- `x` : x spatial coordinate of psfs
 	- `y` : y spatial coordinate of psfs
     - `z` : z spatial coordinate of psfs
