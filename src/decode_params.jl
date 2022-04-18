@@ -31,7 +31,7 @@ Constructor for DecodeParams object that sets default values for every parameter
 by the user. If they are not, the decoding functions will throw an error.
 """
 function DecodeParams()
-    prms = DecodeParams(fill(0.0, 16)...)
+    prms = DecodeParams(fill(0.0, 17)...)
     c_final = 1
     # set simmulated annealing parameters default values
     set_mip_sa_thresh(prms, 80)
