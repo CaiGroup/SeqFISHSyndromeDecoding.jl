@@ -275,6 +275,7 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: M
         area = (maximum(cc_cpath_df[:,"x"]) - minimum(cc_cpath_df.x))*(maximum(cc_cpath_df.y) - minimum(cc_cpath_df.y))
 
         ndots_cc = length(cc)
+        cpath_nbrs, cpath_partial_conflicts, cpath_partial_conflict_transitions = get_cpath_conflict_graph_remove_redundant_cpaths!(cc_cpath_df, ndots, n)
         if nrow(cc_cpath_df) == 1
             low_cost_state = [1]
         # ToDO: test 2 cpath cc case
@@ -286,11 +287,10 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: M
             append!(dense_cpaths, cc_cpath_df)
             continue
         else
-            cpath_nbrs, cpath_partial_conflicts, cpath_partial_conflict_transitions = get_cpath_conflict_graph_remove_redundant_cpaths!(cc_cpath_df, ndots, n)
-           
             # get heuristic start point?
             if nrow(cc_cpath_df) < params.mip_sa_thresh
-                low_cost_state = MIP_solve(cc_cpath_df, cpath_nbrs)
+                init_guess = greedy_initial_guess(cc_cpath_df, cpath_nbrs)
+                low_cost_state = MIP_solve(cc_cpath_df, cpath_nbrs, start_values=init_guess)
             else
                 low_cost_state = simulated_annealing(cc_cpath_df, cpath_nbrs, cpath_partial_conflicts, cpath_partial_conflict_transitions, params, ndots_cc)
             end
@@ -311,7 +311,18 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: M
     return mpaths, dense_cpaths
 end
 
-
+function greedy_initial_guess(cpath_df, cpath_nbrs)
+    start_vector = fill(false, nrow(cpath_df))
+    costs_copy = deepcopy(cpath_df.cost)
+    #removed = zeros(nrow(cpath_df))
+    while ~all(costs_copy .== Inf)
+        min_cost_cpath = argmin(costs_copy)
+        start_vector[min_cost_cpath] = true
+        costs_copy[cpath_nbrs[min_cost_cpath]] .= Inf
+        costs_copy[min_cost_cpath] = Inf
+    end
+    return start_vector
+end
 
 """
     make_KDTree(pnts :: DataFrame)

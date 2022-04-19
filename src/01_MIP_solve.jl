@@ -1,7 +1,7 @@
 using JuMP
 using GLPK
 
-function MIP_solve(cpath_df :: DataFrame, cpath_nbr_cpath_indices :: Vector{Vector{Int}})
+function MIP_solve(cpath_df :: DataFrame, cpath_nbr_cpath_indices :: Vector{Vector{Int}}; start_values=[false])
 
     costs = cpath_df.cost .- 5.0 .* length.(cpath_df.cpath)
     n = length(costs)
@@ -9,6 +9,11 @@ function MIP_solve(cpath_df :: DataFrame, cpath_nbr_cpath_indices :: Vector{Vect
     model = Model(GLPK.Optimizer)
     #model = Model(Ipopt.Optimizer)
     @variable(model, x[1:n], Bin)
+
+    if ~all(start_values .== false)
+        set_start_value.(x, start_values)
+    end
+    
     #@constraint(model, A * x .<= b.*(b.-x))
     #@constraint(model, [i = 1:n, j = 1:n; A[i,j] == 1], x[i] + x[j] <= 1)
     for i = 1:n, j in cpath_nbr_cpath_indices[i]
