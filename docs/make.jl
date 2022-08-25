@@ -5,10 +5,9 @@ using SeqFISHSyndromeDecoding
 _PAGES = [
     "index.md",
     "installation.md",
-    "example_decode.jl.md"
+    "example_decode.md",
+    "api_reference.md"
 ]
-#    "api_reference.md"
-#]
 
 makedocs(
     sitename = "SeqFISHSyndromeDecoding",
