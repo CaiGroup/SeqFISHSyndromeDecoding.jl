@@ -4,7 +4,8 @@ using SeqFISHSyndromeDecoding
 
 _PAGES = [
     "index.md",
-    "installation.md"#,
+    "installation.md",
+    "example_decode.jl.md"
 ]
 #    "api_reference.md"
 #]
