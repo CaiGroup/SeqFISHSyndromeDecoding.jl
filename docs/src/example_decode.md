@@ -1,4 +1,4 @@
-# Decoding Example
+# Example
 
 *note: this example was generated using data and a jupyter notebook that are freely available at the [SeqFISHSyndromeDecoding github repository](https://github.com/CaiGroup/SeqFISHSyndromeDecoding)*
 
@@ -79,7 +79,7 @@ first(pnts, 5)
 ```
 
 
-The SeqFISHSyndromeDecoding package requires that they hybridization column be UInt8s (to increase efficiency), and that
+The SeqFISHSyndromeDecoding package requires that the hybridization column be UInt8s (to increase efficiency), and that
 there be a z column (for generality to 3d data)
 
 

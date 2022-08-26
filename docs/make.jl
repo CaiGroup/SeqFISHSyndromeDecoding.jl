@@ -11,7 +11,7 @@ _PAGES = [
 
 makedocs(
     sitename = "SeqFISHSyndromeDecoding",
-    format = Documenter.HTML(),
+    format = Documenter.HTML(prettyurls=false),
     modules = [SeqFISHSyndromeDecoding],
     pages = _PAGES
 )
