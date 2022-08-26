@@ -1,6 +1,6 @@
 # Installation
 
-To install, from the julia REPL run:
+To install, from the [julia REPL](https://docs.julialang.org/en/v1/stdlib/REPL/) run:
 
 ```julia
 julia> using Pkg

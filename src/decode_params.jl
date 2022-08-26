@@ -27,7 +27,7 @@ end
 """
     DecodeParams()
 
-Constructor for DecodeParams object that sets default values for every parameter. Dost function parameters must be set
+Constructor for DecodeParams object that sets default values for every parameter. Cost function parameters must be set
 by the user. If they are not, the decoding functions will throw an error.
 """
 function DecodeParams()
@@ -54,7 +54,7 @@ end
 
 Arguments
 - `prms`: DecodeParams Object
-- `r`: The lateral KD Search radius in pixels for aligned dots in previous barcoding rounds.
+- `r`: The lateral KDTree Search radius in pixels for aligned dots in previous barcoding rounds.
 """
 set_xy_search_radius(prms :: DecodeParams, r :: Real) = (prms.lat_thresh = Float64(r))
 
@@ -63,7 +63,7 @@ set_xy_search_radius(prms :: DecodeParams, r :: Real) = (prms.lat_thresh = Float
 
 Arguments
 - `prms`: DecodeParams Object
-- `r`: The z KD Search radius in slices for aligned dots in previous barcoding rounds.
+- `r`: The z KDTree Search radius in slices for aligned dots in previous barcoding rounds.
 """
 set_z_search_radius(prms :: DecodeParams, r :: Real) = (prms.z_thresh = Float64(r))
 
