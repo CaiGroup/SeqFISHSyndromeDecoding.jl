@@ -1,6 +1,7 @@
 using DataFrames
 using CSV
 using SeqFISHSyndromeDecoding
+using GLPK
 
 
 @testset "Test Real Data" begin
@@ -24,7 +25,7 @@ using SeqFISHSyndromeDecoding
     set_z_search_radius(params, 0.0)
 
 
-    barcodes = decode_syndromes!(pnts, cb, H, params)
+    barcodes = decode_syndromes!(pnts, cb, H, params, GLPK.Optimizer)
 
     saved_results = DataFrame(CSV.File("../example_data/example_results.csv"))
 

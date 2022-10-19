@@ -35,7 +35,7 @@ function DecodeParams()
     c_final = 1
     # set simmulated annealing parameters default values
     set_mip_sa_thresh(prms, 80)
-    set_free_dot_cost(prms, 5.0)
+    set_free_dot_cost(prms, 1.0)
     set_n_chains(prms, 100)
     set_l_chains(prms, 300)
     set_cooling_factor(prms, 200.0)

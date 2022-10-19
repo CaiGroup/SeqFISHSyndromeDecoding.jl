@@ -2,7 +2,7 @@
 
 julia_version = "1.8.0"
 manifest_format = "2.0"
-project_hash = "846b137e136ce9848eddc948435baa149d59299b"
+project_hash = "f2445ccc1750223e5cb4ad1c72816a747d6201a0"
 
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
@@ -230,6 +230,12 @@ deps = ["ArnoldiMethod", "Compat", "DataStructures", "Distributed", "Inflate", "
 git-tree-sha1 = "a6d30bdc378d340912f48abf01281aab68c0dec8"
 uuid = "86223c79-3864-5bf0-83f7-82e725a168b6"
 version = "1.7.2"
+
+[[deps.Gurobi]]
+deps = ["Libdl", "MathOptInterface", "Pkg"]
+git-tree-sha1 = "87c018cbd2fd33e6d2462d486abee53a27c91c91"
+uuid = "2e9cd046-0924-5485-92f1-d5272153d98b"
+version = "0.11.3"
 
 [[deps.HypergeometricFunctions]]
 deps = ["DualNumbers", "LinearAlgebra", "OpenLibm_jll", "SpecialFunctions", "Test"]

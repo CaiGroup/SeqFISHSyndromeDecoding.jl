@@ -6,6 +6,8 @@ using NearestNeighbors
 using DataStructures
 using Statistics
 using Clustering
+using JuMP
+using GLPK
 
 """
     decode_syndromes!(
@@ -41,7 +43,7 @@ and decoding result indicated as the row of the codebook matrix matched to.
 Split up points into weakly connected components, then finds possible codeword messages
 and runs simulated annealing to assign them. The pnts dataframe should have hybridization, x, y, and z columns
 """
-function decode_syndromes!(pnts :: DataFrame, cb, H :: Matrix, params :: DecodeParams)
+function decode_syndromes!(pnts :: DataFrame, cb, H :: Matrix, params :: DecodeParams, optimizer = GLPK.Optimizer)
     #println("start syndrome decoding")
     sort!(pnts, :hyb)
     cpath_df = get_codepaths(pnts, cb, H, params)
@@ -51,7 +53,7 @@ function decode_syndromes!(pnts :: DataFrame, cb, H :: Matrix, params :: DecodeP
         return
     end
 
-    return choose_optimal_codepaths(pnts, cb, H, params, cpath_df)
+    return choose_optimal_codepaths(pnts, cb, H, params, cpath_df, optimizer)
 end
 
 """
@@ -228,11 +230,11 @@ Choose best codepaths from previouly found candidates that may have been found w
 to the passed parameters.
 
 """
-function choose_optimal_codepaths(pnts :: DataFrame, cb_df :: DataFrame, H :: Matrix, params :: DecodeParams, cpath_df :: DataFrame; ret_discarded :: Bool=false)
+function choose_optimal_codepaths(pnts :: DataFrame, cb_df :: DataFrame, H :: Matrix, params :: DecodeParams, cpath_df :: DataFrame, optimizer; ret_discarded :: Bool=false)
     cb = Matrix(UInt8.(cb_df[!, 2:end]))
     gene = cb_df[!, 1]
     gene_number = Array(1:length(gene))
-    decoded, discarded_cpaths = choose_optimal_codepaths(pnts, cb, H, params, cpath_df)
+    decoded, discarded_cpaths = choose_optimal_codepaths(pnts, cb, H, params, cpath_df, optimizer)
     gene_df = DataFrame("gene_name" => gene, "gene_number" => gene_number)
     decoded_joined = rightjoin(gene_df, decoded, on=:gene_number)
     if ret_discarded
@@ -242,7 +244,7 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb_df :: DataFrame, H :: Ma
     end
 end
 
-function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: Matrix, params :: DecodeParams, cpath_df :: DataFrame)
+function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: Matrix, params :: DecodeParams, cpath_df :: DataFrame, optimizer)
 
     n = length(cb[1,:])
     ndots = nrow(pnts)
@@ -290,7 +292,7 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: M
            
             # get heuristic start point?
             if nrow(cc_cpath_df) < params.mip_sa_thresh
-                low_cost_state = MIP_solve(cc_cpath_df, cpath_nbrs)
+                low_cost_state = MIP_solve(cc_cpath_df, cpath_nbrs, optimizer)
             else
                 low_cost_state = simulated_annealing(cc_cpath_df, cpath_nbrs, cpath_partial_conflicts, cpath_partial_conflict_transitions, params, ndots_cc)
             end
