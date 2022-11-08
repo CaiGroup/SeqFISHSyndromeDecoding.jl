@@ -15,6 +15,7 @@ using GLPK
         cb,
         H :: Matrix,
         params :: DecodeParams
+        optimizer = GLPK.Optimizer
     )
 
 Arguments
@@ -34,6 +35,8 @@ Arguments
 - `cb` : The codebook.
 - `H` : The parity check Matrix
 - `params` : DecodeParams object holding the parameters for decoding
+- `optimizer` : solver for integer linear programming optimizations. Uses the open source GLPK optimizer by default, but allows faster commercial optimizers to be used if necessary.
+A list of supported solvers is available [here](https://jump.dev/JuMP.jl/stable/installation/#Supported-solvers)
 
 
 Takes a DataFrame of aligned points with hyb, x, y, z, w, and s columns;
@@ -205,7 +208,7 @@ end
 
 
 """
-    choose_optimal_codepaths(pnts :: DataFrame, cb_df :: DataFrame, H :: Matrix, params :: DecodeParams, cpath_df :: DataFrame)
+    choose_optimal_codepaths(pnts :: DataFrame, cb_df :: DataFrame, H :: Matrix, params :: DecodeParams, cpath_df :: DataFrame, optimzer, ret_discarded :: Bool=false)
 
 Arguments
 - `pnts`: DataFrame of seqFISH psfs. Must include columns:
@@ -225,6 +228,8 @@ Arguments
 - `H` : The parity check Matrix
 - `params` : DecodeParams object holding the parameters for decoding
 - `cpath_df` : A DataFrame output from the `get_codepaths` function, defined above.
+- `optimizer` : solver for integer linear programming optimizations. A list of supported solvers is available [here](https://jump.dev/JuMP.jl/stable/installation/#Supported-solvers)
+- `ret_discarded` : if true, return data frame of candidate codepaths that were discarded for being in too large/too dense of a conflict network
 
 Choose best codepaths from previouly found candidates that may have been found with less strict parameters. Reevaluates the costs for each candidate and trims according
 to the passed parameters.
