@@ -9,6 +9,8 @@ To set parameters, use a DecodeParams object
 DecodeParams
 ```
 
+## Required parameters
+
 Users are required to set the some parameters for decoding using the following methods:
 
 ```@docs
@@ -21,7 +23,9 @@ set_lw_var_cost_coeff
 set_s_var_cost_coeff
 ```
 
-The rest of the parameters are given a default value by the `DecodeParams` Constructor, but may be set using the following methods:
+### Parameters with default values 
+
+The rest of the parameters are given a default value by the [`DecodeParams`](@ref) Constructor, but may be set using the following methods:
 
 ```@docs
 set_erasure_penalty
@@ -31,7 +35,7 @@ set_skip_thresh
 set_skip_density_thresh
 ```
 
-Simulated Annealing Parameters:
+#### Simulated Annealing Parameters:
 
 ```@docs
 set_n_chains
@@ -47,9 +51,6 @@ set_converge_multiplier
 ```@docs
 get_codepaths
 choose_optimal_codepaths
-```
-
-```@docs
 decode_syndromes!
 ```
 
