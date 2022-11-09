@@ -3,7 +3,7 @@
 
 ## Setting Parameters
 
-To set parameters, use a Parameters Class
+To set parameters, use a DecodeParams object
 
 ```@docs
 DecodeParams

@@ -11,7 +11,7 @@ using SeqFISHSyndromeDecoding
 using GLPK
 ```
 
-This notebook shows demonstrates how to use SeqFISHSyndromeDecoding. The example data was taken from the 561 channel of cell number 8 in position 4 of replicate 2 of the 2019 SeqFISH+ NIH3T3 cell experiment. This particular subset of the data was chosen for its small size.
+This notebook shows demonstrates how to use SeqFISHSyndromeDecoding. The example data was taken from the 561 channel of cell number 8 in position 4 of replicate 2 of the [2019 SeqFISH+](https://doi.org/10.1038/s41586-019-1049-y) NIH3T3 cell experiment. This particular subset of the data was chosen for its small size.
 
 First load the codebook that we will use to decode our sample data.
 
@@ -91,7 +91,7 @@ pnts.z = zeros(Float64, nrow(pnts))
 pnts.hyb = UInt8.(pnts.hyb);
 ```
 
-Next we initialize a ```DecodeParams``` object, and set the parameters
+Next we initialize a [`DecodeParams`](@ref) object, and set the parameters
 
 
 ```julia
@@ -129,7 +129,7 @@ first(barcodes, 5)
 
 
 
-Alternatively, if we aren't sure what parameters we want to use, we can save time by splitting decode_syndromes! into its two steps. First we can identify barcode candidates with the ```get_codepaths``` (named for the paths that candidate barcodes take the the decoding graph in figure 1a) function using the least strict parameter set that we are interested in.
+Alternatively, if we aren't sure what parameters we want to use, we can save time by splitting [`decode_syndromes!`](@ref) into its two steps. First we can identify barcode candidates with the [`get_codepaths`](@ref) (named for the paths that candidate barcodes take the the decoding graph in figure 1a) function using the least strict parameter set that we are interested in.
 
 
 ```julia
@@ -149,7 +149,7 @@ println(first(candidates, 5))
 ```
 
 
-We can then use the ```choose_optimal_codepaths``` function to find the same barcodew that we found earlier
+We can then use the [`choose_optimal_codepaths`](@ref) function to find the same barcodew that we found earlier
 
 
 ```julia
@@ -164,7 +164,7 @@ barcodes == barcodes_again
 
 
 
-We can now also try choosing candidates using stricter parameters. This saves computation time by reducing the number of times that we have to run ```get_codepaths```.
+We can now also try choosing candidates using stricter parameters. This saves computation time by reducing the number of times that we have to run [`get_codepaths`](@ref).
 
 
 ```julia
@@ -221,7 +221,7 @@ println("Estimated False Positive rate: ", estimated_false_positive_rate)
 
 The less strict parameter set decodes about 40% more gene encoding barcodes at a cost of having twice the estimated false positive rate. Since the estimated false positive rate is still small, it is probably an acceptable trade off.
 
-To save your results, use the ```CSV.write``` command.
+To save your results, use the [`CSV.write`](https://csv.juliadata.org/stable/writing.html) command.
 
 
 ```julia
