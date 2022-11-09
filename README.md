@@ -1,6 +1,6 @@
 # SeqFISHSyndromeDecoding
 
-Julia package for decoding SeqFISH experiments using syndrome decoding. To install, enter the Julia REPL, open the Julia package manager by typing:
+Julia package for decoding SeqFISH experiments using [syndrome decoding](https://en.wikipedia.org/wiki/Decoding_methods#Syndrome_decoding). To install, enter the Julia REPL, open the Julia package manager by typing:
 
 ]
 
