@@ -1,4 +1,4 @@
-using Graphs
+using Graphs, SimpleWeightedGraphs
 
 function find_barcodes_mem_eff(pnts ::DataFrame,
                                g :: DotAdjacencyGraph,
@@ -6,10 +6,11 @@ function find_barcodes_mem_eff(pnts ::DataFrame,
     )
 
     
-    syndromes = fill(Vector{SyndromeComponent}, nrow(pnts)) #Vector{Vector{SyndromeComponent}}()
-    syndrome_block_bounds = fill(Vector{Int64}, nrow(pnts))
+    syndromes = fill(Vector{SyndromeComponent}(), nrow(pnts)) #Vector{Vector{SyndromeComponent}}()
+    syndrome_block_bounds = fill(Vector{Int64}(), nrow(pnts))
+    len_syndromes = fill(0, nrow(pnts))
     sizehint!(syndromes, nv(g.g))
-    final_round_dots = get_cw_pos_inds(g.n)
+    final_round_dots = get_cw_pos_inds(g, g.n)
     final_round_dots_start_m1 = minimum(final_round_dots) - 1
 
 
@@ -26,7 +27,7 @@ function find_barcodes_mem_eff(pnts ::DataFrame,
     # Count how many dots in the last round are within the search radius of each dot in previous round
     final_round_inrange_overlap_graph = SimpleWeightedGraph(nrow(pnts))
     final_round_inrange_computed_dots = unprocessed_inrange_dots[final_round_dots]
-    for dot in 1:(g.cw_pos_bnd(g.n)-1)
+    for dot in 1:(g.cw_pos_bnds[g.n]-1)
         inrange_last_round_dots = inrange(last_round_tree, [pnts.x[dot], pnts.y[dot]], g.lat_thresh, true)
         unprocessed_inrange_dots[dot] = length(inrange_last_round_dots)
         for i in 1:length(inrange_last_round_dots)
@@ -37,21 +38,20 @@ function find_barcodes_mem_eff(pnts ::DataFrame,
                 add_edge!(final_round_inrange_overlap_graph, doti, dotj, old_w + 1)
             end
         end
-
     end
 
-    unprocessed_last_round_dots = get_cw_pos_inds(g,g.n)
+    unprocessed_last_round_dots = collect(get_cw_pos_inds(g,g.n))
     barcode_candidates = []
     gene_nums = []
     # while there are dots in the last round that have not had their candidate barcodes searched for
-    while len(unprocessed_last_round_dots) > 0
+    while length(unprocessed_last_round_dots) > 0
         # find the final roud dot that han the fewest number (or any tied for fewest) of dots in the previous rounds that have 
         # not yet contributed to a syndrome computation
         dot_ind = argmin(final_round_inrange_computed_dots) # unprocessed final round indexing
         dot = unprocessed_last_round_dots[dot_ind] # all points index
 
         # Compute syndromes for and find barcode candidates including that dot
-        [dot_barcode_candidates, dot_gene_nums] = find_final_round_dot_barcode_candidates!(
+        dot_barcode_candidates, dot_gene_nums = find_final_round_dot_barcode_candidates!(
             g :: DotAdjacencyGraph,
             pnts :: DataFrame,
             cw_dict :: Dict,
@@ -67,7 +67,7 @@ function find_barcodes_mem_eff(pnts ::DataFrame,
     
 
         # update uncomputed inrange dots
-        for neighbor in neighbors(final_round_inrange_overlap_graph) # all pnt indexing
+        for neighbor in neighbors(final_round_inrange_overlap_graph, dot) # all pnt indexing
             overlap = get_weight(final_round_inrange_overlap_graph, dot, neighbor)
             neighbor_ind = indexin(neighbor, final_round_inrange_computed_dots) # convert to unprocessed final round indexing
             final_round_inrange_computed_dots[neighbor_ind] -= overlap
@@ -114,12 +114,12 @@ function find_final_round_dot_barcode_candidates!(
     barcode_candidates = []
     gene_nums = []
     for (i, s) in enumerate(syndromes[dot])
-        if all(iszero.(s))
-            barcode_candidate = recursive_get_synd_neighbors(pnts, g, dot, i, syndromes)
+        if iszero(s)
+            barcode_candidate = get_synd_neighbors_mem_eff(g, dot, i, syndromes, len_syndromes)
             cw = pnts.coeff[barcode_candidate]
             if cw in keys(cw_dict)
                 push!(barcode_candidates, barcode_candidate)
-                push!(gene_nums, cw_dict[barcode_candidate])
+                push!(gene_nums, cw_dict[cw])
             end
         end
     end
@@ -146,11 +146,11 @@ function recursive_syndrome_computation!(
     len_syndromes,
     unprocessed_inrange_dots,
     syndrome_block_bounds,
-    dot
+    dot :: Integer
     )
 
     # if allocated 
-    if len(syndromes[dot]) > 0
+    if length(syndromes[dot]) > 0
         return
     # elif not allocated
     else
@@ -158,7 +158,7 @@ function recursive_syndrome_computation!(
         if unprocessed_inrange_dots[dot] == 0
             return 
         #elseif dot in first round
-        elseif dot < get_cw_pos_bounds
+        elseif dot < g.cw_pos_bnds[2]
             #allocate and return
             @inbounds syndromes[dot] = [pnts.sc[dot]]
             return
@@ -167,8 +167,8 @@ function recursive_syndrome_computation!(
             nsyndc = 0
             dot_neighbors = neighbors(g, dot)
             for dot in dot_neighbors
-                recursive_syndrome_computation!(pnts, g, syndromes, len_syndromes, unprocessed_inrange_dots, dot)
-                @inbounds nsyndc += length(syndrome[dot])
+                recursive_syndrome_computation!(pnts, g, syndromes, len_syndromes, unprocessed_inrange_dots, syndrome_block_bounds, dot)
+                @inbounds nsyndc += length(syndromes[dot])
             end
             # allocate syndome component array of length nsnd
             @inbounds syndromes[dot] = fill(pnts.sc[dot], nsyndc)
@@ -195,7 +195,7 @@ function recursive_syndrome_computation!(
 end
 
 
-
+"""
 function recursive_get_synd_neighbors(
     pnts :: DataFrame,
      g :: DotAdjacencyGraph,
@@ -219,11 +219,12 @@ function recursive_get_synd_neighbors(
     # Add result to recursively defined array, and return
     push!(recursive_get_synd_neighbors(pnts, g, neighbor, neighbor_synd_ind, syndromes), dot)
 end
+"""
 
 """
 Helper Function used to trace back groups of dots that produce zero syndrome, and therefore are codewords
 """
-function get_synd_neighbor_mem_eff(
+function get_synd_neighbors_mem_eff(
     g :: DotAdjacencyGraph,
     dot :: Int,
     synd_ind :: Int,

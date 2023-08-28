@@ -445,7 +445,7 @@ end
 
 Helper function to get the dots in the graph that represent a symbol in a given position of the codeword.
 """
-function get_cw_pos_inds(g :: DotAdjacencyGraph, pos :: Int)
+function get_cw_pos_inds(g :: DotAdjacencyGraph, pos :: Integer)
     return g.cw_pos_bnds[pos]:(g.cw_pos_bnds[pos+1]-1)
 end
 
@@ -453,7 +453,11 @@ end
 """
 function syndrome_find_message_paths!(pnts ::DataFrame, g :: DotAdjacencyGraph, cb ::Matrix{UInt8}, ndrops)
     cw_dict = make_cw_dict(cb)
-    cpaths, decode_cands = syndrome_find_message_paths!(pnts, g, cb, ndrops, cw_dict)
+    if ndrops == 0
+        cpaths, decode_cands = find_barcodes_mem_eff(pnts, g, cw_dict)
+    else
+        cpaths, decode_cands = syndrome_find_message_paths!(pnts, g, cb, ndrops, cw_dict)
+    end
     return cpaths, decode_cands
 end
 
