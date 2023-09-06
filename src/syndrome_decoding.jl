@@ -93,13 +93,16 @@ end
 """
 function check_inputs(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: Matrix, params :: DecodeParams)
     alphabet = sort(unique(cb))
-    q = UInt8(length(alphabet))
+    q = length(alphabet)
+    if q < 256
+        q = UInt8(length(alphabet))
+    end
     n = length(cb[1,:])
 
     @assert alphabet[1] == 0x00
     @assert alphabet[q] < q
     @assert all(alphabet .>= 0)
-    @assert maximum(pnts[!,"hyb"]) <= q*n
+    @assert maximum(pnts[!,"hyb"]) <= Int64(q)*Int64(n)
     @assert minimum(pnts[!,"hyb"]) > 0
     @assert params.ndrops <= size(H)[1]
     @assert params.ndrops >= 0
@@ -156,7 +159,10 @@ function get_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: Matrix, para
     
     cb_dict = make_cw_dict(cb)
     alphabet = sort(unique(cb))
-    q = UInt8(length(alphabet))
+    q = length(alphabet)
+    if q < 256
+        q = UInt8(q)
+    end
     n = length(cb[1,:])
 
     check_inputs(pnts, cb, H, params)
@@ -358,8 +364,13 @@ function add_code_cols!(pnts :: DataFrame)
     else
         coeff = get_coeff.(pnts.hyb, pos)
     end
+    
+    if q < 124
+        sc = SyndromeComponent.(coeff, pos)
+    elseif q == 256
+        sc = coeff
+    end
 
-    sc = SyndromeComponent.(coeff, pos)
     pnts.pos = pos
     pnts.coeff = coeff
     pnts.sc = sc
@@ -540,7 +551,11 @@ function init_syndromes(pnts :: DataFrame, g :: DotAdjacencyGraph)
 
     # initialize each syndrome partial sum with the contribution from each dot
     nsnds = find_nsnds(g)
-    syndromes = Vector{Vector{SyndromeComponent}}()
+    if q == 256
+        syndromes = Vector{Vector{UInt8}}()
+    else
+        syndromes = Vector{Vector{SyndromeComponent}}()
+    end
     syndrome_coeff_positions = Vector{Vector{UInt8}}()
     sizehint!(syndromes, nv(g.g))
     for (pnt, sc) in enumerate(pnts.sc)
