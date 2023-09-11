@@ -24,12 +24,14 @@ function find_barcodes_mem_eff(pnts ::DataFrame,
         end 
     end
 
+    
     # Count how many dots in the last round are within the search radius of each dot in previous round
-    final_round_inrange_overlap_graph = SimpleWeightedGraph(nrow(pnts))
-    final_round_inrange_computed_dots = unprocessed_inrange_dots[final_round_dots]
+    #final_round_inrange_overlap_graph = SimpleWeightedGraph(nrow(pnts))
+    #final_round_inrange_computed_dots = copy(unprocessed_inrange_dots[final_round_dots])
     for dot in 1:(g.cw_pos_bnds[g.n]-1)
         inrange_last_round_dots = inrange(last_round_tree, [pnts.x[dot], pnts.y[dot]], g.lat_thresh, true)
         unprocessed_inrange_dots[dot] = length(inrange_last_round_dots)
+        """
         for i in 1:length(inrange_last_round_dots)
             for j in (i+1):length(inrange_last_round_dots)
                 doti = inrange_last_round_dots[i]
@@ -38,18 +40,34 @@ function find_barcodes_mem_eff(pnts ::DataFrame,
                 add_edge!(final_round_inrange_overlap_graph, doti, dotj, old_w + 1)
             end
         end
+        """
     end
+    
+
+    # Count how many dots in the last round are in range of each other
+    final_round_dot_n_uncomputed_neighbors = [length(inrange(last_round_tree, [pnts.x[dot], pnts.y[dot]], g.lat_thresh)) - 1 for dot in final_round_dots]
 
     unprocessed_last_round_dots = collect(get_cw_pos_inds(g,g.n))
     barcode_candidates = []
     gene_nums = []
     # while there are dots in the last round that have not had their candidate barcodes searched for
     while length(unprocessed_last_round_dots) > 0
-        println("dots to go: ", length(unprocessed_last_round_dots))
+    #for dot in final_round_dots
+        #println("dots to go: ", length(unprocessed_last_round_dots))
         # find the final roud dot that han the fewest number (or any tied for fewest) of dots in the previous rounds that have 
         # not yet contributed to a syndrome computation
+        """
         dot_ind = argmin(final_round_inrange_computed_dots) # unprocessed final round indexing
         dot = final_round_dots[dot_ind] # all points index
+        """
+
+        # find the final round dot that has the fewest number of other uncomputed final round dots in
+        # its range
+        dot_ind = argmin(final_round_dot_n_uncomputed_neighbors[unprocessed_last_round_dots .- (g.cw_pos_bnds[g.n]-1)])
+        #println("dot_ind: ", dot_ind)
+        dot = unprocessed_last_round_dots[dot_ind]
+        #println("dot: ", dot)
+        
 
         # Compute syndromes for and find barcode candidates including that dot
         dot_barcode_candidates, dot_gene_nums = find_final_round_dot_barcode_candidates!(
@@ -64,26 +82,35 @@ function find_barcodes_mem_eff(pnts ::DataFrame,
             )
         #println("syndromes:")
         #println(syndromes)
+        #println("dot_gene_nums: ", dot_gene_nums)
 
         append!(barcode_candidates, dot_barcode_candidates)
         append!(gene_nums, dot_gene_nums)
     
+        
+        # update final round neighbors graph
+        final_round_dot_n_uncomputed_neighbors[inrange(last_round_tree, [pnts.x[dot], pnts.y[dot]], g.lat_thresh)] .-= 1
 
         # update uncomputed inrange dots
+        """
         for neighbor in neighbors(final_round_inrange_overlap_graph, dot) # all pnt indexing
             overlap = get_weight(final_round_inrange_overlap_graph, dot, neighbor)
             neighbor_ind = indexin(neighbor, final_round_inrange_computed_dots) # convert to unprocessed final round indexing
             final_round_inrange_computed_dots[neighbor_ind] -= overlap
             #final_round_inrange_computed_dots[neighbor - final_round_dots_start_m1] -= overlap
         end
+        """
 
         # remove dot from list of unprocessed final round dots
         #unprocessed_dot_index = indexin(dot, unprocessed_last_round_dots)
+        
         deleteat!(unprocessed_last_round_dots, dot_ind)
-        deleteat!(final_round_inrange_computed_dots, dot_ind)
+        #deleteat!(final_round_inrange_computed_dots, dot_ind)
+        
 
         #free space
-        syndromes[dot] = []
+        #syndromes[dot] = []
+        """
         for round in 1:(g.n-1)
             for inrange_dot in inrange(g.trees[round], [pnts.x[dot], pnts.y[dot]], g.lat_thresh)
                 @inbounds unprocessed_inrange_dots[inrange_dot] -= 1
@@ -93,6 +120,7 @@ function find_barcodes_mem_eff(pnts ::DataFrame,
                 end
             end
         end
+        """
     end
     #println("barcode_candidates:")
     #println(barcode_candidates)
@@ -139,10 +167,12 @@ function find_final_round_dot_barcode_candidates!(
     
     # decrease counters for number of unprocessed inrange final round dots for each previous round dot inrange 
     # of the dot inputed to this function
+    """
     for tree in g.trees
         early_dots = inrange(tree, [pnts.x[dot], pnts.y[dot]], g.lat_thresh)
         unprocessed_inrange_dots[early_dots] .-= 1
     end
+    """
 
     # clear allocated syndrome components for dots not in the last round that have had all final round dots in their range processed
 
