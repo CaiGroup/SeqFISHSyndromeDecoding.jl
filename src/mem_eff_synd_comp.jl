@@ -4,7 +4,6 @@ function find_barcodes_mem_eff(pnts ::DataFrame,
                                g :: DotAdjacencyGraph,
                                cw_dict
     )
-
     
     syndromes = fill(Vector{SyndromeComponent}(), nrow(pnts)) #Vector{Vector{SyndromeComponent}}()
     syndrome_block_bounds = fill(Vector{Int64}(), nrow(pnts))
@@ -28,7 +27,7 @@ function find_barcodes_mem_eff(pnts ::DataFrame,
     
     # Count how many dots in the last round are within the search radius of each dot in previous round
     for dot in 1:(g.cw_pos_bnds[g.n]-1)
-        inrange_last_round_dots = inrange(last_round_tree, [pnts.x[dot], pnts.y[dot]], g.lat_thresh, true)
+        inrange_last_round_dots = inrange(last_round_tree, [pnts.x[dot], pnts.y[dot]], g.lat_thresh*1.8, true)
         unprocessed_inrange_dots[dot] = length(inrange_last_round_dots)
     end
     
@@ -147,7 +146,7 @@ function recursive_syndrome_computation!(
     # elif not allocated
     else
         # if all in range final round dots processed
-        if false #unprocessed_inrange_dots[dot] == 0
+        if unprocessed_inrange_dots[dot] == 0
             return 
         #elseif dot in first round
         elseif dot < g.cw_pos_bnds[2]
