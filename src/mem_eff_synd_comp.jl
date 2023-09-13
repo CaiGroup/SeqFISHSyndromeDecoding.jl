@@ -6,7 +6,7 @@ function find_barcodes_mem_eff(pnts ::DataFrame,
     )
     
     syndromes = fill(Vector{SyndromeComponent}(), nrow(pnts)) #Vector{Vector{SyndromeComponent}}()
-    syndrome_block_bounds = fill(Vector{Int64}(), nrow(pnts))
+    syndrome_block_sizes = fill(Vector{Int64}(), nrow(pnts))
     len_syndromes = fill(0, nrow(pnts))
     sizehint!(syndromes, nv(g.g))
     final_round_dots = get_cw_pos_inds(g, g.n)
@@ -27,7 +27,7 @@ function find_barcodes_mem_eff(pnts ::DataFrame,
     
     # Count how many dots in the last round are within the search radius of each dot in previous round
     for dot in 1:(g.cw_pos_bnds[g.n]-1)
-        inrange_last_round_dots = inrange(last_round_tree, [pnts.x[dot], pnts.y[dot]], g.lat_thresh*1.8, true)
+        inrange_last_round_dots = inrange(last_round_tree, [pnts.x[dot], pnts.y[dot]], g.lat_thresh, true)
         unprocessed_inrange_dots[dot] = length(inrange_last_round_dots)
     end
     
@@ -53,7 +53,7 @@ function find_barcodes_mem_eff(pnts ::DataFrame,
             syndromes,
             len_syndromes,
             unprocessed_inrange_dots,
-            syndrome_block_bounds,
+            syndrome_block_sizes,
             dot
             )
 
@@ -74,7 +74,7 @@ function find_barcodes_mem_eff(pnts ::DataFrame,
                 unprocessed_inrange_dots[inrange_dot_ind] -= 1
                 if unprocessed_inrange_dots[inrange_dot_ind] == 0
                     syndromes[inrange_dot_ind] = []
-                    syndrome_block_bounds[inrange_dot_ind] = []
+                    syndrome_block_sizes[inrange_dot_ind] = []
                 end
             end
         end
@@ -96,12 +96,12 @@ function find_final_round_dot_barcode_candidates!(
     syndromes,
     len_syndromes,
     unprocessed_inrange_dots,
-    syndrome_block_bounds,
+    syndrome_block_sizes,
     dot
     )
     # compute dot syndromes
     recursive_syndrome_computation!(pnts, g, syndromes, len_syndromes, unprocessed_inrange_dots,
-        syndrome_block_bounds, dot)
+        syndrome_block_sizes, dot)
 
     
     # trace barcodes that produced syndromes == 0
@@ -110,7 +110,7 @@ function find_final_round_dot_barcode_candidates!(
     for (i, s) in enumerate(syndromes[dot])
         if iszero(s)
             #println("found zero syndrome: ", dot, i)
-            barcode_candidate = recursive_get_synd_neighbors_mem_eff(pnts, g, dot, i, syndromes, len_syndromes)
+            barcode_candidate = recursive_get_synd_neighbors_mem_eff(pnts, g, dot, i, syndromes, len_syndromes, syndrome_block_sizes)
             #println("barcode_candidate: ", barcode_candidate)
             if ismissing(barcode_candidate)
                 #println("missing barcode candidate")
@@ -136,7 +136,7 @@ function recursive_syndrome_computation!(
     syndromes,
     len_syndromes,
     unprocessed_inrange_dots,
-    syndrome_block_bounds,
+    syndrome_block_sizes,
     dot :: Integer
     )
 
@@ -159,8 +159,8 @@ function recursive_syndrome_computation!(
             nsyndc = 0
             dot_neighbors = neighbors(g, dot)
             for dot in dot_neighbors
-                recursive_syndrome_computation!(pnts, g, syndromes, len_syndromes, unprocessed_inrange_dots, syndrome_block_bounds, dot)
-                @inbounds nsyndc += len_syndromes[dot] #length(syndromes[dot])
+                recursive_syndrome_computation!(pnts, g, syndromes, len_syndromes, unprocessed_inrange_dots, syndrome_block_sizes, dot)
+                @inbounds nsyndc += length(syndromes[dot]) #len_syndromes[dot]
             end
             # allocate syndome component array of length nsnd
             @inbounds syndromes[dot] = fill(pnts.sc[dot], nsyndc)
@@ -169,19 +169,24 @@ function recursive_syndrome_computation!(
                 
              
 
-            nbr_block_bnds = fill(1, length(dot_neighbors)+1)
+            #nbr_block_bnds = fill(1, length(dot_neighbors)+1)
+            len_nbrs = length.(syndromes[dot_neighbors])
+            synd_ind = 1 #cw_pos <= (1
 
             # get neighbors of that dot
             for (i, neighbor) in enumerate(dot_neighbors)
 
                 # add syndrome components to appropriate block
-                @inbounds nbr_block_bnds[i+1] = nbr_block_bnds[i]+length(syndromes[neighbor])-1
-                @inbounds syndromes[dot][nbr_block_bnds[i]:nbr_block_bnds[i+1]] += syndromes[neighbor]
-
+                @inbounds end_ind = synd_ind+length(syndromes[neighbor])-1
+                @inbounds len_nbrs[i] = length(syndromes[neighbor])
+                #@inbounds nbr_block_bnds[i+1] = nbr_block_bnds[i]+length(syndromes[neighbor])-1
+                #@inbounds syndromes[dot][nbr_block_bnds[i]:nbr_block_bnds[i+1]] += syndromes[neighbor]
+                @inbounds syndromes[dot][synd_ind:end_ind] += syndromes[neighbor]
                 # keep track of indices of each neighbor's syndrome component block
-                @inbounds nbr_block_bnds[i+1] += 1
+                #@inbounds nbr_block_bnds[i+1] += 1
+                synd_ind = end_ind + 1
             end
-            @inbounds syndrome_block_bounds[dot] = nbr_block_bnds
+            @inbounds syndrome_block_sizes[dot] = len_nbrs #nbr_block_bnds
         end
     end
 end
@@ -194,7 +199,8 @@ function recursive_get_synd_neighbors_mem_eff(
      dot :: Int,
      synd_ind :: Int,
      syndromes,
-     len_syndromes
+     len_syndromes,
+     syndrome_block_sizes
      )
 
     # if this is the last dot in the message, return number of dot in an array
@@ -205,7 +211,7 @@ function recursive_get_synd_neighbors_mem_eff(
     end
 
     #otherwise, get neighbor of the dot that produced the zero syndrome
-    neighbor, neighbor_synd_ind = get_synd_neighbors_mem_eff(g, dot, synd_ind, syndromes, len_syndromes)
+    neighbor, neighbor_synd_ind = get_synd_neighbors_mem_eff(g, dot, synd_ind, syndromes, len_syndromes, syndrome_block_sizes)
 
     # if neighbor has been cleared, return missing
     if length(syndromes[neighbor]) == 0
@@ -213,7 +219,7 @@ function recursive_get_synd_neighbors_mem_eff(
     end
 
     # Add result to recursively defined array, and return
-    res = recursive_get_synd_neighbors_mem_eff(pnts, g, neighbor, neighbor_synd_ind, syndromes, len_syndromes)
+    res = recursive_get_synd_neighbors_mem_eff(pnts, g, neighbor, neighbor_synd_ind, syndromes, len_syndromes, syndrome_block_sizes)
     if ismissing(res)
         return missing
     else
@@ -230,7 +236,8 @@ function get_synd_neighbors_mem_eff(
     dot :: Int,
     synd_ind :: Int,
     syndromes,
-    len_syndromes
+    len_syndromes,
+    syndrome_block_sizes
     )
     #println("synd_ind: ", synd_ind)
 
@@ -250,16 +257,18 @@ function get_synd_neighbors_mem_eff(
     #for each neighbor
     dot_neighbors = neighbors(g, dot)
     #println("dot_neighbors: ", dot_neighbors)
-    for neighbor in dot_neighbors
+    for (i, neighbor) in enumerate(dot_neighbors)
         # move the index tracker to the index just past the end of where syndrome
         # components from this neighbor are stored.
-        @inbounds cum_n_syndromes += len_syndromes[neighbor] #length(syndromes[neighbor])
+        @inbounds cum_n_syndromes += syndrome_block_sizes[dot][i]#len_syndromes[neighbor] #length(syndromes[neighbor])
+        #@inbounds cum_n_syndromes += len_syndromes[neighbor]
         #println("cum_n_syndromes: ", cum_n_syndromes)
 
         #if the syndrome includes a component from this particular neighbor
         if synd_ind <= cum_n_syndromes
             # find the index of the neighbors syndrome component of interest
-            @inbounds neighbor_synd_ind = synd_ind - cum_n_syndromes + len_syndromes[neighbor]
+            @inbounds neighbor_synd_ind = synd_ind - cum_n_syndromes + syndrome_block_sizes[dot][i] #len_syndromes[neighbor]
+            #@inbounds neighbor_synd_ind = synd_ind - cum_n_syndromes + len_syndromes[neighbor]
             return [neighbor, neighbor_synd_ind]
         end
     end
