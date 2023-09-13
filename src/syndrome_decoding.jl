@@ -368,6 +368,7 @@ function add_code_cols!(pnts :: DataFrame)
     pnts.mpath = [[] for i = 1:length(pnts.x)]
 end
 
+abstract type DotAlignGraph end
 
 """
     DotAdjacencyGraph(g :: SimpleDiGraph
@@ -377,7 +378,7 @@ end
 
 Structure for storing the dot adjacency graph with some parameters
 """
-struct DotAdjacencyGraph
+struct DotAdjacencyGraph <: DotAlignGraph
     g :: SimpleDiGraph
     cw_pos_bnds :: Array{Int64}
     n :: Int8
@@ -412,6 +413,36 @@ function DotAdjacencyGraph(pnts :: DataFrame, lat_thresh :: Real, z_thresh :: Re
     DotAdjacencyGraph(g, cw_pos_bnds, n, trees, lat_thresh, pnts, ndrops)
 end
 
+struct DotAdjacencyGraphBlankRound <: DotAlignGraph
+    g :: SimpleDiGraph
+    cw_pos_bnds :: Array{Int64}
+    n :: Int8
+    trees :: Vector{KDTree}
+    lat_thresh :: Float64
+    pnts :: DataFrame
+    ndrops :: Int64
+    w :: Int64
+end
+
+function DotAdjacencyGraphBlankRound(pnts :: DataFrame, lat_thresh :: Real, z_thresh :: Real, n, ndrops, w)
+    g = SimpleDiGraph(nrow(pnts))
+
+    # Find the indices of dots representing each place, cᵢ, in a codeword start.
+    cw_pos_bnds = get_cw_pos_bounds(pnts, n)
+    trees = []
+    for round in 1:(n-(w-2))
+        end_pnt = (cw_pos_bnds[round]-1)
+        push!(trees, make_KDTree(pnts[1:end_pnt, :]))
+    end
+
+    for (i, round) in enumerate(n-(w-2):n)
+        start_pnt = cw_pos_bnds[i+1]
+        end_pnt = (cw_pos_bnds[round]-1)
+        push!(trees, make_KDTree(pnts[start_pnt:end_pnt, :]))
+    end
+
+    DotAdjacencyGraphBlankRound(g, cw_pos_bnds, n, trees, lat_thresh, pnts, ndrops, w)
+end
 
 """
 """
