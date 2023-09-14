@@ -207,11 +207,7 @@ function get_synd_neighbors_mem_eff(
     )
 
     # keep track of number of syndromes from the dot that have been searched through
-    if dot < g.cw_pos_bnds[2]
-        cum_n_syndromes = 1
-    else
-        cum_n_syndromes = 0
-    end
+    cum_n_syndromes = 0
 
     #for each neighbor
     dot_neighbors = neighbors(g, dot)
