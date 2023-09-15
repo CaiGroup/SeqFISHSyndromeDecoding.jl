@@ -1,4 +1,4 @@
-function find_blank_round_codewords(pnts ::DataFrame, g :: DotAdjacencyGraph, cw_dict, w)
+function find_blank_round_codewords(pnts ::DataFrame, g :: DotAdjacencyGraphBlankRound, cw_dict, w)
     # initialize array for syndrome partial sums
     syndromes = fill(Vector{Vector{SyndromeComponent}}(), nrow(pnts)) #Vector{Vector{SyndromeComponent}}()
     syndrome_block_sizes = fill(Vector{Vector{Int64}}(), nrow(pnts))
@@ -35,7 +35,7 @@ function count_inrange_dots(pnts, g, w)
      # for each dot, count how many dots that could be the final dot of a barcode including it are in range
     # and how many dots that could be the final dot are in range of each other
     unprocessed_inrange_dots = fill(0, nrow(pnts))
-    potential_barcode_final_dots_n_uncomputed_neighbors = fill(0, nrow(pnts)-g.cw_pos_bnds[w]+1))
+    potential_barcode_final_dots_n_uncomputed_neighbors = fill(0, nrow(pnts)-g.cw_pos_bnds[w]+1)
     for dot in 1:nrow(pnts)
         r = pnts.pos[dot] 
         if r >= w

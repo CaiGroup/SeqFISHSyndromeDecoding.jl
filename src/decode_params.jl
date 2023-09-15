@@ -11,6 +11,7 @@ mutable struct DecodeParams
     lw_var_factor :: Float64
     s_var_factor :: Float64
     ndrops :: Int64
+    zeros_probed :: Bool
     mip_sa_thresh :: Int64
     free_dot_cost :: Float64
     n_chains :: Int64
@@ -31,7 +32,7 @@ Constructor for DecodeParams object that sets default values for every parameter
 by the user. If they are not, the decoding functions will throw an error.
 """
 function DecodeParams()
-    prms = DecodeParams(fill(0.0, 17)...)
+    prms = DecodeParams(fill(0.0, 18)...)
     c_final = 1
     # set simmulated annealing parameters default values
     set_mip_sa_thresh(prms, 80)
@@ -75,6 +76,16 @@ Arguments
 - `r`: The number of allowed drops in a barcode. Only 0 and 1 are currently supported. The parity check matrix must have redundancy to support correcting for one drop, otherwise errors will occur.
 """
 set_n_allowed_drops(prms :: DecodeParams, d :: Integer) = (prms.ndrops = d)
+
+"""
+    set_zeros_probed(prms :: DecodeParams, zp :: Bool)
+
+Arguments
+- `prms`: DecodeParams Object
+- `zp`: Whether or not zeros in codewords are probed in the experiment. Drops are not supported when true.
+"""
+set_zeros_probed(prms :: DecodeParams, zp :: Integer) = (prms.zeros_probed = zp)
+
 
 """
     set_lat_var_cost_coeff(prms :: DecodeParams, lvf :: Real)

@@ -158,6 +158,7 @@ function get_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: Matrix, para
     alphabet = sort(unique(cb))
     q = UInt8(length(alphabet))
     n = length(cb[1,:])
+    w = sum(iszero.(cb[1,:]))
 
     check_inputs(pnts, cb, H, params)
 
@@ -183,10 +184,11 @@ function get_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: Matrix, para
         clust_pnts = pnts[dbscan_cluster, :]
         sort!(clust_pnts, :hyb)
         add_code_cols!(clust_pnts)
-        g = DotAdjacencyGraph(clust_pnts, params.lat_thresh, params.z_thresh, n, params.ndrops)
+        g = DotAdjacencyGraph(clust_pnts, params, n, w)
+        #g = DotAdjacencyGraph(clust_pnts, params.lat_thresh, params.z_thresh, n, params.ndrops)
 
         cost(cpath) = obj_function(cpath, clust_pnts, n, params)
-        code_paths, gene_nums = syndrome_find_message_paths!(clust_pnts, g, cb, params.ndrops)
+        code_paths, gene_nums = syndrome_find_barcodes!(clust_pnts, g, cb, params.ndrops, w)
         costs = cost.(code_paths)
 
         cpath_df = DataFrame(cpath = code_paths, cost = costs, gene_number = gene_nums)
@@ -388,6 +390,15 @@ struct DotAdjacencyGraph <: DotAlignGraph
     ndrops :: Int64
 end
 
+function DotAdjacencyGraph(pnts :: DataFrame, params :: DecodeParams, n, w)
+    if params.zeros_probed
+        w = sum(iszero.(cb[1,:]))
+        return DotAdjacencyGraphBlankRound(pnts, params.lat_thresh, params.z_thresh, n, params.ndrops, w)
+    else
+        return DotAdjacencyGraph(pnts, params.lat_thresh, params.z_thresh, n, params.ndrops)
+    end
+end
+
 """
     DotAdjacencyGraph(g :: SimpleDiGraph
                       cw_pos_bnds :: Tuple{Int64}
@@ -425,6 +436,10 @@ struct DotAdjacencyGraphBlankRound <: DotAlignGraph
 end
 
 function DotAdjacencyGraphBlankRound(pnts :: DataFrame, lat_thresh :: Real, z_thresh :: Real, n, ndrops, w)
+    if ndrops != 0
+        error("Drops are not yet supported for experiments that do not probe zeros")
+    end
+
     g = SimpleDiGraph(nrow(pnts))
 
     # Find the indices of dots representing each place, cᵢ, in a codeword start.
@@ -482,12 +497,14 @@ end
 
 """
 """
-function syndrome_find_message_paths!(pnts ::DataFrame, g :: DotAdjacencyGraph, cb ::Matrix{UInt8}, ndrops)
+function syndrome_find_barcodes!(pnts ::DataFrame, g :: DotAlignGraph, cb ::Matrix{UInt8}, ndrops, w)
     cw_dict = make_cw_dict(cb)
-    if ndrops == 0
+    if typeof(g) == DotAdjacencyGraphBlankRound
+        cpaths, decode_cands = find_blank_round_codewords(pnts ::DataFrame, g :: DotAdjacencyGraphBlankRound, cw_dict, w)
+    elseif ndrops == 0
         cpaths, decode_cands = find_barcodes_mem_eff(pnts, g, cw_dict)
     else
-        cpaths, decode_cands = syndrome_find_message_paths!(pnts, g, cb, ndrops, cw_dict)
+        cpaths, decode_cands = syndrome_find_barcodes!(pnts, g, ndrops, cw_dict)
     end
     return cpaths, decode_cands
 end
@@ -496,11 +513,10 @@ end
 Computes syndrome of every path in the message graph, determines which ones represent valid
 barcodes, and returns dataframe of message path candidates.
 """
-function syndrome_find_message_paths!(pnts ::DataFrame,
+function syndrome_find_barcodes!(pnts ::DataFrame,
                                       g :: DotAdjacencyGraph,
-                                      cb ::Matrix{UInt8},
-                                      ndrops,
-                                      cw_dict
+                                      ndrops :: Int,
+                                      cw_dict :: Dict
                                       )
     syndromes, syndrome_coeff_positions = compute_syndromes(pnts, g)
 

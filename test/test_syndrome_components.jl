@@ -6,9 +6,15 @@ using Test
 using DelimitedFiles
 
 Eng2019_ontarget = readdlm("Eng2019_647.csv", ',', UInt8)
+RS_q5_k2_cb = readdlm("RS_q5_k2_cb.csv", ',', UInt8)
+RS_q5_k2_H = readdlm("RS_q5_k2_H.csv", ',', UInt8)
+
 
 cbs = [Eng2019_ontarget]
 Hs = [[1 1 -1 -1;]]
+
+cbs_zeros_unprobed = [RS_q5_k2_cb]
+Hs_zeros_unprobed = [RS_q5_k2_H]
 
 @testset "all syndrome type tests" begin
 
@@ -93,6 +99,23 @@ end
         @test ndecodable == Int(n)*Int64(q)^(Int64(n)-1)
     end
 end
+
+"""
+@testset "Test parity check verification blank" begin
+    for (i, cb) in enumerate(cbs_zeros_unprobed)
+        n = UInt8(length(cb[1,:]))
+        pos = Array(0x01:n)
+        q = UInt8(maximum(cb) + 1)
+        set_q(q)
+        set_n(n)
+        set_H(Hs_zeros_unprobed[i])
+        for coeffs = eachrow(cb)
+            syndrome = sum(SyndromeComponent.(coeffs, pos))
+            @test iszero(syndrome)
+        end
+    end
+end
+"""
 
 """
 @testset "Q11N8SC decode table drops true positive" begin

@@ -1,5 +1,5 @@
 using SeqFISHSyndromeDecoding
-using SeqFISHSyndromeDecoding: syndrome_find_message_paths!, DotAdjacencyGraph,
+using SeqFISHSyndromeDecoding: DotAdjacencyGraph,
 make_cw_dict, get_cw_pos_inds, add_code_cols!, compute_syndromes, neighbors, get_number_of_dots
 
 using DelimitedFiles
@@ -11,7 +11,7 @@ q20_cb = readdlm("Eng2019_647.csv", ',', UInt8)
 
 
 function construct_test_encoding(n, cb)
-    true_locs = sim_true(n)
+    true_locs = sim_true(n, length(cb[:, 1]))
     encode(true_locs, cb)
 end
 
@@ -88,7 +88,7 @@ function construct_message(pnts :: DataFrame, mdot_inds, n, q, w, symb_type :: D
 end
 
 function test_reconstruct_decode_message(ntargets, cb)
-    true_locs = sim_true(ntargets)
+    true_locs = sim_true(ntargets, length(cb[:, 1]))
     encoded = encode(true_locs, cb)
     n, q, w = get_n_q_w(cb)
     cw_dict = make_cw_dict(cb)
