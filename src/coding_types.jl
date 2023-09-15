@@ -37,7 +37,7 @@ mult_mod(a :: ℤnRingElem, b :: ℤnRingElem, mod :: Unsigned) = (a.v * b.v) % 
 mult_mod(a :: Unsigned, b :: ℤnRingElem, mod :: Unsigned) = (a * b.v) % mod
 
 inv₊(x :: ℤnRingElem) =  ℤnRingElem((q - x.v) % q)
-inv₊(x :: UInt8) =  ℤnRingElem((q - x.v) % q)
+inv₊(x :: UInt8) =  ℤnRingElem((q - x) % q)
 
 
 +(a :: Unsigned, b :: ℤnRingElem) = typeof(b)(add_mod(a, b, q))
@@ -90,6 +90,8 @@ function func_from_H_val(h_val)
         return identity
     elseif h_val == -1
         return inv₊
+    elseif h_val > 1 
+        return (x) -> ℤnRingElem(UInt8(h_val)) * x
     else
         raise(error("parity check function value $h_val not supported."))
     end

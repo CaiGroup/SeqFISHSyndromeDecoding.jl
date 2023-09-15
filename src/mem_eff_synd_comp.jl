@@ -52,7 +52,6 @@ function find_barcodes_mem_eff(pnts ::DataFrame,
         append!(barcode_candidates, dot_barcode_candidates)
         append!(gene_nums, dot_gene_nums)
     
-        # update final round neighbors graph
         final_round_dot_n_uncomputed_neighbors[inrange(last_round_tree, [pnts.x[dot], pnts.y[dot]], g.lat_thresh)] .-= 1
 
         # remove dot from list of unprocessed final round dots
@@ -144,11 +143,10 @@ function recursive_syndrome_computation!(
 
             len_nbrs = length.(syndromes[dot_neighbors])
             # allocate syndome component array of length nsnd
-            @inbounds syndromes[dot] = fill(pnts.sc[dot], sum(len_nbrs)) #ßnsyndc)
-            # for dot in neighbors
+            @inbounds syndromes[dot] = fill(pnts.sc[dot], sum(len_nbrs)) #nsyndc)
                 
             synd_ind = 1
-            # get neighbors of that dot
+            # for dot in neighbors
             for (i, neighbor) in enumerate(dot_neighbors)
                 # add syndrome components to appropriate block
                 @inbounds end_ind = synd_ind+length(syndromes[neighbor])-1
