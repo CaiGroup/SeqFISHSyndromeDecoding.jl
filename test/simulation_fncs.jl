@@ -22,8 +22,10 @@ sim_true(n, max_species) = DataFrame(species = rand(1:max_species, n), x = rand(
 function get_n_q_w(cb)
     ncws, n = size(cb)
     q = length(unique(cb))
-    cw_nonzeros = [sum(cb[i, :] .!= -) for i in ncws]
-    w =  maximum(cw_nonzeros)
+    #cw_nonzeros = [sum(cb[i, :] .!= 0) for i in ncws]
+    w = maximum(sum(.~ iszero.(cb), dims=2))
+    println("w: $w")
+    #w =  minimum(cw_nonzeros)
     #w = sum(cb[1,:] .!= 0)
     [n, q, w]
 end
@@ -47,37 +49,43 @@ function encode(true_locs :: DataFrame, cb)
     qm1 = UInt8(q-1)
 
     npts = nrow(true_locs) #length(true_locs.species)
-    dot = Array(1:(npts*n))
+    dot = Array(1:(npts*wt))
     species = Int64[]
     x = Float64[]
     y = Float64[]
     #hyb = Int8[]
     hyb = UInt8[]
+    rounds = UInt8[]
+    pseudocolors = UInt8[]
     for i = 1:npts
         target = true_locs[i, :]
         codeword = cb[target.species,:]
-        #for pos = 1:n
-        for pos = 0x01:n
-            if codeword[pos] != 0 && n > wt
+        for round = 0x01:n
+            if codeword[round] != 0 && n > wt
                 push!(species, target.species)
                 push!(x, target.x)
                 push!(y, target.y)
-                dot_hyb = qm1*(pos-1)+codeword[pos]
-                push!(hyb, dot_hyb)
+                dot_hyb = qm1*(round-1)+codeword[round]
+                push!(rounds, round)
+                push!(pseudocolors, codeword[round])
                 #push!(hyb, UInt8(dot_hyb))
             elseif n == wt
                 push!(species, target.species)
                 push!(x, target.x)
                 push!(y, target.y)
-                dot_hyb = q*(pos-1)+codeword[pos]
+                dot_hyb = q*(round-1)+codeword[round]
                 #codeword[pos] == 0x00 ? dot_hyb += 0x10 : nothing
-                codeword[pos] == 0x00 ? dot_hyb += UInt8(q) : nothing
+                codeword[round] == 0x00 ? dot_hyb += UInt8(q) : nothing
                 push!(hyb, dot_hyb)
                 #push!(hyb, UInt8(dot_hyb))
             end
         end
     end
-    pnts = DataFrame(dot_ID=dot,hyb=hyb,species=species,x=x,y=y)
+    if n > wt
+        pnts = DataFrame(dot_ID=dot,round=rounds,pseudocolor=pseudocolors,species=species,x=x,y=y)
+    else
+        pnts = DataFrame(dot_ID=dot,hyb=hyb,species=species,x=x,y=y)
+    end
     pnts[!, "z"] .= 1.0
     pnts[!, "w"] .= 1.0
     pnts[!, "s"] .= 1.0

@@ -48,7 +48,6 @@ and runs simulated annealing to assign them. The pnts dataframe should have hybr
 """
 function decode_syndromes!(pnts :: DataFrame, cb, H :: Matrix, params :: DecodeParams, optimizer = GLPK.Optimizer)
     #println("start syndrome decoding")
-    sort!(pnts, :hyb)
     cpath_df = get_codepaths(pnts, cb, H, params)
 
     if nrow(cpath_df) == 0
@@ -95,14 +94,29 @@ function check_inputs(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: Matrix, param
     alphabet = sort(unique(cb))
     q = UInt8(length(alphabet))
     n = length(cb[1,:])
-
+    if ~params.zeros_probed && ~("round" in names(pnts)) && ~("pseudocolor" in names(pnts))
+        error("'round' and 'pseudocolor' columns must be included to decode experiments where zeros are not probed.")
+    end
     @assert alphabet[1] == 0x00
     @assert alphabet[q] < q
     @assert all(alphabet .>= 0)
-    @assert maximum(pnts[!,"hyb"]) <= q*n
-    @assert minimum(pnts[!,"hyb"]) > 0
+    if "hyb" in names(pnts)
+        @assert maximum(pnts[!,"hyb"]) <= q*n
+        @assert minimum(pnts[!,"hyb"]) > 0
+    else
+        @assert "round" in names(pnts)
+        @assert "pseudocolor" in names(pnts)
+    end
     @assert params.ndrops <= size(H)[1]
     @assert params.ndrops >= 0
+end
+
+function sort_readouts!(pnts :: DataFrame)
+    if "hyb" in names(pnts)
+        sort!(pnts, :hyb)
+    elseif "round" in names(pnts) && "pseudocolor" in names(pnts)
+        sort!(pnts, [:round, :pseudocolor])
+    end
 end
 
 """
@@ -158,9 +172,14 @@ function get_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: Matrix, para
     alphabet = sort(unique(cb))
     q = UInt8(length(alphabet))
     n = length(cb[1,:])
-    w = sum(iszero.(cb[1,:]))
+    if params.zeros_probed
+        w = n
+    else
+        w = minimum(sum(cb .!= 0, dims=2))
+    end
 
     check_inputs(pnts, cb, H, params)
+    sort_readouts!(pnts)
 
     set_q(q)
     set_H(H)
@@ -349,8 +368,8 @@ Add columns giving the coefficient and position the dot encodes in a codeword
 and its associated syndrome component.
 """
 function add_code_cols!(pnts :: DataFrame)
-    if "Round" in names(pnts)
-        pos = pnts.Round
+    if "round" in names(pnts)
+        pos = pnts.round
     else
         pos = get_pos.(pnts.hyb)
     end
@@ -370,7 +389,7 @@ function add_code_cols!(pnts :: DataFrame)
     pnts.mpath = [[] for i = 1:length(pnts.x)]
 end
 
-abstract type DotAlignGraph end
+abstract type abstractDotAdjacencyGraph end
 
 """
     DotAdjacencyGraph(g :: SimpleDiGraph
@@ -380,7 +399,7 @@ abstract type DotAlignGraph end
 
 Structure for storing the dot adjacency graph with some parameters
 """
-struct DotAdjacencyGraph <: DotAlignGraph
+struct DotAdjacencyGraph <: abstractDotAdjacencyGraph
     g :: SimpleDiGraph
     cw_pos_bnds :: Array{Int64}
     n :: Int8
@@ -392,10 +411,9 @@ end
 
 function DotAdjacencyGraph(pnts :: DataFrame, params :: DecodeParams, n, w)
     if params.zeros_probed
-        w = sum(iszero.(cb[1,:]))
-        return DotAdjacencyGraphBlankRound(pnts, params.lat_thresh, params.z_thresh, n, params.ndrops, w)
-    else
         return DotAdjacencyGraph(pnts, params.lat_thresh, params.z_thresh, n, params.ndrops)
+    else
+        return DotAdjacencyGraphBlankRound(pnts, params.lat_thresh, params.z_thresh, n, params.ndrops, w)
     end
 end
 
@@ -424,7 +442,7 @@ function DotAdjacencyGraph(pnts :: DataFrame, lat_thresh :: Real, z_thresh :: Re
     DotAdjacencyGraph(g, cw_pos_bnds, n, trees, lat_thresh, pnts, ndrops)
 end
 
-struct DotAdjacencyGraphBlankRound <: DotAlignGraph
+struct DotAdjacencyGraphBlankRound <: abstractDotAdjacencyGraph
     g :: SimpleDiGraph
     cw_pos_bnds :: Array{Int64}
     n :: Int8
@@ -465,13 +483,12 @@ function get_cw_pos_bounds(pnts, n)
     cw_pos_bnds = [1]
     for cᵢ = 1:(n-1)
         if findfirst(x -> x>cᵢ, pnts.pos) == nothing
-            push!(cw_pos_bnds, length(pnts.hyb)+1)
+            push!(cw_pos_bnds, nrow(pnts)+1)
         else
             push!(cw_pos_bnds, findfirst(x -> x>cᵢ, pnts.pos))
         end
     end
-    push!(cw_pos_bnds,length(pnts.hyb)+1)
-
+    push!(cw_pos_bnds,nrow(pnts)+1)
     return cw_pos_bnds
 end
 
@@ -487,17 +504,32 @@ function neighbors(g :: DotAdjacencyGraph, n)
 end
 
 """
+    neighbors(g :: DotAdjacencyGraphBlankRound, n)
+
+Define SimpleDiGraph neighbors function for DotAdjacencyGraph
+"""
+function neighbors(g :: DotAdjacencyGraphBlankRound, n)
+    nbrs = inrange(g.trees[g.pnts.pos[n]], [g.pnts.x[n], g.pnts.y[n]], g.lat_thresh, true)
+    if g.pnts.pos[n] >  g.n - g.w
+        pnts_prior_rnds = g.cw_pos_bnds[g.w - (g.n - g.pnts.pos[n])] - 1
+        nbrs .+ pnts_prior_rnds
+    end
+    return nbrs
+end
+
+
+"""
     get_cw_pos_inds(g :: DotAdjacencyGraph, pos :: Int)
 
 Helper function to get the dots in the graph that represent a symbol in a given position of the codeword.
 """
-function get_cw_pos_inds(g :: DotAdjacencyGraph, pos :: Integer)
+function get_cw_pos_inds(g :: abstractDotAdjacencyGraph, pos :: Integer)
     return g.cw_pos_bnds[pos]:(g.cw_pos_bnds[pos+1]-1)
 end
 
 """
 """
-function syndrome_find_barcodes!(pnts ::DataFrame, g :: DotAlignGraph, cb ::Matrix{UInt8}, ndrops, w)
+function syndrome_find_barcodes!(pnts ::DataFrame, g :: abstractDotAdjacencyGraph, cb ::Matrix{UInt8}, ndrops, w)
     cw_dict = make_cw_dict(cb)
     if typeof(g) == DotAdjacencyGraphBlankRound
         cpaths, decode_cands = find_blank_round_codewords(pnts ::DataFrame, g :: DotAdjacencyGraphBlankRound, cw_dict, w)

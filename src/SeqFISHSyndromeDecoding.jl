@@ -7,5 +7,6 @@ include("syndrome_decoding.jl")
 include("simulated_annealing.jl")
 include("01_MIP_solve.jl")
 include("mem_eff_synd_comp.jl")
+include("allow_blank_round_codewords.jl")
 
 end # module

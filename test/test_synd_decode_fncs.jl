@@ -16,20 +16,19 @@ function construct_test_encoding(n, cb)
 end
 
 """
-    test_drop_random_dots(cb, ntargets, drop_rate)
+    test_drop_random_dots(cb, ntargets, drop_rate)ƒ
 """
 function test_drop_random_dots(cb, ntargets, drop_rate)
     encoded = construct_test_encoding(ntargets, cb)
     drop_random_dots!(encoded, drop_rate)
-    n_dropped = length(cb[1,:])*ntargets - length(encoded.x)
+    n_dropped = sum(cb[1,:] .!= 0)*ntargets - length(encoded.x)
     return n_dropped
 end
 
 function get_n_q_w(cb)
     ncws, n = size(cb)
     q = length(unique(cb))
-    cw_nonzeros = [sum(cb[i, :] .!= -) for i in ncws]
-    w =  maximum(cw_nonzeros)
+    w = maximum(sum(.~ iszero.(cb), dims=2))
     [n, q, w]
 end
 
@@ -71,21 +70,24 @@ function construct_message(pnts :: DataFrame, mdot_inds, cb :: Array)
     for m_dot in mdot_inds
         mcw[pnts.pos[m_dot]] = pnts.coeff[m_dot]
     end
-    mcw
+    return mcw
 end
 
+"""
 function construct_message(pnts :: DataFrame, mdot_inds, n, q, w, symb_type :: DataType)
     if w == n
         mcw = fill(symb_type(q+1), n)
     else
         mcw = fill(symb_type(0), n)
     end
-    mdot_IDs = pnts.dot_ID[mdot_inds]
+    #mdot_IDs = pnts.dot_ID[mdot_inds]
     for m_dot in mdot_inds
         mcw[pnts.pos[m_dot]] = pnts.coeff[m_dot]
     end
-    mcw, mdot_IDs
+    
+    mcw#, mdot_IDs
 end
+"""
 
 function test_reconstruct_decode_message(ntargets, cb)
     true_locs = sim_true(ntargets, length(cb[:, 1]))
@@ -95,8 +97,8 @@ function test_reconstruct_decode_message(ntargets, cb)
     symb_type = typeof(cb[1,1])
     add_code_cols!(encoded)
     for i = 1:ntargets
-        stop = n*i
-        start = stop - n + 1
+        stop = w*i
+        start = stop - w + 1
         mdots_inds = Array(start:stop)
 
         mcw = construct_message(encoded, mdots_inds, cb)

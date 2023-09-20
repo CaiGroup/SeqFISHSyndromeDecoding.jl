@@ -1,7 +1,7 @@
 
 
 using SeqFISHSyndromeDecoding: ℤnRingElem, set_q, set_n, set_H, SyndromeComponent, check_mpath_decodable, get_decode_table
-
+using SeqFISHSyndromeDecoding
 using Test
 using DelimitedFiles
 
@@ -9,12 +9,17 @@ Eng2019_ontarget = readdlm("Eng2019_647.csv", ',', UInt8)
 RS_q5_k2_cb = readdlm("RS_q5_k2_cb.csv", ',', UInt8)
 RS_q5_k2_H = readdlm("RS_q5_k2_H.csv", ',', UInt8)
 
+RS_q7_k4_H = readdlm("RS_q7_k4_H.csv", ',', UInt8)
+RS_q7_k2_cb = readdlm("RS_q7_k4_cb.csv", ',', UInt8)
+RS_q7_k2_w3cb = readdlm("RS_q7_k4_w3cb.csv", ',', UInt8)
+RS_q7_k2_w4cb = readdlm("RS_q7_k4_w4cb.csv", ',', UInt8)
+RS_q7_k2_w5cb = readdlm("RS_q7_k4_w5cb.csv", ',', UInt8)
 
 cbs = [Eng2019_ontarget]
 Hs = [[1 1 -1 -1;]]
 
-cbs_zeros_unprobed = [RS_q5_k2_cb]
-Hs_zeros_unprobed = [RS_q5_k2_H]
+cbs_zeros_unprobed = [RS_q5_k2_cb, RS_q7_k2_cb, RS_q7_k2_w3cb, RS_q7_k2_w4cb, RS_q7_k2_w5cb]
+Hs_zeros_unprobed = [RS_q5_k2_H, RS_q7_k4_H, RS_q7_k4_H, RS_q7_k4_H, RS_q7_k4_H]
 
 @testset "all syndrome type tests" begin
 
@@ -100,7 +105,7 @@ end
     end
 end
 
-"""
+
 @testset "Test parity check verification blank" begin
     for (i, cb) in enumerate(cbs_zeros_unprobed)
         n = UInt8(length(cb[1,:]))
@@ -115,7 +120,7 @@ end
         end
     end
 end
-"""
+
 
 """
 @testset "Q11N8SC decode table drops true positive" begin

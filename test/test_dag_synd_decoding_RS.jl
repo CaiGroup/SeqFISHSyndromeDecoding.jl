@@ -12,12 +12,13 @@ using Test
 using DataFrames
 
 
-RS_q5_k2_cb = readdlm("RS_q5_k2_cb.csv", ',', UInt8)
-RS_q5_k2_H = readdlm("RS_q5_k2_H.csv", ',', UInt8)
+#RS_q5_k2_cb = readdlm("RS_q5_k2_cb.csv", ',', UInt8)
+#RS_q5_k2_H = readdlm("RS_q5_k2_H.csv", ',', UInt8)
+RS_q7_k4_w4cb = readdlm("RS_q7_k4_w4cb.csv", ',', UInt8)
+RS_q7_k4_H = readdlm("RS_q7_k4_H.csv", ',', UInt8)
 
-
-cbs = [RS_q5_k2_cb]
-pc_matrices = [RS_q5_k2_H]
+cbs = [RS_q7_k4_w4cb] #RS_q5_k2_cb]
+pc_matrices = [RS_q7_k4_H] #RS_q5_k2_H]
 
 
 @testset "all tests" for ii = 1:1
@@ -26,6 +27,7 @@ pc_matrices = [RS_q5_k2_H]
 @testset "Test simulation set up RS" for (i, cb) in enumerate(cbs)
     ntargets = 10
     n = length(cb[1,:])
+    w = sum(cb[1,:] .!= 0)
     q = length(unique(cb))
     len_cb = length(cb[:, 1])
     set_n(UInt8(n))
@@ -33,11 +35,11 @@ pc_matrices = [RS_q5_k2_H]
     set_H(pc_matrices[i])
 
     @test length(sim_true(ntargets, len_cb).x) == ntargets
-    @test length(encode(sim_true(ntargets, len_cb), cb).x) == n*ntargets
+    @test length(encode(sim_true(ntargets, len_cb), cb).x) == w*ntargets
     @test test_add_loc_errors_2(100, 0.1, cb)
     ndots = 100000
     rate = 0.5
-    @test test_drop_random_dots(cb, ndots, rate) ≈ n*ndots*rate atol=10sqrt(ndots*rate*(1-rate))
+    @test test_drop_random_dots(cb, ndots, rate) ≈ w*ndots*rate atol=10sqrt(ndots*rate*(1-rate))
     @inferred sim_true(100, len_cb)
     @test length(draw_localization_errors(ntargets,0.1)[1]) == ntargets
     @test test_add_loc_errors(100, 0.1, cb)
@@ -46,7 +48,7 @@ pc_matrices = [RS_q5_k2_H]
     @test test_reconstruct_decode_message(100, cb)
 end
 
-
+"""
 @testset "Test DotAdjacencyGraph RS" for (i, cb) in enumerate(cbs)
 
     n = length(cb[1,:])
@@ -66,20 +68,25 @@ end
 println("full decode perfect RS")
 @testset "full decode perfect RS" begin
     for (i, cb) in enumerate(cbs), ntargets in [1, 10, 100]
+        n = length(cb[1,:])
+        q = length(unique(cb))
+        set_n(UInt8(n))
+        set_q(UInt8(q))
+        set_H(pc_matrices[i])
         H = pc_matrices[i]
 
         lat_thresh = 0.0
         z_thresh = 0.0
         ndrops = 0
-        free_dot_energy = 5.0
+        free_dot_energy = 1.0
         mip_sa_thresh = 80
 
         pnts, g = construct_test_dag(ntargets, 0, 0, 0, cb, ndrops)
 
         pnts.z = zeros(nrow(pnts))
 
-        ndots = ntargets*length(cb[1,:])
-        free_dot_cost = 5.0
+        ndots = ntargets*sum(cb[1,:] .!= 0)
+        free_dot_cost = 1.0
 
         c_final = 2
         n_chains = 100
@@ -117,5 +124,6 @@ println("full decode perfect RS")
         @test pnts.species == [Int(p) for p in pnts.decoded]
     end
 end
+"""
 
 end

@@ -35,6 +35,7 @@ function DecodeParams()
     prms = DecodeParams(fill(0.0, 18)...)
     c_final = 1
     # set simmulated annealing parameters default values
+    set_zeros_probed(prms, true)
     set_mip_sa_thresh(prms, 80)
     set_free_dot_cost(prms, 1.0)
     set_n_chains(prms, 100)
@@ -82,7 +83,7 @@ set_n_allowed_drops(prms :: DecodeParams, d :: Integer) = (prms.ndrops = d)
 
 Arguments
 - `prms`: DecodeParams Object
-- `zp`: Whether or not zeros in codewords are probed in the experiment. Drops are not supported when true.
+- `zp`: Whether or not zeros in codewords are probed in the experiment. Drops are not supported when false.
 """
 set_zeros_probed(prms :: DecodeParams, zp :: Integer) = (prms.zeros_probed = zp)
 

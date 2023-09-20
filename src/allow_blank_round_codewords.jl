@@ -11,7 +11,7 @@ function find_blank_round_codewords(pnts ::DataFrame, g :: DotAdjacencyGraphBlan
     round_trees = [make_KDTree(pnts[get_cw_pos_inds(g, r), :]) for r in 1:g.n]
     pot_final_dot_tree = make_KDTree(pnts[g.cw_pos_bnds[w]:g.cw_pos_bnds[g.n],:])
 
-    unprocessed_inrange_dots, potential_barcode_final_dots_n_uncomputed_neighbors = count_inrange_dots(pnts, g, w)
+    unprocessed_inrange_dots, potential_barcode_final_dots_n_uncomputed_neighbors = count_inrange_dots(pnts, g, round_trees, w)
 
     while length(potential_barcode_final_dots) > 0
         dot_ind = argmin(potential_barcode_final_dots_n_uncomputed_neighbors[potential_barcode_final_dots .- (g.cw_pos_bnds[w]-1)])
@@ -31,7 +31,7 @@ function find_blank_round_codewords(pnts ::DataFrame, g :: DotAdjacencyGraphBlan
 end
 
 
-function count_inrange_dots(pnts, g, w)
+function count_inrange_dots(pnts, g, round_trees, w)
      # for each dot, count how many dots that could be the final dot of a barcode including it are in range
     # and how many dots that could be the final dot are in range of each other
     unprocessed_inrange_dots = fill(0, nrow(pnts))
@@ -76,7 +76,7 @@ end
     find_barcode_candidates()
 """
 function find_barcode_candidates!(
-    g :: DotAdjacencyGraph,
+    g :: DotAdjacencyGraphBlankRound,
     pnts :: DataFrame,
     cw_dict :: Dict,
     w,
@@ -98,49 +98,66 @@ function find_barcode_candidates!(
         #elseif dot in first round
         else
             # get round
+            println(pnts)
             r = pnts.pos[dot]
+            println("dot: $dot, r: $r")
             #init nsynd counter
-            nsyndc = fill(0, minimum([r,w-1]))
+            nsyndc = fill(0, w) #minimum([r,w-1]))
             len_nbrs = [Int64[] for i in 1:minimum([r,w-2])] # list comprehention ensures each element points to distinct array
-            if r < g.n - 3
+            if r < g.n - (w - 1)
                 nsyndc[1] = 1
             end
-            dot_synd_cs = Vector{{Vector{SyndromeComponent}}}()
+            dot_synd_cs = Vector{Vector{SyndromeComponent}}[]
             sizehint!(dot_synd_cs, length(nsyndc))
             dot_neighbors = neighbors(g, dot)
+            println("dot_neighbors: $dot_neighbors")
 
-            start_ind = maximum([1, r - g.n + w])
+            start_ind = maximum([1, r - (Int64(g.n) - w)])
+            println("start_ind: $start_ind")
             for ndot in dot_neighbors
-                find_barcode_candidates!(pnts, g, cw_dict, w, syndromes, unprocessed_inrange_dots, syndrome_block_sizes, ndot)
-                append!.(len_nbrs[start_ind:end], length.(syndromes[ndot][start_ind:end]))
-                #for (i, lsa) in enumerate(length.(syndromes[ndot][start_ind:end]))
-                #    nsyndc[i+start_ind] += lsa 
-                #end
+                find_barcode_candidates!(g, pnts, cw_dict, w, syndromes, unprocessed_inrange_dots, syndrome_block_sizes, barcode_candidates, gene_nums, ndot)
+                #append!.(len_nbrs[start_ind:end], length.(syndromes[ndot][start_ind:end]))
+                for (i, lsa) in enumerate(length.(syndromes[ndot][start_ind:end]))
+                    nsyndc[i+start_ind] += lsa 
+                end
+                println("len_nbrs: $len_nbrs")
             end
+            println("nsyndc: $nsyndc")
             nsyndc[2:end] .+= sum.(len_nbrs)
-            sum_dot_syndrome_components!(pnts, nsyndc, dot_neighbors, syndromes, syndrome_block_sizes)
-
+            # allocate syndome component array of length nsnd
+            dot_synd_cs = [fill(pnts.sc[dot], nsyndci) for nsyndci in nsyndc] ##fill.(pnts.sc[dot], nsyndc)
+            #dot_synd_cs = fill.(pnts.sc[dot], nsyndc)
+            sum_dot_syndrome_components!(pnts, nsyndc, dot_neighbors, syndromes, syndrome_block_sizes, dot_synd_cs, len_nbrs, dot)
+            println("dot_synd_cs: $dot_synd_cs")
+            println("syndromes[dot]: ", syndromes[dot])
             # trace barcodes that produced syndromes == 0
+            #println(dot_synd_cs)
             map(is -> trace_barcode!(is, pnts, g, dot, cw_dict, w, syndromes, syndrome_block_sizes, barcode_candidates, gene_nums), enumerate(dot_synd_cs[end]))
         end
     end
 end
 
-function sum_dot_syndrome_components!(pnts, nsyndc, dot_neighbors, syndromes, syndrome_block_sizes)
-    # allocate syndome component array of length nsnd
-    dot_synd_cs = fill.(pnts.sc[dot], nsyndc)
-            
+function sum_dot_syndrome_components!(pnts, nsyndc, dot_neighbors, syndromes, syndrome_block_sizes, dot_synd_cs, len_nbrs, dot)
     synd_ind = fill(1, length(nsyndc))
+    println("dot_neighbors: $dot_neighbors")
     # for dot in neighbors
-    for (i, neighbor) in enumerate(dot_neighbors)
+    for neighbor in dot_neighbors
 
         # add syndrome components to appropriate block
-        @inbounds end_ind = synd_ind .+ length.(syndromes[neighbor]) .- 1
-        block_ranges = Base.splat(range).(collect(zip(synd_ind, end_ind)))
-        view.(dot_synd_cs[2:end], block_ranges) .+= syndromes[neighbor]
+        println("synd_ind: ", synd_ind)
+        println("length.(syndromes[neighbor]): ", length.(syndromes[neighbor]))
+        @inbounds end_ind = synd_ind[2:end] .+ length.(syndromes[neighbor]) .- 1
+        println("end_ind: $end_ind")
+        println("length.(dot_synd_cs): ", length.(dot_synd_cs))
+        #block_ranges = Base.splat(range).(collect(zip(synd_ind, end_ind)))
+        #view.(dot_synd_cs[2:end], block_ranges) .+= syndromes[neighbor]
+        for i in 2:length(dot_synd_cs)
+            println("i: $i")
+            dot_synd_cs[i][synd_ind[i]:end_ind[i-1]] += syndromes[neighbor][i-1]
+        end
 
         # keep track of indices of each neighbor's syndrome component block
-        synd_ind .= end_ind .+ 1
+        synd_ind[2:end] .= end_ind .+ 1
     end
     @inbounds syndrome_block_sizes[dot] = len_nbrs
     @inbounds syndromes[dot] = dot_synd_cs[1:(end-1)]
