@@ -22,11 +22,7 @@ sim_true(n, max_species) = DataFrame(species = rand(1:max_species, n), x = rand(
 function get_n_q_w(cb)
     ncws, n = size(cb)
     q = length(unique(cb))
-    #cw_nonzeros = [sum(cb[i, :] .!= 0) for i in ncws]
     w = maximum(sum(.~ iszero.(cb), dims=2))
-    println("w: $w")
-    #w =  minimum(cw_nonzeros)
-    #w = sum(cb[1,:] .!= 0)
     [n, q, w]
 end
 

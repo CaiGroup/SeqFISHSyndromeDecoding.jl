@@ -48,7 +48,7 @@ pc_matrices = [RS_q7_k4_H] #RS_q5_k2_H]
     @test test_reconstruct_decode_message(100, cb)
 end
 
-"""
+
 @testset "Test DotAdjacencyGraph RS" for (i, cb) in enumerate(cbs)
 
     n = length(cb[1,:])
@@ -58,12 +58,12 @@ end
     set_H(pc_matrices[i])
 
     @test test_dag(300, cb, 0.05, 0.15, 0.1, 0)
-    @test test_dag(300, cb, 0.05, 0.15, 0.1, 1)
+    #@test test_dag(300, cb, 0.05, 0.15, 0.1, 1)
     #@test test_dag_edges(300, cb)
     @test test_get_cw_pos_bnds(300, cb, 0.1, 0.3,1,0)
-    @test test_get_cw_pos_bnds(300, cb, 0.1, 0.3,1,1)
+    #@test test_get_cw_pos_bnds(300, cb, 0.1, 0.3,1,1)
 end
-
+"""
 
 println("full decode perfect RS")
 @testset "full decode perfect RS" begin

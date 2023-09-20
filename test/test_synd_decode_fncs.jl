@@ -1,5 +1,5 @@
 using SeqFISHSyndromeDecoding
-using SeqFISHSyndromeDecoding: DotAdjacencyGraph,
+using SeqFISHSyndromeDecoding: DotAdjacencyGraph, DotAdjacencyGraphBlankRound,
 make_cw_dict, get_cw_pos_inds, add_code_cols!, compute_syndromes, neighbors, get_number_of_dots
 
 using DelimitedFiles
@@ -117,9 +117,18 @@ end
 
 function encoded_2_dag!(pnts, cb, lat_thresh, z_thresh, ndrops)
     n, q, w = get_n_q_w(cb)
-    sort!(pnts, :hyb)
+
+    if ("round" in names(pnts)) && ("pseudocolor" in names(pnts))
+        sort!(pnts, [:round, :pseudocolor])
+    else
+        sort!(pnts, :hyb)
+    end
     add_code_cols!(pnts)
-    DotAdjacencyGraph(pnts, lat_thresh, z_thresh, n, ndrops)
+    if n > w
+        DotAdjacencyGraphBlankRound(pnts, lat_thresh, z_thresh, n, ndrops, w)
+    else
+        return DotAdjacencyGraph(pnts, lat_thresh, z_thresh, n, ndrops)
+    end
 end
 
 function test_dag(ntargets, cb, rstdv, lat_thresh, z_thresh, ndrops)
