@@ -16,12 +16,15 @@ using DataFrames
 #RS_q5_k2_H = readdlm("RS_q5_k2_H.csv", ',', UInt8)
 RS_q7_k4_w4cb = readdlm("RS_q7_k4_w4cb.csv", ',', UInt8)
 RS_q7_k4_H = readdlm("RS_q7_k4_H.csv", ',', UInt8)
+RS_q11_k7_w4cb = readdlm("RS_q11_k7_w4cb.csv", ',', UInt8)
+RS_q11_k7_H = readdlm("RS_q11_k7_H.csv", ',', UInt8)
 
-cbs = [RS_q7_k4_w4cb] #RS_q5_k2_cb]
-pc_matrices = [RS_q7_k4_H] #RS_q5_k2_H]
+cbs = [RS_q7_k4_w4cb, RS_q11_k7_w4cb]
+pc_matrices = [RS_q7_k4_H, RS_q11_k7_H]
 
 
 @testset "all tests" for ii = 1:1
+
 
 @testset "Test simulation set up RS" for (i, cb) in enumerate(cbs)
     ntargets = 10
@@ -63,7 +66,7 @@ end
 
 println("full decode perfect RS")
 @testset "full decode perfect RS" begin
-    for (i, cb) in enumerate(cbs), ntargets in [1, 10, 100]
+    for (i, cb) in enumerate(cbs), ntargets in [1, 10, 100, 1000]
         n = length(cb[1,:])
         q = length(unique(cb))
         set_n(UInt8(n))
@@ -82,6 +85,140 @@ println("full decode perfect RS")
         pnts.z = zeros(nrow(pnts))
 
         ndots = ntargets*sum(cb[1,:] .!= 0)
+        free_dot_cost = 1.0
+
+        c_final = 2
+        n_chains = 100
+        l_chain = 300
+        c₀ = free_dot_energy * 40
+        lat_var_factor = 8000.0
+        z_var_factor = 1.0
+        lw_var_factor = 0.0
+        s_var_factor = 0.0
+        erasure_penalty = 0.0
+        converge_thresh = 100 * ndots
+        skip_thresh = 200000
+        skip_density_thresh = 2000000
+        params = DecodeParams(
+            lat_thresh,
+            z_thresh,
+            lat_var_factor,
+            z_var_factor,
+            lw_var_factor,
+            s_var_factor,
+            ndrops,
+            false,
+            mip_sa_thresh,
+            free_dot_energy,
+            n_chains,
+            l_chain,
+            c₀,
+            (c₀/c_final-1)/log(n_chains),
+            erasure_penalty,
+            converge_thresh,
+            skip_thresh,
+            skip_density_thresh
+        )
+        decode_syndromes!(pnts, cb, H, params)
+        @test pnts.species == [Int(p) for p in pnts.decoded]
+    end
+end
+
+
+println("full decode perfect RS search radius")
+@testset "full decode perfect RS search radius" begin
+    for (i, cb) in enumerate(cbs), ntargets in [1, 10, 100]
+        n = length(cb[1,:])
+        q = length(unique(cb))
+        set_n(UInt8(n))
+        set_q(UInt8(q))
+        set_H(pc_matrices[i])
+        H = pc_matrices[i]
+
+        lat_thresh = 0.1
+        z_thresh = 0.0
+        ndrops = 0
+        free_dot_energy = 1.0
+        mip_sa_thresh = 800000000000
+
+        pnts, g = construct_test_dag(ntargets, 0, 0, 0, cb, ndrops)
+
+        pnts.z = zeros(nrow(pnts))
+
+        ndots = ntargets*sum(cb[1,:] .!= 0)
+        free_dot_cost = 1.0
+
+        c_final = 2
+        n_chains = 100
+        l_chain = 300
+        c₀ = free_dot_energy * 40
+        lat_var_factor = 8000.0
+        z_var_factor = 1.0
+        lw_var_factor = 0.0
+        s_var_factor = 0.0
+        erasure_penalty = 0.0
+        converge_thresh = 100 * ndots
+        skip_thresh = 200000
+        skip_density_thresh = 200000
+        params = DecodeParams(
+            lat_thresh,
+            z_thresh,
+            lat_var_factor,
+            z_var_factor,
+            lw_var_factor,
+            s_var_factor,
+            ndrops,
+            false,
+            mip_sa_thresh,
+            free_dot_energy,
+            n_chains,
+            l_chain,
+            c₀,
+            (c₀/c_final-1)/log(n_chains),
+            erasure_penalty,
+            converge_thresh,
+            skip_thresh,
+            skip_density_thresh
+        )
+        decode_syndromes!(pnts, cb, H, params)
+        @test pnts.species == [Int(p) for p in pnts.decoded]
+    end
+end
+
+
+"""
+println("full decode perfect RS barcode pairs w same coords")
+@testset "full decode perfect RS barcode pairs w same coords" begin
+    for ntargets in [1, 10, 100, 1000]
+        n = length(RS_q11_k7_w4cb[1,:])
+        q = length(unique(RS_q11_k7_w4cb))
+        set_n(UInt8(n))
+        set_q(UInt8(q))
+        set_H(RS_q11_k7_H)
+        H = RS_q11_k7_H
+
+        lat_thresh = 0.0
+        z_thresh = 0.0
+        ndrops = 0
+        free_dot_energy = 1.0
+        mip_sa_thresh = 800000000
+
+        pnts1, g = construct_test_dag(ntargets, 0, 0, 0, RS_q11_k7_w4cb, ndrops)
+        pnts2, g2 = construct_test_dag(ntargets, 0, 0, 0, RS_q11_k7_w4cb, ndrops)
+        pnts1.z = zeros(nrow(pnts1))
+        pnts2.z = zeros(nrow(pnts2))
+
+        sort!(pnts1, :dot_ID)
+        sort!(pnts2, :dot_ID)
+
+        pnts2.x .= pnts1.x
+        pnts2.y .= pnts1.y
+        pnts = vcat(pnts1, pnts2)
+        #println("pnts:")
+        #println(pnts)
+        sort!(pnts, [:round, :pseudocolor])
+
+        ndots = ntargets*sum(RS_q11_k7_w4cb[1,:] .!= 0)
         free_dot_cost = 1.0
 
         c_final = 2
@@ -116,9 +253,15 @@ println("full decode perfect RS")
             skip_thresh,
             skip_density_thresh
         )
-        decode_syndromes!(pnts, cb, H, params)
-        @test pnts.species == [Int(p) for p in pnts.decoded]
+        decode_syndromes!(pnts, RS_q11_k7_w4cb, H, params)
+        println(sum(sort(pnts.decoded) .!= sort(pnts.decoded)))
+        #println(hcat(dcd, sort(pnts.species))')
+        sort!(pnts, [:x, :species, :decoded])
+        println(pnts[!, [:x, :species, :decoded]])
+        @test(all(sort(pnts.species) .== sort(pnts.decoded)))
+       #@test all(sort(pnts.species) .== dcd)
     end
 end
+"""
 
 end
