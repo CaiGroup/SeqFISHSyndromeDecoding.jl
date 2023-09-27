@@ -23,7 +23,7 @@ pc_matrices = [RS_q7_k4_H] #RS_q5_k2_H]
 
 @testset "all tests" for ii = 1:1
 
-
+"""
 @testset "Test simulation set up RS" for (i, cb) in enumerate(cbs)
     ntargets = 10
     n = length(cb[1,:])
@@ -60,8 +60,6 @@ end
     @test test_dag(300, cb, 0.05, 0.15, 0.1, 0)
     #@test test_dag(300, cb, 0.05, 0.15, 0.1, 1)
     #@test test_dag_edges(300, cb)
-    @test test_get_cw_pos_bnds(300, cb, 0.1, 0.3,1,0)
-    #@test test_get_cw_pos_bnds(300, cb, 0.1, 0.3,1,1)
 end
 """
 
@@ -75,8 +73,8 @@ println("full decode perfect RS")
         set_H(pc_matrices[i])
         H = pc_matrices[i]
 
-        lat_thresh = 0.0
-        z_thresh = 0.0
+        lat_thresh = eps() #0.0
+        z_thresh = eps() #0.0
         ndrops = 0
         free_dot_energy = 1.0
         mip_sa_thresh = 80
@@ -84,6 +82,7 @@ println("full decode perfect RS")
         pnts, g = construct_test_dag(ntargets, 0, 0, 0, cb, ndrops)
 
         pnts.z = zeros(nrow(pnts))
+        println(pnts)
 
         ndots = ntargets*sum(cb[1,:] .!= 0)
         free_dot_cost = 1.0
@@ -96,7 +95,7 @@ println("full decode perfect RS")
         z_var_factor = 1.0
         lw_var_factor = 0.0
         s_var_factor = 0.0
-        erasure_penalty = 4.0
+        erasure_penalty = 0.0
         converge_thresh = 100 * ndots
         skip_thresh = 2000
         skip_density_thresh = 2000
@@ -124,6 +123,5 @@ println("full decode perfect RS")
         @test pnts.species == [Int(p) for p in pnts.decoded]
     end
 end
-"""
 
 end

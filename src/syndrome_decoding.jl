@@ -95,6 +95,7 @@ function check_inputs(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: Matrix, param
     q = UInt8(length(alphabet))
     n = length(cb[1,:])
     if ~params.zeros_probed && ~("round" in names(pnts)) && ~("pseudocolor" in names(pnts))
+        println("names(pnts): ", names(pnts))
         error("'round' and 'pseudocolor' columns must be included to decode experiments where zeros are not probed.")
     end
     @assert alphabet[1] == 0x00
@@ -191,7 +192,7 @@ function get_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: Matrix, para
     #break into clusters
     if nrow(pnts) > 3
         pnts_mat = Array([pnts.x pnts.y pnts.z]')
-        dbr = dbscan(pnts_mat, params.lat_thresh, min_neighbors=1, min_cluster_size=n-params.ndrops)
+        dbr = dbscan(pnts_mat, params.lat_thresh, min_neighbors=1, min_cluster_size=w-params.ndrops)
         dbscan_clusters = [sort(vcat(dbc.core_indices,  dbc.boundary_indices)) for dbc in dbr]
     elseif nrow(pnts) == 3
         dbscan_clusters = [[1,2,3]]
@@ -201,7 +202,7 @@ function get_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: Matrix, para
 
     find_cluster_cpaths = function(dbscan_cluster)
         clust_pnts = pnts[dbscan_cluster, :]
-        sort!(clust_pnts, :hyb)
+        sort_readouts!(clust_pnts)
         add_code_cols!(clust_pnts)
         g = DotAdjacencyGraph(clust_pnts, params, n, w)
         #g = DotAdjacencyGraph(clust_pnts, params.lat_thresh, params.z_thresh, n, params.ndrops)
@@ -209,8 +210,11 @@ function get_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: Matrix, para
         cost(cpath) = obj_function(cpath, clust_pnts, n, params)
         code_paths, gene_nums = syndrome_find_barcodes!(clust_pnts, g, cb, params.ndrops, w)
         costs = cost.(code_paths)
+        println("code_paths:", code_paths)
 
         cpath_df = DataFrame(cpath = code_paths, cost = costs, gene_number = gene_nums)
+        println("cpath_df: ")
+        println(cpath_df)
         sort!(cpath_df, :cost)
         cpath_df = remove_high_cost_cpaths(cpath_df, params.free_dot_cost, n, params.ndrops)
         cpath_df = threshold_cpaths(cpath_df, clust_pnts, params.lat_thresh, params.z_thresh)
@@ -221,8 +225,9 @@ function get_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: Matrix, para
         
         return cpath_df
     end
-
     cpath_df = vcat(map(find_cluster_cpaths, dbscan_clusters)...)
+    println("cpath_df: ")
+    println(cpath_df)
     return cpath_df
 end
 
@@ -274,7 +279,13 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: M
 
     n = length(cb[1,:])
     ndots = nrow(pnts)
-    filter!(:cpath => cpath -> length(cpath) >= n - params.ndrops, cpath_df)
+    if params.zeros_probed
+        w = n
+        filter!(:cpath => cpath -> length(cpath) >= n - params.ndrops, cpath_df)
+    else
+        w = minimum(sum(cb .!= 0, dims=2))
+    end
+    
     cost(cpath) = obj_function(cpath, pnts, n, params)
     pnts[!,"decoded"] = fill(0, nrow(pnts))
     pnts[!, "mpath"] = [[] for i = 1:length(pnts.x)]
@@ -369,13 +380,13 @@ and its associated syndrome component.
 """
 function add_code_cols!(pnts :: DataFrame)
     if "round" in names(pnts)
-        pos = pnts.round
+        pos = UInt8.(pnts.round)
     else
         pos = get_pos.(pnts.hyb)
     end
 
     if "pseudocolor" in names(pnts)
-        coeff = pnts.pseudocolor
+        coeff = UInt8.(pnts.pseudocolor)
     else
         coeff = get_coeff.(pnts.hyb, pos)
     end
@@ -411,8 +422,10 @@ end
 
 function DotAdjacencyGraph(pnts :: DataFrame, params :: DecodeParams, n, w)
     if params.zeros_probed
+        println("zeros_probed")
         return DotAdjacencyGraph(pnts, params.lat_thresh, params.z_thresh, n, params.ndrops)
     else
+        println("zeros not probed")
         return DotAdjacencyGraphBlankRound(pnts, params.lat_thresh, params.z_thresh, n, params.ndrops, w)
     end
 end
@@ -444,13 +457,14 @@ end
 
 struct DotAdjacencyGraphBlankRound <: abstractDotAdjacencyGraph
     g :: SimpleDiGraph
-    cw_pos_bnds :: Array{Int64}
+    cw_round_ranges
     n :: Int8
     trees :: Vector{KDTree}
     lat_thresh :: Float64
     pnts :: DataFrame
     ndrops :: Int64
     w :: Int64
+    first_potential_barcode_final_dot :: Int64
 end
 
 function DotAdjacencyGraphBlankRound(pnts :: DataFrame, lat_thresh :: Real, z_thresh :: Real, n, ndrops, w)
@@ -461,20 +475,46 @@ function DotAdjacencyGraphBlankRound(pnts :: DataFrame, lat_thresh :: Real, z_th
     g = SimpleDiGraph(nrow(pnts))
 
     # Find the indices of dots representing each place, cᵢ, in a codeword start.
-    cw_pos_bnds = get_cw_pos_bounds(pnts, n)
+    cw_round_ranges = get_cw_round_ranges(pnts, n)
     trees = []
-    for round in 1:(n-(w-2))
-        end_pnt = (cw_pos_bnds[round]-1)
-        push!(trees, make_KDTree(pnts[1:end_pnt, :]))
+    println("cw_round_ranges: $cw_round_ranges")
+    for round in 1:(n-w+1)
+        if ismissing(cw_round_ranges[round])
+            push!(trees, make_KDTree(pnts[1:0, :]))
+        else
+            end_pnt = (cw_round_ranges[round][1]-1)
+            push!(trees, make_KDTree(pnts[1:end_pnt, :]))
+        end
     end
 
-    for (i, round) in enumerate(n-(w-2):n)
-        start_pnt = cw_pos_bnds[i+1]
-        end_pnt = (cw_pos_bnds[round]-1)
-        push!(trees, make_KDTree(pnts[start_pnt:end_pnt, :]))
+    for (i, round) in enumerate((n-w+2):n)
+        println("round: $round")
+        if ismissing(cw_round_ranges[round])
+            println("missing")
+            push!(trees, make_KDTree(pnts[1:0, :]))
+        else
+            println("i: $i")
+            start_pnt = find_previous_round_start(cw_round_ranges, w-(n-round)-1)
+            end_pnt = (cw_round_ranges[round][1]-1)
+            println("start_pnt: $start_pnt")
+            println("end_pnt: $end_pnt")
+            push!(trees, make_KDTree(pnts[start_pnt:end_pnt, :]))
+        end
     end
+    println("trees:")
+    println(trees)
+    first_potential_barcode_final_dot=find_previous_round_start(cw_round_ranges,w)
 
-    DotAdjacencyGraphBlankRound(g, cw_pos_bnds, n, trees, lat_thresh, pnts, ndrops, w)
+    DotAdjacencyGraphBlankRound(g, cw_round_ranges, n, trees, lat_thresh, pnts, ndrops, w, first_potential_barcode_final_dot)
+end
+
+function find_previous_round_start(cw_round_ranges, r)
+    not_found=true
+    while not_found
+        println("r: $r")
+        start = cw_round_ranges[r]
+        ismissing(start) ? r += 1 : return start[1]
+    end
 end
 
 """
@@ -493,6 +533,22 @@ function get_cw_pos_bounds(pnts, n)
 end
 
 """
+"""
+function get_cw_round_ranges(pnts, n)
+    cw_round_ranges = []
+    sizehint!(cw_round_ranges, n)
+
+    for cᵢ = 1:n
+        if findfirst(x -> x==cᵢ, pnts.round) == nothing
+            push!(cw_round_ranges, missing)
+        else
+            push!(cw_round_ranges, findfirst(x -> x==cᵢ, pnts.round):findlast(x -> x==cᵢ, pnts.round))
+        end
+    end
+    return cw_round_ranges
+end
+
+"""
     neighbors(g :: DotAdjacencyGraph, n)
 
 Define SimpleDiGraph neighbors function for DotAdjacencyGraph
@@ -508,11 +564,13 @@ end
 
 Define SimpleDiGraph neighbors function for DotAdjacencyGraph
 """
-function neighbors(g :: DotAdjacencyGraphBlankRound, n)
-    nbrs = inrange(g.trees[g.pnts.pos[n]], [g.pnts.x[n], g.pnts.y[n]], g.lat_thresh, true)
-    if g.pnts.pos[n] >  g.n - g.w
-        pnts_prior_rnds = g.cw_pos_bnds[g.w - (g.n - g.pnts.pos[n])] - 1
-        nbrs .+ pnts_prior_rnds
+function neighbors(g :: DotAdjacencyGraphBlankRound, dot)
+    nbrs = inrange(g.trees[g.pnts.pos[dot]], [g.pnts.x[dot], g.pnts.y[dot]], g.lat_thresh, true)
+    if g.pnts.pos[dot] >  g.n - g.w + 2
+        pnts_prior_rnds = find_previous_round_start(g.cw_round_ranges, g.w - (g.n - g.pnts.round[dot]+1))
+        println("pnts_prior_rnds: $pnts_prior_rnds")
+        nbrs .+= pnts_prior_rnds - 1
+        println("nbrs: $nbrs")
     end
     return nbrs
 end
@@ -523,7 +581,7 @@ end
 
 Helper function to get the dots in the graph that represent a symbol in a given position of the codeword.
 """
-function get_cw_pos_inds(g :: abstractDotAdjacencyGraph, pos :: Integer)
+function get_cw_pos_inds(g :: DotAdjacencyGraph, pos :: Integer)
     return g.cw_pos_bnds[pos]:(g.cw_pos_bnds[pos+1]-1)
 end
 

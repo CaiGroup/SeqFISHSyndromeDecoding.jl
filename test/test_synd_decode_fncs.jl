@@ -7,7 +7,7 @@ using Test
 using Graphs: nv, ne
 using DataFrames
 
-q20_cb = readdlm("Eng2019_647.csv", ',', UInt8)
+#q20_cb = readdlm("Eng2019_647.csv", ',', UInt8)
 
 
 function construct_test_encoding(n, cb)
