@@ -210,11 +210,8 @@ function get_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: Matrix, para
         cost(cpath) = obj_function(cpath, clust_pnts, n, params)
         code_paths, gene_nums = syndrome_find_barcodes!(clust_pnts, g, cb, params.ndrops, w)
         costs = cost.(code_paths)
-        println("code_paths:", code_paths)
 
         cpath_df = DataFrame(cpath = code_paths, cost = costs, gene_number = gene_nums)
-        println("cpath_df: ")
-        println(cpath_df)
         sort!(cpath_df, :cost)
         cpath_df = remove_high_cost_cpaths(cpath_df, params.free_dot_cost, n, params.ndrops)
         cpath_df = threshold_cpaths(cpath_df, clust_pnts, params.lat_thresh, params.z_thresh)
@@ -226,8 +223,6 @@ function get_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: Matrix, para
         return cpath_df
     end
     cpath_df = vcat(map(find_cluster_cpaths, dbscan_clusters)...)
-    println("cpath_df: ")
-    println(cpath_df)
     return cpath_df
 end
 
@@ -422,10 +417,8 @@ end
 
 function DotAdjacencyGraph(pnts :: DataFrame, params :: DecodeParams, n, w)
     if params.zeros_probed
-        println("zeros_probed")
         return DotAdjacencyGraph(pnts, params.lat_thresh, params.z_thresh, n, params.ndrops)
     else
-        println("zeros not probed")
         return DotAdjacencyGraphBlankRound(pnts, params.lat_thresh, params.z_thresh, n, params.ndrops, w)
     end
 end
@@ -477,7 +470,6 @@ function DotAdjacencyGraphBlankRound(pnts :: DataFrame, lat_thresh :: Real, z_th
     # Find the indices of dots representing each place, cᵢ, in a codeword start.
     cw_round_ranges = get_cw_round_ranges(pnts, n)
     trees = []
-    println("cw_round_ranges: $cw_round_ranges")
     for round in 1:(n-w+1)
         if ismissing(cw_round_ranges[round])
             push!(trees, make_KDTree(pnts[1:0, :]))
@@ -488,21 +480,14 @@ function DotAdjacencyGraphBlankRound(pnts :: DataFrame, lat_thresh :: Real, z_th
     end
 
     for (i, round) in enumerate((n-w+2):n)
-        println("round: $round")
         if ismissing(cw_round_ranges[round])
-            println("missing")
             push!(trees, make_KDTree(pnts[1:0, :]))
         else
-            println("i: $i")
             start_pnt = find_previous_round_start(cw_round_ranges, w-(n-round)-1)
             end_pnt = (cw_round_ranges[round][1]-1)
-            println("start_pnt: $start_pnt")
-            println("end_pnt: $end_pnt")
             push!(trees, make_KDTree(pnts[start_pnt:end_pnt, :]))
         end
     end
-    println("trees:")
-    println(trees)
     first_potential_barcode_final_dot=find_previous_round_start(cw_round_ranges,w)
 
     DotAdjacencyGraphBlankRound(g, cw_round_ranges, n, trees, lat_thresh, pnts, ndrops, w, first_potential_barcode_final_dot)
@@ -511,7 +496,6 @@ end
 function find_previous_round_start(cw_round_ranges, r)
     not_found=true
     while not_found
-        println("r: $r")
         start = cw_round_ranges[r]
         ismissing(start) ? r += 1 : return start[1]
     end
@@ -568,9 +552,7 @@ function neighbors(g :: DotAdjacencyGraphBlankRound, dot)
     nbrs = inrange(g.trees[g.pnts.pos[dot]], [g.pnts.x[dot], g.pnts.y[dot]], g.lat_thresh, true)
     if g.pnts.pos[dot] >  g.n - g.w + 2
         pnts_prior_rnds = find_previous_round_start(g.cw_round_ranges, g.w - (g.n - g.pnts.round[dot]+1))
-        println("pnts_prior_rnds: $pnts_prior_rnds")
         nbrs .+= pnts_prior_rnds - 1
-        println("nbrs: $nbrs")
     end
     return nbrs
 end

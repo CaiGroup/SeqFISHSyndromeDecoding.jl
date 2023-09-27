@@ -23,7 +23,6 @@ pc_matrices = [RS_q7_k4_H] #RS_q5_k2_H]
 
 @testset "all tests" for ii = 1:1
 
-"""
 @testset "Test simulation set up RS" for (i, cb) in enumerate(cbs)
     ntargets = 10
     n = length(cb[1,:])
@@ -61,7 +60,6 @@ end
     #@test test_dag(300, cb, 0.05, 0.15, 0.1, 1)
     #@test test_dag_edges(300, cb)
 end
-"""
 
 println("full decode perfect RS")
 @testset "full decode perfect RS" begin
@@ -82,7 +80,6 @@ println("full decode perfect RS")
         pnts, g = construct_test_dag(ntargets, 0, 0, 0, cb, ndrops)
 
         pnts.z = zeros(nrow(pnts))
-        println(pnts)
 
         ndots = ntargets*sum(cb[1,:] .!= 0)
         free_dot_cost = 1.0
