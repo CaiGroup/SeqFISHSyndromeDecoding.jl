@@ -10,16 +10,15 @@ RS_q5_k2_cb = readdlm("RS_q5_k2_cb.csv", ',', UInt8)
 RS_q5_k2_H = readdlm("RS_q5_k2_H.csv", ',', UInt8)
 
 RS_q7_k4_H = readdlm("RS_q7_k4_H.csv", ',', UInt8)
-RS_q7_k2_cb = readdlm("RS_q7_k4_cb.csv", ',', UInt8)
-RS_q7_k2_w3cb = readdlm("RS_q7_k4_w3cb.csv", ',', UInt8)
-RS_q7_k2_w4cb = readdlm("RS_q7_k4_w4cb.csv", ',', UInt8)
-RS_q7_k2_w5cb = readdlm("RS_q7_k4_w5cb.csv", ',', UInt8)
+RS_q7_k4_w3cb = readdlm("RS_q7_k4_w3cb.csv", ',', UInt8)
+RS_q7_k4_w4cb = readdlm("RS_q7_k4_w4cb.csv", ',', UInt8)
+RS_q7_k4_w5cb = readdlm("RS_q7_k4_w5cb.csv", ',', UInt8)
 
 cbs = [Eng2019_ontarget]
 Hs = [[1 1 -1 -1;]]
 
-cbs_zeros_unprobed = [RS_q5_k2_cb, RS_q7_k2_cb, RS_q7_k2_w3cb, RS_q7_k2_w4cb, RS_q7_k2_w5cb]
-Hs_zeros_unprobed = [RS_q5_k2_H, RS_q7_k4_H, RS_q7_k4_H, RS_q7_k4_H, RS_q7_k4_H]
+cbs_zeros_unprobed = [RS_q5_k2_cb, RS_q7_k4_w3cb, RS_q7_k4_w4cb, RS_q7_k4_w5cb]
+Hs_zeros_unprobed = [RS_q5_k2_H, RS_q7_k4_H, RS_q7_k4_H, RS_q7_k4_H]
 
 @testset "all syndrome type tests" begin
 

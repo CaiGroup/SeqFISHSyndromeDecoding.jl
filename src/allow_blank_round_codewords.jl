@@ -6,6 +6,9 @@ function find_blank_round_codewords(pnts ::DataFrame, g :: DotAdjacencyGraphBlan
     gene_nums = []
 
     # get list of dots in rounds that could be the last of a codeword
+    if g.first_potential_barcode_final_dot == nothing
+        return barcode_candidates, gene_nums
+    end
     potential_barcode_final_dot_range = g.first_potential_barcode_final_dot:nrow(pnts)
     potential_barcode_final_dots = collect(potential_barcode_final_dot_range)
     
