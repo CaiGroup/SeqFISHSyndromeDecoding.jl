@@ -17,10 +17,11 @@ using DataFrames
 RS_q7_k4_w4cb = readdlm("RS_q7_k4_w4cb.csv", ',', UInt8)
 RS_q7_k4_H = readdlm("RS_q7_k4_H.csv", ',', UInt8)
 RS_q11_k7_w4cb = readdlm("RS_q11_k7_w4cb.csv", ',', UInt8)
+RS_q11_k7_w5cb = readdlm("RS_q11_k7_w5cb.csv", ',', UInt8)
 RS_q11_k7_H = readdlm("RS_q11_k7_H.csv", ',', UInt8)
 
-cbs = [RS_q7_k4_w4cb, RS_q11_k7_w4cb]
-pc_matrices = [RS_q7_k4_H, RS_q11_k7_H]
+cbs = [RS_q7_k4_w4cb, RS_q11_k7_w4cb, RS_q11_k7_w5cb]
+pc_matrices = [RS_q7_k4_H, RS_q11_k7_H, RS_q11_k7_H]
 
 
 @testset "all tests" for ii = 1:1

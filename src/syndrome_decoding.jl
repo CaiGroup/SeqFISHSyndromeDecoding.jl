@@ -457,7 +457,7 @@ struct DotAdjacencyGraphBlankRound <: abstractDotAdjacencyGraph
     pnts :: DataFrame
     ndrops :: Int64
     w :: Int64
-    first_potential_barcode_final_dot :: Int64
+    first_potential_barcode_final_dot
 end
 
 function DotAdjacencyGraphBlankRound(pnts :: DataFrame, lat_thresh :: Real, z_thresh :: Real, n, ndrops, w)
@@ -493,9 +493,8 @@ function DotAdjacencyGraphBlankRound(pnts :: DataFrame, lat_thresh :: Real, z_th
     DotAdjacencyGraphBlankRound(g, cw_round_ranges, n, trees, lat_thresh, pnts, ndrops, w, first_potential_barcode_final_dot)
 end
 
-function find_previous_round_start(cw_round_ranges, r)
-    not_found=true
-    while not_found
+function find_previous_round_start(cw_round_ranges, r0)
+    for r in r0:length(cw_round_ranges)
         start = cw_round_ranges[r]
         ismissing(start) ? r += 1 : return start[1]
     end
