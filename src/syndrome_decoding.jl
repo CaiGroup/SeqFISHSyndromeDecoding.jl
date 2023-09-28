@@ -50,7 +50,7 @@ function decode_syndromes!(pnts :: DataFrame, cb, H :: Matrix, params :: DecodeP
     #println("start syndrome decoding")
     cpath_df = get_codepaths(pnts, cb, H, params)
 
-    if nrow(cpath_df) == 0
+    if typeof(cpath_df) != DataFrame || nrow(cpath_df) == 0
         println("No viable barcodes")
         return
     end
