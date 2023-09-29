@@ -14,11 +14,14 @@ RS_q7_k4_w3cb = readdlm("RS_q7_k4_w3cb.csv", ',', UInt8)
 RS_q7_k4_w4cb = readdlm("RS_q7_k4_w4cb.csv", ',', UInt8)
 RS_q7_k4_w5cb = readdlm("RS_q7_k4_w5cb.csv", ',', UInt8)
 
+hamming_merfish_cb = readdlm("hamming_merfish_cb.csv", ',', UInt8)
+hamming_merfish_H = readdlm("hamming_merfish_H.csv", ',', UInt8)
+
 cbs = [Eng2019_ontarget]
 Hs = [[1 1 -1 -1;]]
 
-cbs_zeros_unprobed = [RS_q5_k2_cb, RS_q7_k4_w3cb, RS_q7_k4_w4cb, RS_q7_k4_w5cb]
-Hs_zeros_unprobed = [RS_q5_k2_H, RS_q7_k4_H, RS_q7_k4_H, RS_q7_k4_H]
+cbs_zeros_unprobed = [RS_q5_k2_cb, RS_q7_k4_w3cb, RS_q7_k4_w4cb, RS_q7_k4_w5cb, hamming_merfish_cb]
+Hs_zeros_unprobed = [RS_q5_k2_H, RS_q7_k4_H, RS_q7_k4_H, RS_q7_k4_H, hamming_merfish_H]
 
 @testset "all syndrome type tests" begin
 
