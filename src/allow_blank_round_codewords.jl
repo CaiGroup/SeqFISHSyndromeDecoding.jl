@@ -36,7 +36,7 @@ function find_blank_round_codewords(pnts ::DataFrame, g :: DotAdjacencyGraphBlan
         deleteat!(potential_barcode_final_dots, dot_ind)
 
         # delete pointers to allocated variables that are no longer needed
-        #free_space!(pnts, g, unprocessed_inrange_dots, round_trees, syndromes, syndrome_block_sizes, dot)
+        free_space!(pnts, g, unprocessed_inrange_dots, round_trees, syndromes, syndrome_block_sizes, dot)
     end
     return barcode_candidates, gene_nums
 end
@@ -71,7 +71,8 @@ function count_inrange_dots(pnts, g, round_trees, w)
 end
 
 function free_space!(pnts, g, unprocessed_inrange_dots, round_trees, syndromes, syndrome_block_sizes, dot)
-    for round in 1:(g.n-1)
+
+    for round in 1:(pnts.pos[dot]-1)
         for inrange_dot in inrange(round_trees[round], [pnts.x[dot], pnts.y[dot]], g.lat_thresh)
             inrange_dot_ind = inrange_dot + g.cw_round_ranges[round][1] - 1
             unprocessed_inrange_dots[inrange_dot_ind] -= 1
