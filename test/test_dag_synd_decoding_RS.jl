@@ -141,7 +141,7 @@ end
 
 println("full decode perfect RS search radius")
 @testset "full decode perfect RS search radius" begin
-    for (i, cb) in enumerate(cbs[1:end-1]), ntargets in [1, 10] #, 100]
+    for (i, cb) in enumerate(cbs[1:end-1]), ntargets in [1, 10, 30] #, 100]
         n = length(cb[1,:])
         q = length(unique(cb))
         #set_n(UInt8(n))
