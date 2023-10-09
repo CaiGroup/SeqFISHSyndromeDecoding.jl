@@ -64,7 +64,7 @@ function decode_syndromes!(pnts :: DataFrame, cb_df :: DataFrame, H :: Matrix, p
     cb = Matrix(UInt8.(cb_df[!, 2:end]))
     gene = cb_df[!, "Gene"]
     value = Array(1:length(gene))
-    decoded = decode_syndromes!(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: Matrix, params :: DecodeParams)
+    decoded = decode_syndromes!(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: DecodeParams)
     gene_value_df = DataFrame("Gene" => gene, "value" => value)
     decoded_joined = rightjoin(gene_value_df, decoded, on=:value)
 
@@ -90,7 +90,7 @@ end
 
 """
 """
-function check_inputs(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: Matrix, params :: DecodeParams)
+function check_inputs(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: DecodeParams)
     alphabet = sort(unique(cb))
     q = UInt8(length(alphabet))
     n = length(cb[1,:])
@@ -98,9 +98,11 @@ function check_inputs(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: Matrix, param
         println("names(pnts): ", names(pnts))
         error("'round' and 'pseudocolor' columns must be included to decode experiments where zeros are not probed.")
     end
-    @assert alphabet[1] == 0x00
-    @assert alphabet[q] < q
-    @assert all(alphabet .>= 0)
+    @assert alphabet[1] == 0x00 || alphabet[1] == "0"
+    if typeof(alphabet[1]) != String
+        @assert alphabet[q] < q
+        @assert all(alphabet .>= 0)
+    end
     if "hyb" in names(pnts)
         @assert maximum(pnts[!,"hyb"]) <= q*n
         @assert minimum(pnts[!,"hyb"]) > 0
@@ -147,11 +149,11 @@ and returns DataFrame of candidate codepaths.
 """
 function get_codepaths(pnts :: DataFrame, cb_df :: DataFrame, H :: Matrix, params :: DecodeParams)
     cb = Matrix(UInt8.(cb_df[!, 2:end]))
-    return get_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: Matrix, params :: DecodeParams)
+    return get_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: DecodeParams)
 end
 
 """
-    get_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: Matrix, params :: DecodeParams)
+    get_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: DecodeParams)
 
 Computes codepaths with syndrome decoding, removes codepaths that exceed the cost
 of not decoding their component dots, and returns DataFrame of candidate codepaths.
@@ -165,10 +167,10 @@ Arguments
     - `w` : the weight (or brightness) of the psfs
 - `cb` : The codebook.
 - `H` : The parity check Matrix
-- `params` : DecodeParams object holding the parameters for decoding    
+- `params` : DecodeParams object holding the parameters for decoding
 """
-function get_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: Matrix, params :: DecodeParams)
-    
+function get_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: DecodeParams)
+
     cb_dict = make_cw_dict(cb)
     alphabet = sort(unique(cb))
     q = UInt8(length(alphabet))
@@ -176,7 +178,11 @@ function get_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: Matrix, para
     if params.zeros_probed
         w = n
     else
-        w = minimum(sum(cb .!= 0, dims=2))
+        if typeof(cb[1,1]) == String
+            w = minimum(sum(cb .!= "0", dims=2))
+        else
+            w = minimum(sum(cb .!= 0, dims=2))
+        end
     end
 
     check_inputs(pnts, cb, H, params)
@@ -184,7 +190,8 @@ function get_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: Matrix, para
 
     set_q(q)
     set_H(H)
-    set_n(UInt8(n))
+    #set_n(UInt8(n))
+    #set_k(n-size(H)[1])
     if params.ndrops > 0
         get_decode_table()
     end
@@ -219,7 +226,7 @@ function get_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: Matrix, para
         cpath_df[!,"y"] = mean.([clust_pnts.y[cpath] for cpath in cpath_df.cpath])
         cpath_df[!,"z"] = mean.([clust_pnts.z[cpath] for cpath in cpath_df.cpath])
         replace!.(i->dbscan_cluster[i], cpath_df.cpath)
-        
+
         return cpath_df
     end
     cpath_df = vcat(map(find_cluster_cpaths, dbscan_clusters)...)
@@ -270,7 +277,7 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb_df :: DataFrame, H :: Ma
     end
 end
 
-function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: Matrix, params :: DecodeParams, cpath_df :: DataFrame, optimizer)
+function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: DecodeParams, cpath_df :: DataFrame, optimizer)
 
     n = length(cb[1,:])
     ndots = nrow(pnts)
@@ -280,7 +287,7 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: M
     else
         w = minimum(sum(cb .!= 0, dims=2))
     end
-    
+
     cost(cpath) = obj_function(cpath, pnts, n, params)
     pnts[!,"decoded"] = fill(0, nrow(pnts))
     pnts[!, "mpath"] = [[] for i = 1:length(pnts.x)]
@@ -321,7 +328,7 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: M
             continue
         else
             cpath_nbrs, cpath_partial_conflicts, cpath_partial_conflict_transitions = get_cpath_conflict_graph_remove_redundant_cpaths!(cc_cpath_df, ndots, n)
-           
+
             # get heuristic start point?
             if nrow(cc_cpath_df) < params.mip_sa_thresh
                 low_cost_state = MIP_solve(cc_cpath_df, cpath_nbrs, optimizer)
@@ -375,22 +382,22 @@ and its associated syndrome component.
 """
 function add_code_cols!(pnts :: DataFrame)
     if "round" in names(pnts)
-        pos = UInt8.(pnts.round)
+        pnts.pos = UInt8.(pnts.round)
     else
-        pos = get_pos.(pnts.hyb)
+        pnts.pos = get_pos.(pnts.hyb)
     end
 
     if "pseudocolor" in names(pnts)
-        coeff = UInt8.(pnts.pseudocolor)
+        if q == 8 || q == 9
+            pnts.coeff = map(c -> pseudocolor_2_savestring[c], pnts.pseudocolor)
+        else
+            pnts.coeff = UInt8.(pnts.pseudocolor)
+        end
     else
-        coeff = get_coeff.(pnts.hyb, pos)
+        pnts.coeff = get_coeff.(pnts.hyb, pnts.pos)
     end
 
-    sc = SyndromeComponent.(coeff, pos)
-    pnts.pos = pos
-    pnts.coeff = coeff
-    pnts.sc = sc
-
+    pnts.sc = SyndromeComponent.(pnts.coeff, pnts.pos)
     pnts.decoded = zeros(length(pnts.x))
     pnts.mpath = [[] for i = 1:length(pnts.x)]
 end
@@ -568,7 +575,7 @@ end
 
 """
 """
-function syndrome_find_barcodes!(pnts ::DataFrame, g :: abstractDotAdjacencyGraph, cb ::Matrix{UInt8}, ndrops, w)
+function syndrome_find_barcodes!(pnts ::DataFrame, g :: abstractDotAdjacencyGraph, cb ::Matrix, ndrops, w)
     cw_dict = make_cw_dict(cb)
     if typeof(g) == DotAdjacencyGraphBlankRound
         cpaths, decode_cands = find_blank_round_codewords(pnts ::DataFrame, g :: DotAdjacencyGraphBlankRound, cw_dict, w)
@@ -778,7 +785,7 @@ function recursive_get_synd_neighbors(
      )
 
     # if this is the last dot in the message, return number of dot in an array
-    if synd_ind == 1 && dot < g.cw_pos_bnds[2+g.ndrops] && recursion_depth >= (length(g.cw_pos_bnds)-1-g.ndrops)        
+    if synd_ind == 1 && dot < g.cw_pos_bnds[2+g.ndrops] && recursion_depth >= (length(g.cw_pos_bnds)-1-g.ndrops)
         cpath = Int[dot]
         sizehint!(cpath, g.n)
         return cpath

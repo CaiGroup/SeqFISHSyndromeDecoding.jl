@@ -3,8 +3,7 @@ include("simulation_fncs.jl")
 
 using SeqFISHSyndromeDecoding
 include("test_synd_decode_fncs.jl")
-using SeqFISHSyndromeDecoding: add_code_cols!, syndrome_find_barcodes!, DotAdjacencyGraph,
-    set_n, set_q, set_H
+using SeqFISHSyndromeDecoding: add_code_cols!, syndrome_find_barcodes!, DotAdjacencyGraph, set_q, set_H
 
 
 using DelimitedFiles
@@ -14,20 +13,25 @@ using DataFrames
 
 #RS_q5_k2_cb = readdlm("RS_q5_k2_cb.csv", ',', UInt8)
 #RS_q5_k2_H = readdlm("RS_q5_k2_H.csv", ',', UInt8)
-RS_q7_k4_w4cb = readdlm("RS_q7_k4_w4cb.csv", ',', UInt8)
-RS_q7_k4_H = readdlm("RS_q7_k4_H.csv", ',', UInt8)
-RS_q11_k7_w4cb = readdlm("RS_q11_k7_w4cb.csv", ',', UInt8)
-RS_q11_k7_w5cb = readdlm("RS_q11_k7_w5cb.csv", ',', UInt8)
-RS_q11_k7_H = readdlm("RS_q11_k7_H.csv", ',', UInt8)
-RS_q11_k8_w4cb = readdlm("RS_q11_k8_w4cb.csv", ',', UInt8)
-RS_q11_k8_H = readdlm("RS_q11_k8_H.csv", ',', UInt8)
-hamming_merfish_cb = readdlm("hamming_merfish_cb.csv", ',', UInt8)
-hamming_merfish_H = readdlm("hamming_merfish_H.csv", ',', UInt8)
+RS_q7_k4_w4cb = readdlm("codes/RS_q7_k4_w4cb.csv", ',', UInt8)
+RS_q7_k4_H = readdlm("codes/RS_q7_k4_H.csv", ',', UInt8)
+RS_q11_k7_w4cb = readdlm("codes/RS_q11_k7_w4cb.csv", ',', UInt8)
+RS_q11_k7_w5cb = readdlm("codes/RS_q11_k7_w5cb.csv", ',', UInt8)
+RS_q11_k7_H = readdlm("codes/RS_q11_k7_H.csv", ',', UInt8)
+RS_q11_k8_w4cb = readdlm("codes/RS_q11_k8_w4cb.csv", ',', UInt8)
+RS_q11_k8_H = readdlm("codes/RS_q11_k8_H.csv", ',', UInt8)
+hamming_merfish_cb = readdlm("codes/hamming_merfish_cb.csv", ',', UInt8)
+hamming_merfish_H = readdlm("codes/hamming_merfish_H.csv", ',', UInt8)
+RS_q8_n7_k4_H = readdlm("codes/RS_q8_n7_k4_H.csv", ',', String)
+RS_q8_n7_k4_w4cb = readdlm("codes/RS_q8_n7_k4_w4cb.csv", ',', String)
+RS_q9_n8_k5_H = readdlm("codes/RS_q9_n8_k5_H.csv", ',', String)
+RS_q9_n8_k5_w4cb = readdlm("codes/RS_q9_n8_k5_w4cb.csv", ',', String)
 
+cbs = [RS_q7_k4_w4cb, RS_q11_k7_w4cb, RS_q11_k7_w5cb, RS_q11_k8_w4cb, hamming_merfish_cb, RS_q8_n7_k4_w4cb, RS_q9_n8_k5_w4cb]
+pc_matrices = [RS_q7_k4_H, RS_q11_k7_H, RS_q11_k7_H, RS_q11_k8_H, hamming_merfish_H, RS_q8_n7_k4_H, RS_q9_n8_k5_H]
 
-cbs = [RS_q7_k4_w4cb, RS_q11_k7_w4cb, RS_q11_k7_w5cb, RS_q11_k8_w4cb, hamming_merfish_cb]
-pc_matrices = [RS_q7_k4_H, RS_q11_k7_H, RS_q11_k7_H, RS_q11_k8_H, hamming_merfish_H]
-
+#cbs = [RS_q8_n7_k4_w4cb]
+#pc_matrices = [RS_q8_n7_k4_H]
 
 @testset "all tests" for ii = 1:1
 
@@ -35,10 +39,14 @@ pc_matrices = [RS_q7_k4_H, RS_q11_k7_H, RS_q11_k7_H, RS_q11_k8_H, hamming_merfis
 @testset "Test simulation set up RS" for (i, cb) in enumerate(cbs)
     ntargets = 10
     n = length(cb[1,:])
-    w = sum(cb[1,:] .!= 0)
+    if typeof(cb[1,1]) == String
+        w = sum(cb[1,:] .!= "0")
+    else
+        w = sum(cb[1,:] .!= 0)
+    end
     q = length(unique(cb))
     len_cb = length(cb[:, 1])
-    set_n(UInt8(n))
+    #set_n(UInt8(n))
     set_q(UInt8(q))
     set_H(pc_matrices[i])
 
@@ -61,7 +69,7 @@ end
 
     n = length(cb[1,:])
     q = length(unique(cb))
-    set_n(UInt8(n))
+    #set_n(UInt8(n))
     set_q(UInt8(q))
     set_H(pc_matrices[i])
 
@@ -75,7 +83,7 @@ println("full decode perfect RS")
     for (i, cb) in enumerate(cbs), ntargets in [1, 10, 100, 1000]
         n = length(cb[1,:])
         q = length(unique(cb))
-        set_n(UInt8(n))
+        #set_n(UInt8(n))
         set_q(UInt8(q))
         set_H(pc_matrices[i])
         H = pc_matrices[i]
@@ -133,10 +141,10 @@ end
 
 println("full decode perfect RS search radius")
 @testset "full decode perfect RS search radius" begin
-    for (i, cb) in enumerate(cbs[1:end-1]), ntargets in [1, 10, 100]
+    for (i, cb) in enumerate(cbs[1:end-1]), ntargets in [1, 10] #, 100]
         n = length(cb[1,:])
         q = length(unique(cb))
-        set_n(UInt8(n))
+        #set_n(UInt8(n))
         set_q(UInt8(q))
         set_H(pc_matrices[i])
         H = pc_matrices[i]

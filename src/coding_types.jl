@@ -15,17 +15,46 @@ end
 q = 0x00
 H = zeros(Int64, (2,2))
 n = 0x00
+k = 0x00
 
+"""
 function set_n(_n :: UInt8)
     global n = _n
+    if q == 9 && k != 0
+        #initials ones place and twos place masks for bitwise operations
+        global ones_mask = vcat(fill(BitArray([1,0]),2*(n-k))...)
+        global twos_mask = .~ones_mask
+    end
 end
+
+function set_k(_k :: Integer)
+    global k = UInt8(_k)
+end
+"""
 
 function set_q(_q :: UInt8)
     global q = _q
+    global qm1 = q - 0x01
+    init_ones_and_twos_masks()
 end
 
 function set_H(_H :: Matrix)
-    global H = _H
+    if q == 8 || q == 9
+        global H = GFExtElemExpForm.(_H)
+    else
+        global H = _H
+    end
+    global n = UInt8(size(H)[2])
+    global k = UInt8(n-size(H)[1])
+    init_ones_and_twos_masks()
+end
+
+function init_ones_and_twos_masks()
+    if q == 9 && n != 0x00
+        #initials ones place and twos place masks for bitwise operations
+        global ones_mask = vcat(fill(BitArray([1,0]),2*(n-k))...)
+        global twos_mask = .~ones_mask
+    end
 end
 
 add_mod(a :: ℤnRingElem, b :: ℤnRingElem, mod :: Unsigned) = (a.v + b.v) % mod
@@ -71,16 +100,16 @@ end
 
 iszero(x :: ℤnRingElem) = iszero(x.v)
 
-struct SyndromeComponent
+abstract type SyndromeComponent end
+
+struct SyndromeComponentℤnRing <: SyndromeComponent
     s :: Tuple{Vararg{ℤnRingElem}}
 end
 
 function SyndromeComponent(coeff :: UInt8, pos :: UInt8)
-    #coef_vec = fill(coeff, size(H)[1])
     pos_fncs = func_from_H_val.(H)
-    #SyndromeComponent([pos_fncs[i,pos](ℤnRingElem(coeff)) for i = 1:(size(H)[1])])
     res = [pos_fncs[i,pos](ℤnRingElem(coeff)) for i = 1:(size(H)[1])]
-    SyndromeComponent(Tuple(res))
+    return SyndromeComponentℤnRing(Tuple(res))
 end
 
 function func_from_H_val(h_val)
@@ -97,11 +126,11 @@ function func_from_H_val(h_val)
     end
 end
 
-+(a :: SyndromeComponent, b :: SyndromeComponent) = typeof(a)(a.s .+ b.s)
++(a :: SyndromeComponentℤnRing, b :: SyndromeComponentℤnRing) = typeof(a)(a.s .+ b.s)
 
 iszero(x :: SyndromeComponent) = all(iszero.(x.s))
 
-inv₊(s :: SyndromeComponent) = typeof(s)(inv₊.(s.s))
+inv₊(s :: SyndromeComponentℤnRing) = typeof(s)(inv₊.(s.s))
 
 get_pos(hyb :: UInt8) = ceil(UInt8, hyb / q)
 
@@ -109,7 +138,7 @@ get_coeff(hyb :: UInt8, pos :: UInt8) = (hyb - (pos - 0x01) * q) % q
 
 
 function get_decode_table()
-    global decode_table = Dict{Tuple{UInt8, SyndromeComponent},  UInt8}()
+    global decode_table = Dict{Tuple{UInt8, SyndromeComponentℤnRing},  UInt8}()
     #global decode_table = Dict{Tuple{UInt8, UInt8},  UInt8}()
     #for coeff = 0x01:0x13, pos = 0x01:0x04
     for coeff = 0x01:(q - 0x01), pos = 0x01:n #0x04
@@ -136,7 +165,7 @@ end
 
 
 """
-    check_mpath_decodable(drop_pos :: UInt8, s :: SyndromeComponent)
+    check_mpath_decodable(drop_pos :: UInt8, s :: SyndromeComponentℤnRing)
 
 Checks to see if a message path with a drop can be decoded.
 Attempts to fill in the drop with syndrome decoding and decoding table.
@@ -145,7 +174,7 @@ If the drop is correctable, returns the pseudocolor/coeff of the dropped encodin
 
 otherwise, returns false
 """
-function check_mpath_decodable(drop_pos :: UInt8, s :: SyndromeComponent)
+function check_mpath_decodable(drop_pos :: UInt8, s :: SyndromeComponentℤnRing)
     if iszero(s)
         return (decodable = true, coeff = 0x00)
     end

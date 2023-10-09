@@ -20,15 +20,20 @@ end
 """
 function test_drop_random_dots(cb, ntargets, drop_rate)
     encoded = construct_test_encoding(ntargets, cb)
+    n_initial = nrow(encoded)
     drop_random_dots!(encoded, drop_rate)
-    n_dropped = sum(cb[1,:] .!= 0)*ntargets - length(encoded.x)
+    n_dropped = n_initial - length(encoded.x)
     return n_dropped
 end
 
 function get_n_q_w(cb)
     ncws, n = size(cb)
     q = length(unique(cb))
-    w = maximum(sum(.~ iszero.(cb), dims=2))
+    if typeof(cb[1,1]) == String
+        w = maximum(sum(cb .!= "0", dims=2))
+    else
+        w = maximum(sum(.~ iszero.(cb), dims=2))
+    end
     [n, q, w]
 end
 
@@ -66,7 +71,11 @@ Converts a list of dots into a message vector.
 """
 function construct_message(pnts :: DataFrame, mdot_inds, cb :: Array)
     n, q, w = get_n_q_w(cb)
-    mcw = fill(typeof(cb[1,1])(0), n)
+    if typeof(cb[1,1]) == String
+        mcw = fill("0", n)
+    else
+        mcw = fill(0x00, n)
+    end
     for m_dot in mdot_inds
         mcw[pnts.pos[m_dot]] = pnts.coeff[m_dot]
     end

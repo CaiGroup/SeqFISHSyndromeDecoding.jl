@@ -167,7 +167,11 @@ function trace_barcode!(is, pnts, g, dot, cw_dict, w, syndromes, syndrome_block_
         if ismissing(barcode_candidate)
             return
         end
-        cw = zeros(UInt8, g.n)
+        if typeof(pnts.coeff[1]) == String
+            cw = fill("0", g.n)
+        else
+            cw = zeros(UInt8, g.n)
+        end
         cw[pnts.round[barcode_candidate]] .= pnts.coeff[barcode_candidate]
         if cw in keys(cw_dict)
             push!(barcode_candidates, barcode_candidate)

@@ -3,8 +3,7 @@ include("simulation_fncs.jl")
 
 using SeqFISHSyndromeDecoding
 include("test_synd_decode_fncs.jl")
-using SeqFISHSyndromeDecoding: add_code_cols!, DotAdjacencyGraph,
-    set_n, set_q, set_H
+using SeqFISHSyndromeDecoding: add_code_cols!, DotAdjacencyGraph, set_q, set_H
 
 
 using DelimitedFiles
@@ -12,7 +11,7 @@ using Test
 using DataFrames
 
 
-q20_cb = readdlm("Eng2019_647.csv", ',', UInt8)
+q20_cb = readdlm("codes/Eng2019_647.csv", ',', UInt8)
 
 cbs = [q20_cb]
 pc_matrices = [[1 1 -1 -1;]]
@@ -24,7 +23,7 @@ pc_matrices = [[1 1 -1 -1;]]
     ntargets = 10
     n = length(cb[1,:])
     q = length(unique(cb))
-    set_n(UInt8(n))
+    #set_n(UInt8(n))
     set_q(UInt8(q))
     set_H(pc_matrices[i])
 
@@ -47,7 +46,7 @@ end
 
     n = length(cb[1,:])
     q = length(unique(cb))
-    set_n(UInt8(n))
+    #set_n(UInt8(n))
     set_q(UInt8(q))
     set_H(pc_matrices[i])
 
@@ -62,9 +61,9 @@ end
 
 @testset "test compute syndrome" begin
     for (i, cb) in enumerate(cbs)
-        n = length(cb[1,:])
+        #n = length(cb[1,:])
         q = length(unique(cb))
-        set_n(UInt8(n))
+        #set_n(UInt8(n))
         set_q(UInt8(q))
         set_H(pc_matrices[i])
         ntargets = 50000
