@@ -148,7 +148,11 @@ of not decoding their component dots, and
 and returns DataFrame of candidate codepaths.
 """
 function get_codepaths(pnts :: DataFrame, cb_df :: DataFrame, H :: Matrix, params :: DecodeParams)
-    cb = Matrix(UInt8.(cb_df[!, 2:end]))
+    if typeof(cb_df[2, 2]) <: AbstractString
+        cb = Matrix(string.(cb_df[!, 2:end]))
+    else
+        cb = Matrix(UInt8.(cb_df[!, 2:end]))
+    end
     return get_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: DecodeParams)
 end
 
@@ -264,7 +268,11 @@ to the passed parameters.
 
 """
 function choose_optimal_codepaths(pnts :: DataFrame, cb_df :: DataFrame, H :: Matrix, params :: DecodeParams, cpath_df :: DataFrame, optimizer; ret_discarded :: Bool=false)
-    cb = Matrix(UInt8.(cb_df[!, 2:end]))
+    if typeof(cb_df[2, 2]) <: AbstractString
+        cb = Matrix(string.(cb_df[!, 2:end]))
+    else
+        cb = Matrix(UInt8.(cb_df[!, 2:end]))
+    end
     gene = cb_df[!, 1]
     gene_number = Array(1:length(gene))
     decoded, discarded_cpaths = choose_optimal_codepaths(pnts, cb, H, params, cpath_df, optimizer)
