@@ -27,8 +27,11 @@ RS_q8_n7_k4_w4cb = readdlm("codes/RS_q8_n7_k4_w4cb.csv", ',', String)
 RS_q9_n8_k5_H = readdlm("codes/RS_q9_n8_k5_H.csv", ',', String)
 RS_q9_n8_k5_w4cb = readdlm("codes/RS_q9_n8_k5_w4cb.csv", ',', String)
 
-cbs = [RS_q7_k4_w4cb, RS_q11_k7_w4cb, RS_q11_k7_w5cb, RS_q11_k8_w4cb, hamming_merfish_cb, RS_q8_n7_k4_w4cb, RS_q9_n8_k5_w4cb]
-pc_matrices = [RS_q7_k4_H, RS_q11_k7_H, RS_q11_k7_H, RS_q11_k8_H, hamming_merfish_H, RS_q8_n7_k4_H, RS_q9_n8_k5_H]
+RS_q11_n12_k9_H = readdlm("codes/RS_q9_n8_k5_H.csv", ',', String)
+RS_q11_n12_k9_w4cb = readdlm("codes/RS_q9_n8_k5_w4cb.csv", ',', String)
+
+cbs = [RS_q7_k4_w4cb, RS_q11_k7_w4cb, RS_q11_k7_w5cb, RS_q11_k8_w4cb, hamming_merfish_cb, RS_q8_n7_k4_w4cb, RS_q9_n8_k5_w4cb, RS_q11_n12_k9_w4cb]
+pc_matrices = [RS_q7_k4_H, RS_q11_k7_H, RS_q11_k7_H, RS_q11_k8_H, hamming_merfish_H, RS_q8_n7_k4_H, RS_q9_n8_k5_H, RS_q11_n12_k9_H]
 
 #cbs = [RS_q8_n7_k4_w4cb]
 #pc_matrices = [RS_q8_n7_k4_H]
