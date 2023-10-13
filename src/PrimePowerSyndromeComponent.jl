@@ -49,7 +49,7 @@ elseif q == 8
 end
 
 function SyndromeComponent(coeff :: String, pos :: UInt8)
-    res = [H[i,pos]*(GFExtElemExpForm(coeff)) for i = 1:(size(H)[1])]
+    res = [H[i,pos]*(FFExtElemExpForm(coeff)) for i = 1:(size(H)[1])]
     if q == 8
         return SyndromeComponentExtensionField2(res)
     elseif q == 9
@@ -57,19 +57,18 @@ function SyndromeComponent(coeff :: String, pos :: UInt8)
     end
 end
 
-struct GFExtElemExpForm
+struct FFExtElemExpForm
     pow :: Int8
 end
 
-GFExtElemExpForm(elem :: String) = GFExtElemExpForm(savestring_2_exp[elem])
+FFExtElemExpForm(elem :: String) = FFExtElemExpForm(savestring_2_exp[elem])
 
-#abstract type GFExtElemExpForm end
 
-function *(a :: GFExtElemExpForm, b :: GFExtElemExpForm)
+function *(a :: FFExtElemExpForm, b :: FFExtElemExpForm)
     if a.pow == Int8(-1) || b.pow == Int8(-1)
-        return GFExtElemExpForm(Int8(-1))
+        return FFExtElemExpForm(Int8(-1))
     else
-        return GFExtElemExpForm( (a.pow + b.pow) %  qm1)
+        return FFExtElemExpForm( (a.pow + b.pow) %  qm1)
     end
 end
 
@@ -77,13 +76,13 @@ struct SyndromeComponentExtensionField2 <: SyndromeComponent
     s :: BitArray #Tuple{Vararg{Tuple{Vararg{ℤnRingElem}}}}
 end
 
-function SyndromeComponentExtensionField2(input :: Vector{GFExtElemExpForm})
+function SyndromeComponentExtensionField2(input :: Vector{FFExtElemExpForm})
     SyndromeComponentExtensionField2(vcat(to_ff2_3_poly_form.(input)...))
 end
 
 +(a :: SyndromeComponentExtensionField2, b :: SyndromeComponentExtensionField2) = SyndromeComponentExtensionField2(a.s .⊻ b.s)
 
-struct GF2ExtensionElemPolyForm 
+struct FF2ExtensionElemPolyForm 
     v :: BitArray
 end
 
@@ -91,7 +90,7 @@ struct SyndromeComponentExtensionField3 <: SyndromeComponent
     s :: BitArray #Tuple{Vararg{Tuple{Vararg{ℤnRingElem}}}}
 end
 
-function SyndromeComponentExtensionField3(input :: Vector{GFExtElemExpForm})
+function SyndromeComponentExtensionField3(input :: Vector{FFExtElemExpForm})
     SyndromeComponentExtensionField3(vcat(to_ff3_2_poly_form.(input)...))
 end
 
@@ -109,7 +108,7 @@ function +(a :: SyndromeComponentExtensionField3, b :: SyndromeComponentExtensio
     SyndromeComponentExtensionField3(or_res .| and_swap)
 end
 
-GF2_ext3_poly_form_dict = Dict([
+FF2_ext3_poly_form_dict = Dict([
         (Int8(-1), BitArray([0,0,0])),
         (Int8(0), BitArray([1,0,0])),
         (Int8(1),BitArray([0,1,0])),
@@ -121,7 +120,7 @@ GF2_ext3_poly_form_dict = Dict([
     ]
 )
 
-GF3_ext2_poly_form_dict = Dict([
+FF3_ext2_poly_form_dict = Dict([
     (Int8(-1), BitArray([0,0,0,0])), # 0 + 0*α
     (Int8(0), BitArray([1,0,0,0])),  # 1 + 0*α
     (Int8(1),BitArray([0,0,1,0])),   # 0 + 1*α
@@ -134,5 +133,5 @@ GF3_ext2_poly_form_dict = Dict([
     ]
 )
 
-to_ff3_2_poly_form(elem ::GFExtElemExpForm) = GF3_ext2_poly_form_dict[elem.pow]
-to_ff2_3_poly_form(elem ::GFExtElemExpForm) = GF2_ext3_poly_form_dict[elem.pow]
+to_ff3_2_poly_form(elem ::FFExtElemExpForm) = FF3_ext2_poly_form_dict[elem.pow]
+to_ff2_3_poly_form(elem ::FFExtElemExpForm) = FF2_ext3_poly_form_dict[elem.pow]

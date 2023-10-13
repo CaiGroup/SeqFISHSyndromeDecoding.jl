@@ -26,11 +26,11 @@ Arguments
 	- `s` : the sigma width parameter of the psfs
     - `w` : the weight (or brightness) of the psfs
     Additionally, there the data frame must either have columns
-    - `Round` : the barcoding round in which the psf was found
+    - `round` : the barcoding round in which the psf was found
     - `pseudocolor` : the pseudocolor of the barcoding round in which the psf was found
-    or the Round and pseudocolor can be computed from the hybridization
+    or the round and pseudocolor can be computed from the hybridization
     - `hyb` : the hybridization in which the dot was found
-    where Round = ceil(hyb / q), pseudocolor = (hyb - (Round - 1) * q) % q, and q is the number of pseudocolors.
+    where round = ceil(hyb / q), pseudocolor = (hyb - (round - 1) * q) % q, and q is the number of pseudocolors.
 
 - `cb` : The codebook.
 - `H` : The parity check Matrix
@@ -99,7 +99,7 @@ function check_inputs(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: De
         error("'round' and 'pseudocolor' columns must be included to decode experiments where zeros are not probed.")
     end
     @assert alphabet[1] == 0x00 || alphabet[1] == "0"
-    if typeof(alphabet[1]) != String
+    if ~(typeof(alphabet[1]) <: AbstractString)
         @assert alphabet[q] < q
         @assert all(alphabet .>= 0)
     end
@@ -133,11 +133,11 @@ Arguments
 	- `s` : the sigma width parameter of the psfs
     - `w` : the weight (or brightness) of the psfs
     Additionally, there the data frame must either have columns
-    - `Round` : the barcoding round in which the psf was found
+    - `round` : the barcoding round in which the psf was found
     - `pseudocolor` : the pseudocolor of the barcoding round in which the psf was found
-    or the Round and pseudocolor can be computed from the hybridization
+    or the round and pseudocolor can be computed from the hybridization
     - `hyb` : the hybridization in which the dot was found
-    where Round = ceil(hyb / q), pseudocolor = (hyb - (Round - 1) * q) % q, and q is the number of pseudocolors.
+    where round = ceil(hyb / q), pseudocolor = (hyb - (round - 1) * q) % q, and q is the number of pseudocolors.
 
 - `cb` : The codebook.
 - `H` : The parity check Matrix
@@ -187,6 +187,11 @@ function get_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: D
         else
             w = minimum(sum(cb .!= 0, dims=2))
         end
+    end
+
+    if typeof(H[1,1]) <: AbstractString
+        H = string.(H)
+        cb = string.(cb)
     end
 
     check_inputs(pnts, cb, H, params)
@@ -250,11 +255,11 @@ Arguments
 	- `s` : the sigma width parameter of the psfs
     - `w` : the weight (or brightness) of the psfs
     Additionally, there the data frame must either have columns
-    - `Round` : the barcoding round in which the psf was found
+    - `round` : the barcoding round in which the psf was found
     - `pseudocolor` : the pseudocolor of the barcoding round in which the psf was found
-    or the Round and pseudocolor can be computed from the hybridization
+    or the round and pseudocolor can be computed from the hybridization
     - `hyb` : the hybridization in which the dot was found
-    where Round = ceil(hyb / q), pseudocolor = (hyb - (Round - 1) * q) % q, and q is the number of pseudocolors.
+    where round = ceil(hyb / q), pseudocolor = (hyb - (round - 1) * q) % q, and q is the number of pseudocolors.
 
 - `cb` : The codebook.
 - `H` : The parity check Matrix

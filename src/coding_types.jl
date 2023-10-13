@@ -40,7 +40,7 @@ end
 
 function set_H(_H :: Matrix)
     if q == 8 || q == 9
-        global H = GFExtElemExpForm.(_H)
+        global H = FFExtElemExpForm.(_H)
     else
         global H = _H
     end
