@@ -375,6 +375,13 @@ Generate KDTree to aid in building adjacency graphs.
 make_KDTree(pnts :: DataFrame) = KDTree(Array([pnts.x pnts.y]'))
 
 """
+    make_KDTree3D(pnts :: DataFrame)
+
+Generate KDTree to aid in building adjacency graphs.
+"""
+make_KDTree3D(pnts :: DataFrame, lat_thresh, z_thresh) = KDTree(Array([pnts.x pnts.y (pnts.z .* lat_thresh ./ z_thresh)]'))
+
+"""
     make_cw_dict(cb)
 
 Generate dictionary of target sequences corresponding to each codeword.
@@ -455,6 +462,7 @@ edges pointing towards the dot representing an earlier symbor
 function DotAdjacencyGraph(pnts :: DataFrame, lat_thresh :: Real, z_thresh :: Real, n, ndrops)
     g = SimpleDiGraph(nrow(pnts))
 
+    data_2d = length(unique(pnts.z)) == 1
     # Find the indices of dots representing each place, cᵢ, in a codeword start.
     cw_pos_bnds = get_cw_pos_bounds(pnts, n)
     trees = []
@@ -462,7 +470,11 @@ function DotAdjacencyGraph(pnts :: DataFrame, lat_thresh :: Real, z_thresh :: Re
         start_round = maximum([round-1-ndrops, 1])
         start_pnt = cw_pos_bnds[start_round]
         end_pnt = (cw_pos_bnds[round]-1)
-        push!(trees, make_KDTree(pnts[start_pnt:end_pnt, :]))
+        if data_2d
+            push!(trees, make_KDTree(pnts[start_pnt:end_pnt, :]))
+        else
+            push!(trees, make_KDTree3D(pnts[start_pnt:end_pnt, :]), lat_thresh, z_thresh)
+        end
     end
 
     DotAdjacencyGraph(g, cw_pos_bnds, n, trees, lat_thresh, pnts, ndrops)
