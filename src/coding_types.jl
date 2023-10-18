@@ -38,8 +38,17 @@ function set_q(_q :: UInt8)
     init_ones_and_twos_masks()
 end
 
+"""
 function set_H(_H :: Matrix)
-    if q == 8 || q == 9
+    global H = _H
+    global n = UInt8(size(H)[2])
+    global k = UInt8(n-size(H)[1])
+    init_ones_and_twos_masks()
+end
+"""
+
+function set_H(_H :: Matrix, params)
+    if (q == 8 || q == 9) && ~params.zeros_probed
         global H = FFExtElemExpForm.(_H)
     else
         global H = _H
@@ -108,7 +117,7 @@ end
 
 function SyndromeComponent(coeff :: UInt8, pos :: UInt8)
     pos_fncs = func_from_H_val.(H)
-    res = [pos_fncs[i,pos](ℤnRingElem(coeff)) for i = 1:(size(H)[1])]
+    res = [pos_fncs[i,pos](ℤnRingElem(coeff)) for i = 1:(Base.size(H)[1])]
     return SyndromeComponentℤnRing(Tuple(res))
 end
 

@@ -71,7 +71,7 @@ function decode_syndromes!(pnts :: DataFrame, cb_df :: DataFrame, H :: Matrix, p
 end
 """
 
-function obj_function(cpath, pnts, cw_n, params)
+function obj_function(cpath, pnts, cw_w, params)
     lat_var_factor = params.lat_var_factor
     z_var_factor = params.z_var_factor
     lw_var_factor = params.lw_var_factor
@@ -83,7 +83,7 @@ function obj_function(cpath, pnts, cw_n, params)
     lw_var_cost = var(log2.(pnts.w[cpath])) * lw_var_factor
     s_var_cost = var(pnts.s[cpath]) * s_var_factor
 
-    erasure_cost = (cw_n - length(cpath)) * dot_erasure_penalty
+    erasure_cost = (cw_w - length(cpath)) * dot_erasure_penalty
 
     return lat_var_cost + z_var_cost + lw_var_cost + s_var_cost + erasure_cost
 end
@@ -198,7 +198,7 @@ function get_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: D
     sort_readouts!(pnts)
 
     set_q(q)
-    set_H(H)
+    set_H(H, params)
     #set_n(UInt8(n))
     #set_k(n-size(H)[1])
     if params.ndrops > 0
@@ -209,7 +209,11 @@ function get_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: D
     if nrow(pnts) > 3
         pnts_mat = Array([pnts.x pnts.y pnts.z]')
         dbr = dbscan(pnts_mat, params.lat_thresh, min_neighbors=1, min_cluster_size=w-params.ndrops)
-        dbscan_clusters = [sort(vcat(dbc.core_indices,  dbc.boundary_indices)) for dbc in dbr]
+        if typeof(dbr) <: AbstractArray
+            dbscan_clusters = [sort(vcat(dbc.core_indices,  dbc.boundary_indices)) for dbc in dbr]
+        else
+            dbscan_clusters = [sort(vcat(dbc.core_indices,  dbc.boundary_indices)) for dbc in dbr.clusters]
+        end
     elseif nrow(pnts) == 3
         dbscan_clusters = [[1,2,3]]
     else
@@ -223,7 +227,7 @@ function get_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: D
         g = DotAdjacencyGraph(clust_pnts, params, n, w)
         #g = DotAdjacencyGraph(clust_pnts, params.lat_thresh, params.z_thresh, n, params.ndrops)
 
-        cost(cpath) = obj_function(cpath, clust_pnts, n, params)
+        cost(cpath) = obj_function(cpath, clust_pnts, w, params)
         code_paths, gene_nums = syndrome_find_barcodes!(clust_pnts, g, cb, params.ndrops, w)
         costs = cost.(code_paths)
 
@@ -298,10 +302,10 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, 
         w = n
         filter!(:cpath => cpath -> length(cpath) >= n - params.ndrops, cpath_df)
     else
-        w = minimum(sum(cb .!= 0, dims=2))
+        w = minimum(sum(cb .!= "0" .&& cb .!= 0, dims=2))
     end
 
-    cost(cpath) = obj_function(cpath, pnts, n, params)
+    cost(cpath) = obj_function(cpath, pnts, w, params)
     pnts[!,"decoded"] = fill(0, nrow(pnts))
     pnts[!, "mpath"] = [[] for i = 1:length(pnts.x)]
 

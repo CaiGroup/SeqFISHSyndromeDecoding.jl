@@ -49,7 +49,11 @@ elseif q == 8
 end
 
 function SyndromeComponent(coeff :: String, pos :: UInt8)
-    res = [H[i,pos]*(FFExtElemExpForm(coeff)) for i = 1:(size(H)[1])]
+    if typeof(H[1,pos]) <: AbstractString
+        res = [FFExtElemExpForm(H[i,pos])*FFExtElemExpForm(coeff) for i = 1:(size(H)[1])]
+    else
+        res = [H[i,pos]*FFExtElemExpForm(coeff) for i = 1:(size(H)[1])]
+    end
     if q == 8
         return SyndromeComponentExtensionField2(res)
     elseif q == 9

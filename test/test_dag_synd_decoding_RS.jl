@@ -51,7 +51,9 @@ pc_matrices = [RS_q7_k4_H, RS_q11_k7_H, RS_q11_k7_H, RS_q11_k8_H, hamming_merfis
     len_cb = length(cb[:, 1])
     #set_n(UInt8(n))
     set_q(UInt8(q))
-    set_H(pc_matrices[i])
+    params = DecodeParams()
+    set_zeros_probed(params, false)
+    set_H(pc_matrices[i], params)
 
     @test length(sim_true(ntargets, len_cb).x) == ntargets
     @test length(encode(sim_true(ntargets, len_cb), cb).x) == w*ntargets
@@ -74,12 +76,15 @@ end
     q = length(unique(cb))
     #set_n(UInt8(n))
     set_q(UInt8(q))
-    set_H(pc_matrices[i])
+    params = DecodeParams()
+    set_zeros_probed(params, false)
+    set_H(pc_matrices[i], params)
 
     @test test_dag(300, cb, 0.05, 0.15, 0.1, 0)
     #@test test_dag(300, cb, 0.05, 0.15, 0.1, 1)
     #@test test_dag_edges(300, cb)
 end
+
 
 println("full decode perfect RS")
 @testset "full decode perfect RS" begin
@@ -88,18 +93,15 @@ println("full decode perfect RS")
         q = length(unique(cb))
         #set_n(UInt8(n))
         set_q(UInt8(q))
-        set_H(pc_matrices[i])
+        
         H = pc_matrices[i]
 
+    
         lat_thresh = eps() #0.0
         z_thresh = eps() #0.0
         ndrops = 0
         free_dot_energy = 1.0
-        mip_sa_thresh = 80
-
-        pnts, g = construct_test_dag(ntargets, 0, 0, 0, cb, ndrops)
-
-        pnts.z = zeros(nrow(pnts))
+        mip_sa_thresh = 80        
 
         ndots = ntargets*sum(cb[1,:] .!= 0)
         free_dot_cost = 1.0
@@ -116,26 +118,19 @@ println("full decode perfect RS")
         converge_thresh = 100 * ndots
         skip_thresh = 200000
         skip_density_thresh = 2000000
-        params = DecodeParams(
-            lat_thresh,
-            z_thresh,
-            lat_var_factor,
-            z_var_factor,
-            lw_var_factor,
-            s_var_factor,
-            ndrops,
-            false,
-            mip_sa_thresh,
-            free_dot_energy,
-            n_chains,
-            l_chain,
-            c₀,
-            (c₀/c_final-1)/log(n_chains),
-            erasure_penalty,
-            converge_thresh,
-            skip_thresh,
-            skip_density_thresh
-        )
+        params = DecodeParams()
+        set_lat_var_cost_coeff(params, lat_var_factor)
+        set_xy_search_radius(params, lat_thresh)
+        set_free_dot_cost(params, free_dot_cost)
+        set_z_var_cost_coeff(params, z_var_factor)
+        set_s_var_cost_coeff(params, s_var_factor)
+        set_lw_var_cost_coeff(params, lw_var_factor)
+        set_H(pc_matrices[i], params)
+        set_zeros_probed(params, false)
+        
+        pnts, g = construct_test_dag(ntargets, 0, 0, 0, cb, ndrops)
+        pnts.z = zeros(nrow(pnts))
+
         decode_syndromes!(pnts, cb, H, params)
         @test pnts.species == [Int(p) for p in pnts.decoded]
     end
@@ -149,7 +144,7 @@ println("full decode perfect RS search radius")
         q = length(unique(cb))
         #set_n(UInt8(n))
         set_q(UInt8(q))
-        set_H(pc_matrices[i])
+        
         H = pc_matrices[i]
 
         lat_thresh = 0.1
@@ -158,9 +153,7 @@ println("full decode perfect RS search radius")
         free_dot_energy = 1.0
         mip_sa_thresh = 800000000000
 
-        pnts, g = construct_test_dag(ntargets, 0, 0, 0, cb, ndrops)
-
-        pnts.z = zeros(nrow(pnts))
+        
 
         ndots = ntargets*sum(cb[1,:] .!= 0)
         free_dot_cost = 1.0
@@ -177,30 +170,23 @@ println("full decode perfect RS search radius")
         converge_thresh = 100 * ndots
         skip_thresh = 200000
         skip_density_thresh = 200000
-        params = DecodeParams(
-            lat_thresh,
-            z_thresh,
-            lat_var_factor,
-            z_var_factor,
-            lw_var_factor,
-            s_var_factor,
-            ndrops,
-            false,
-            mip_sa_thresh,
-            free_dot_energy,
-            n_chains,
-            l_chain,
-            c₀,
-            (c₀/c_final-1)/log(n_chains),
-            erasure_penalty,
-            converge_thresh,
-            skip_thresh,
-            skip_density_thresh
-        )
+        params = DecodeParams()
+        set_lat_var_cost_coeff(params, lat_var_factor)
+        set_xy_search_radius(params, lat_thresh)
+        set_free_dot_cost(params, free_dot_cost)
+        set_z_var_cost_coeff(params, z_var_factor)
+        set_s_var_cost_coeff(params, s_var_factor)
+        set_lw_var_cost_coeff(params, lw_var_factor)
+        set_H(pc_matrices[i], params)
+        set_zeros_probed(params, false)
+        set_H(pc_matrices[i], params)
+        pnts, g = construct_test_dag(ntargets, 0, 0, 0, cb, ndrops)
+
+        pnts.z = zeros(nrow(pnts))
         decode_syndromes!(pnts, cb, H, params)
         @test pnts.species == [Int(p) for p in pnts.decoded]
     end
-end
+    end
 
 
 """
