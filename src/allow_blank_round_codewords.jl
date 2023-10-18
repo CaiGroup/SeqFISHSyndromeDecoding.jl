@@ -11,6 +11,12 @@ function find_blank_round_codewords(pnts ::DataFrame, g :: DotAdjacencyGraphBlan
     end
     potential_barcode_final_dot_range = g.first_potential_barcode_final_dot:nrow(pnts)
     potential_barcode_final_dots = collect(potential_barcode_final_dot_range)
+
+    if typeof(g) ==  DotAdjacencyGraphBlankRound2D
+        make_KDTree = make_KDTree2D
+    else
+        make_KDTree(df) = make_KDTree3D(df, g.lat_thresh, g.z_thresh)
+    end
     
     round_trees = []
     for r in 1:g.n

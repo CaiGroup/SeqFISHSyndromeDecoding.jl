@@ -376,7 +376,7 @@ end
 
 Generate KDTree to aid in building adjacency graphs.
 """
-make_KDTree(pnts :: DataFrame) = KDTree(Array([pnts.x pnts.y]'))
+make_KDTree2D(pnts :: DataFrame) = KDTree(Array([pnts.x pnts.y]'))
 
 """
     make_KDTree3D(pnts :: DataFrame)
@@ -428,6 +428,8 @@ end
 
 abstract type abstractDotAdjacencyGraph end
 
+abstract type DotAdjacencyGraph <: abstractDotAdjacencyGraph end
+
 """
     DotAdjacencyGraph(g :: SimpleDiGraph
                       cw_pos_bnds :: Tuple{Int64}
@@ -436,12 +438,23 @@ abstract type abstractDotAdjacencyGraph end
 
 Structure for storing the dot adjacency graph with some parameters
 """
-struct DotAdjacencyGraph <: abstractDotAdjacencyGraph
+struct DotAdjacencyGraph2D <: DotAdjacencyGraph
     g :: SimpleDiGraph
     cw_pos_bnds :: Array{Int64}
     n :: Int8
     trees :: Vector{KDTree}
     lat_thresh :: Float64
+    pnts :: DataFrame
+    ndrops :: Int64
+end
+
+struct DotAdjacencyGraph3D <: DotAdjacencyGraph
+    g :: SimpleDiGraph
+    cw_pos_bnds :: Array{Int64}
+    n :: Int8
+    trees :: Vector{KDTree}
+    lat_thresh :: Float64
+    z_thresh :: Float64
     pnts :: DataFrame
     ndrops :: Int64
 end
@@ -475,21 +488,41 @@ function DotAdjacencyGraph(pnts :: DataFrame, lat_thresh :: Real, z_thresh :: Re
         start_pnt = cw_pos_bnds[start_round]
         end_pnt = (cw_pos_bnds[round]-1)
         if data_2d
-            push!(trees, make_KDTree(pnts[start_pnt:end_pnt, :]))
+            push!(trees, make_KDTree2D(pnts[start_pnt:end_pnt, :]))
         else
-            push!(trees, make_KDTree3D(pnts[start_pnt:end_pnt, :]), lat_thresh, z_thresh)
+            push!(trees, make_KDTree3D(pnts[start_pnt:end_pnt, :], lat_thresh, z_thresh))
         end
     end
 
-    DotAdjacencyGraph(g, cw_pos_bnds, n, trees, lat_thresh, pnts, ndrops)
+    if data_2d
+        return DotAdjacencyGraph2D(g, cw_pos_bnds, n, trees, lat_thresh, pnts, ndrops)
+    else
+        return DotAdjacencyGraph3D(g, cw_pos_bnds, n, trees, lat_thresh, z_thresh, pnts, ndrops)
+    end
 end
 
-struct DotAdjacencyGraphBlankRound <: abstractDotAdjacencyGraph
+abstract type DotAdjacencyGraphBlankRound <: abstractDotAdjacencyGraph end
+
+
+struct DotAdjacencyGraphBlankRound2D <: DotAdjacencyGraphBlankRound
     g :: SimpleDiGraph
     cw_round_ranges
     n :: Int8
     trees :: Vector{KDTree}
     lat_thresh :: Float64
+    pnts :: DataFrame
+    ndrops :: Int64
+    w :: Int64
+    first_potential_barcode_final_dot
+end
+
+struct DotAdjacencyGraphBlankRound3D <: DotAdjacencyGraphBlankRound
+    g :: SimpleDiGraph
+    cw_round_ranges
+    n :: Int8
+    trees :: Vector{KDTree}
+    lat_thresh :: Float64
+    z_thresh :: Float64
     pnts :: DataFrame
     ndrops :: Int64
     w :: Int64
@@ -502,6 +535,12 @@ function DotAdjacencyGraphBlankRound(pnts :: DataFrame, lat_thresh :: Real, z_th
     end
 
     g = SimpleDiGraph(nrow(pnts))
+    data_2d = length(unique(pnts.z)) == 1
+    if data_2d
+        make_KDTree = make_KDTree2D
+    else
+        make_KDTree(df) = make_KDTree3D(df, lat_thresh, z_thresh)
+    end
 
     # Find the indices of dots representing each place, cᵢ, in a codeword start.
     cw_round_ranges = get_cw_round_ranges(pnts, n)
@@ -525,8 +564,12 @@ function DotAdjacencyGraphBlankRound(pnts :: DataFrame, lat_thresh :: Real, z_th
         end
     end
     first_potential_barcode_final_dot=find_previous_round_start(cw_round_ranges,w)
+    if data_2d
+        DotAdjacencyGraphBlankRound2D(g, cw_round_ranges, n, trees, lat_thresh, pnts, ndrops, w, first_potential_barcode_final_dot)
+    else
+        DotAdjacencyGraphBlankRound3D(g, cw_round_ranges, n, trees, lat_thresh, z_thresh, pnts, ndrops, w, first_potential_barcode_final_dot)
+    end
 
-    DotAdjacencyGraphBlankRound(g, cw_round_ranges, n, trees, lat_thresh, pnts, ndrops, w, first_potential_barcode_final_dot)
 end
 
 function find_previous_round_start(cw_round_ranges, r0)
@@ -568,14 +611,41 @@ function get_cw_round_ranges(pnts, n)
 end
 
 """
-    neighbors(g :: DotAdjacencyGraph, n)
+    neighbors(g :: abstractDotAdjacencyGraph2D, n)
 
 Define SimpleDiGraph neighbors function for DotAdjacencyGraph
 """
-function neighbors(g :: DotAdjacencyGraph, n)
+
+function neighbors(g :: DotAdjacencyGraph2D, n)
     nbrs = inrange(g.trees[g.pnts.pos[n]], [g.pnts.x[n], g.pnts.y[n]], g.lat_thresh, true)
     pnts_prior_rnds = g.cw_pos_bnds[maximum([g.pnts.pos[n]-1-g.ndrops, 1])] - 1
     return nbrs .+ pnts_prior_rnds
+end
+
+"""
+    neighbors(g :: abstractDotAdjacencyGraph3D, n)
+
+Define SimpleDiGraph neighbors function for DotAdjacencyGraph
+"""
+
+function neighbors(g :: DotAdjacencyGraph3D, n)
+    nbrs = inrange(g.trees[g.pnts.pos[n]], [g.pnts.x[n], g.pnts.y[n], g.pnts.z[n]], g.lat_thresh, true)
+    pnts_prior_rnds = g.cw_pos_bnds[maximum([g.pnts.pos[n]-1-g.ndrops, 1])] - 1
+    return nbrs .+ pnts_prior_rnds
+end
+
+"""
+    neighbors(g :: DotAdjacencyGraphBlankRound2D, n)
+
+Define SimpleDiGraph neighbors function for DotAdjacencyGraph
+"""
+function neighbors(g :: DotAdjacencyGraphBlankRound2D, dot)
+    nbrs = inrange(g.trees[g.pnts.pos[dot]], [g.pnts.x[dot], g.pnts.y[dot]], g.lat_thresh, true)
+    if g.pnts.pos[dot] >  g.n - g.w + 2
+        pnts_prior_rnds = find_previous_round_start(g.cw_round_ranges, g.w - (g.n - g.pnts.round[dot]+1))
+        nbrs .+= pnts_prior_rnds - 1
+    end
+    return nbrs
 end
 
 """
@@ -583,8 +653,8 @@ end
 
 Define SimpleDiGraph neighbors function for DotAdjacencyGraph
 """
-function neighbors(g :: DotAdjacencyGraphBlankRound, dot)
-    nbrs = inrange(g.trees[g.pnts.pos[dot]], [g.pnts.x[dot], g.pnts.y[dot]], g.lat_thresh, true)
+function neighbors(g :: DotAdjacencyGraphBlankRound3D, dot)
+    nbrs = inrange(g.trees[g.pnts.pos[dot]], [g.pnts.x[dot], g.pnts.y[dot], g.pnts.z[dot]], g.lat_thresh, true)
     if g.pnts.pos[dot] >  g.n - g.w + 2
         pnts_prior_rnds = find_previous_round_start(g.cw_round_ranges, g.w - (g.n - g.pnts.round[dot]+1))
         nbrs .+= pnts_prior_rnds - 1
@@ -606,7 +676,7 @@ end
 """
 function syndrome_find_barcodes!(pnts ::DataFrame, g :: abstractDotAdjacencyGraph, cb ::Matrix, ndrops, w)
     cw_dict = make_cw_dict(cb)
-    if typeof(g) == DotAdjacencyGraphBlankRound
+    if typeof(g) <: DotAdjacencyGraphBlankRound
         cpaths, decode_cands = find_blank_round_codewords(pnts ::DataFrame, g :: DotAdjacencyGraphBlankRound, cw_dict, w)
     elseif ndrops == 0
         cpaths, decode_cands = find_barcodes_mem_eff(pnts, g, cw_dict)

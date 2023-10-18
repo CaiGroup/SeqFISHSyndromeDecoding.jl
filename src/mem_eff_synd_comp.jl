@@ -9,7 +9,11 @@ function find_barcodes_mem_eff(pnts ::DataFrame,
     final_round_dots = get_cw_pos_inds(g, g.n)
 
     unprocessed_inrange_dots = fill(0, nv(g.g))
-    round_trees = [make_KDTree(pnts[get_cw_pos_inds(g, r), :]) for r in 1:g.n] 
+    if typeof(g) == DotAdjacencyGraph2D
+        round_trees = [make_KDTree2D(pnts[get_cw_pos_inds(g, r), :]) for r in 1:g.n] 
+    elseif typeof(g) == DotAdjacencyGraph3D
+        round_trees = [make_KDTree3D(pnts[get_cw_pos_inds(g, r), :], g.lat_thresh, g.z_thresh) for r in 1:g.n] 
+    end
     last_round_tree = round_trees[end]
 
     # Count how many dots in other rounds are in range of each dot in the last round
