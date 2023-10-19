@@ -1,3 +1,7 @@
+inrng(tree, dot, g :: DotAdjacencyGraph2D) = inrange(tree, [g.pnts.x[dot], g.pnts.y[dot]], g.lat_thresh, true)
+inrng(tree, dot, g :: DotAdjacencyGraph3D) = inrange(tree, [g.pnts.x[dot], g.pnts.y[dot], g.pnts.z[dot]], g.lat_thresh, true)
+
+
 function find_barcodes_mem_eff(pnts ::DataFrame,
                                g :: DotAdjacencyGraph,
                                cw_dict
@@ -12,25 +16,29 @@ function find_barcodes_mem_eff(pnts ::DataFrame,
     if typeof(g) == DotAdjacencyGraph2D
         round_trees = [make_KDTree2D(pnts[get_cw_pos_inds(g, r), :]) for r in 1:g.n] 
     elseif typeof(g) == DotAdjacencyGraph3D
-        round_trees = [make_KDTree3D(pnts[get_cw_pos_inds(g, r), :], g.lat_thresh, g.z_thresh) for r in 1:g.n] 
+        round_trees = [make_KDTree3D(pnts[get_cw_pos_inds(g, r), :], g.lat_thresh, g.z_thresh) for r in 1:g.n]
     end
     last_round_tree = round_trees[end]
 
     # Count how many dots in other rounds are in range of each dot in the last round
     for dot in final_round_dots
         for round in 1:(g.n-1)
-            unprocessed_inrange_dots[dot] += length(inrange(round_trees[round], [pnts.x[dot], pnts.y[dot]], g.lat_thresh))
+            unprocessed_inrange_dots[dot] += length(inrng(round_trees[round], dot, g))
+            #unprocessed_inrange_dots[dot] += length(inrange(round_trees[round], [pnts.x[dot], pnts.y[dot]], g.lat_thresh))
         end 
     end
 
     # Count how many dots in the last round are within the search radius of each dot in previous round
     for dot in 1:(g.cw_pos_bnds[g.n]-1)
-        inrange_last_round_dots = inrange(last_round_tree, [pnts.x[dot], pnts.y[dot]], g.lat_thresh, true)
+        inrange_last_round_dots = inrng(last_round_tree, dot, g)
+
+        #inrange_last_round_dots = inrange(last_round_tree, [pnts.x[dot], pnts.y[dot]], g.lat_thresh, true)
         unprocessed_inrange_dots[dot] = length(inrange_last_round_dots)
     end
     
     # Count how many dots in the last round are in range of each other
-    final_round_dot_n_uncomputed_neighbors = [length(inrange(last_round_tree, [pnts.x[dot], pnts.y[dot]], g.lat_thresh)) - 1 for dot in final_round_dots]
+    final_round_dot_n_uncomputed_neighbors = [length(inrng(last_round_tree, dot, g)) - 1 for dot in final_round_dots]
+    #final_round_dot_n_uncomputed_neighbors = [length(inrange(last_round_tree, [pnts.x[dot], pnts.y[dot]], g.lat_thresh)) - 1 for dot in final_round_dots]
 
     unprocessed_last_round_dots = collect(get_cw_pos_inds(g,g.n))
     barcode_candidates = []
@@ -56,14 +64,16 @@ function find_barcodes_mem_eff(pnts ::DataFrame,
         append!(barcode_candidates, dot_barcode_candidates)
         append!(gene_nums, dot_gene_nums)
     
-        final_round_dot_n_uncomputed_neighbors[inrange(last_round_tree, [pnts.x[dot], pnts.y[dot]], g.lat_thresh)] .-= 1
+        #final_round_dot_n_uncomputed_neighbors[inrange(last_round_tree, [pnts.x[dot], pnts.y[dot]], g.lat_thresh)] .-= 1
+        final_round_dot_n_uncomputed_neighbors[inrng(last_round_tree, dot, g)] .-= 1
 
         # remove dot from list of unprocessed final round dots
         deleteat!(unprocessed_last_round_dots, dot_ind)        
 
         #free space  
         for round in 1:(g.n-1)
-            for inrange_dot in inrange(round_trees[round], [pnts.x[dot], pnts.y[dot]], g.lat_thresh)
+            #for inrange_dot in inrange(round_trees[round], [pnts.x[dot], pnts.y[dot]], g.lat_thresh)
+            for inrange_dot in inrng(round_trees[round], dot, g)
                 inrange_dot_ind = inrange_dot + g.cw_pos_bnds[round] - 1
                 unprocessed_inrange_dots[inrange_dot_ind] -= 1
                 if unprocessed_inrange_dots[inrange_dot_ind] == 0

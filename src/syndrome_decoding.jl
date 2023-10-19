@@ -383,7 +383,10 @@ make_KDTree2D(pnts :: DataFrame) = KDTree(Array([pnts.x pnts.y]'))
 
 Generate KDTree to aid in building adjacency graphs.
 """
-make_KDTree3D(pnts :: DataFrame, lat_thresh, z_thresh) = KDTree(Array([pnts.x pnts.y (pnts.z .* lat_thresh ./ z_thresh)]'))
+function make_KDTree3D(pnts :: DataFrame, lat_thresh, z_thresh)
+    z_scaled = pnts.z .* lat_thresh ./ z_thresh
+    return KDTree(Array([pnts.x pnts.y z_scaled]'))
+end
 
 """
     make_cw_dict(cb)

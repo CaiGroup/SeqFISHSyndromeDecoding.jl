@@ -1,3 +1,6 @@
+inrng(tree, dot, g :: DotAdjacencyGraphBlankRound3D) = inrange(tree, [g.pnts.x[dot], g.pnts.y[dot], g.pnts.z[dot]], g.lat_thresh)
+inrng(tree, dot, g :: DotAdjacencyGraphBlankRound2D) = inrange(tree, [g.pnts.x[dot], g.pnts.y[dot]], g.lat_thresh)
+
 function find_blank_round_codewords(pnts ::DataFrame, g :: DotAdjacencyGraphBlankRound, cw_dict, w)
     # initialize array for syndrome partial sums
     syndromes = fill(Vector{Vector{SyndromeComponent}}(), nrow(pnts)) #Vector{Vector{SyndromeComponent}}()
@@ -36,7 +39,8 @@ function find_blank_round_codewords(pnts ::DataFrame, g :: DotAdjacencyGraphBlan
         find_barcode_candidates!(g, pnts, cw_dict, w, syndromes, unprocessed_inrange_dots, syndrome_block_sizes, barcode_candidates, gene_nums, dot)
 
         #update uncomputed neighbor counts for dots that may be the last in a barcode
-        potential_barcode_final_dots_n_uncomputed_neighbors[inrange(pot_final_dot_tree, [pnts.x[dot], pnts.y[dot]], g.lat_thresh)] .-= 1
+        #potential_barcode_final_dots_n_uncomputed_neighbors[inrange(pot_final_dot_tree, [pnts.x[dot], pnts.y[dot]], g.lat_thresh)] .-= 1
+        potential_barcode_final_dots_n_uncomputed_neighbors[inrng(pot_final_dot_tree, dot, g)] .-= 1
 
         # remove dot from list of unprocessed final round dots
         deleteat!(potential_barcode_final_dots, dot_ind)
@@ -58,14 +62,16 @@ function count_inrange_dots(pnts, g, round_trees, w)
         if r >= w
             unprocessed_inrange_dots[dot] += 1
             for ri in w:r
-                ri_inrange = length(inrange(round_trees[ri], [pnts.x[dot], pnts.y[dot]], g.lat_thresh))
+                #ri_inrange = length(inrange(round_trees[ri], [pnts.x[dot], pnts.y[dot]], g.lat_thresh))
+                ri_inrange = length(inrng(round_trees[ri], dot, g))
                 potential_barcode_final_dots_n_uncomputed_neighbors[dot-g.first_potential_barcode_final_dot+1] += ri_inrange
             end
         end
 
         ri = maximum([w, r+1])
         while ri <= g.n
-            ri_inrange = length(inrange(round_trees[ri], [pnts.x[dot], pnts.y[dot]], g.lat_thresh))
+            #ri_inrange = length(inrange(round_trees[ri], [pnts.x[dot], pnts.y[dot]], g.lat_thresh))
+            ri_inrange = length(inrng(round_trees[ri], dot, g))
             unprocessed_inrange_dots[dot] += ri_inrange
             if r >= w
                 potential_barcode_final_dots_n_uncomputed_neighbors[dot-g.first_potential_barcode_final_dot+1] += ri_inrange
@@ -79,7 +85,8 @@ end
 function free_space!(pnts, g, unprocessed_inrange_dots, round_trees, syndromes, syndrome_block_sizes, dot)
 
     for round in 1:(pnts.pos[dot]-1)
-        for inrange_dot in inrange(round_trees[round], [pnts.x[dot], pnts.y[dot]], g.lat_thresh)
+        #for inrange_dot in inrange(round_trees[round], [pnts.x[dot], pnts.y[dot]], g.lat_thresh)
+        for inrange_dot in  inrng(round_trees[round], dot, g)
             inrange_dot_ind = inrange_dot + g.cw_round_ranges[round][1] - 1
             unprocessed_inrange_dots[inrange_dot_ind] -= 1
             if unprocessed_inrange_dots[inrange_dot_ind] == 0
