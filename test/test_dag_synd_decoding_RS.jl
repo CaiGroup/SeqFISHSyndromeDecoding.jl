@@ -168,8 +168,8 @@ println("full decode perfect RS search radius")
         s_var_factor = 0.0
         erasure_penalty = 0.0
         converge_thresh = 100 * ndots
-        skip_thresh = 200000
-        skip_density_thresh = 200000
+        skip_thresh = 20000000000000
+        skip_density_thresh = 20000000000009
         params = DecodeParams()
         set_lat_var_cost_coeff(params, lat_var_factor)
         set_xy_search_radius(params, lat_thresh)
