@@ -206,16 +206,12 @@ function trace_barcode_w_drops!(is, pnts, g, dot, cw_dict, w, syndromes, syndrom
     end
     if typeof(pnts.coeff[1]) == String
         message = fill("0", g.n)
-        #message = SyndromeComponent.(fill("0", g.n), ones(UInt8, g.n))
-        #message[pnts.round[barcode_candidate]] .= SyndromeComponent.(pnts.coeff[barcode_candidate], pnts.round[barcode_candidate])
-        #message[pnts.round[barcode_candidate]] .= SyndromeComponent.(pnts.coeff[barcode_candidate])
     else
         message = zeros(UInt8, g.n)
-        #message[pnts.round[barcode_candidate]] .= pnts.coeff[barcode_candidate]
     end
     message[pnts.round[barcode_candidate]] .= pnts.coeff[barcode_candidate]
     r = find(BKTree_cb, message, g.ndrops)
-    if length(r) == 1 #cw in keys(cw_dict)
+    if length(r) == 1
         push!(barcode_candidates, barcode_candidate)
         push!(gene_nums, cw_dict[r[1][2]])
     end

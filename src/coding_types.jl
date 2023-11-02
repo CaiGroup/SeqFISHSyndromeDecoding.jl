@@ -18,20 +18,6 @@ H = zeros(Int64, (2,2))
 n = 0x00
 k = 0x00
 
-"""
-function set_n(_n :: UInt8)
-    global n = _n
-    if q == 9 && k != 0
-        #initials ones place and twos place masks for bitwise operations
-        global ones_mask = vcat(fill(BitArray([1,0]),2*(n-k))...)
-        global twos_mask = .~ones_mask
-    end
-end
-
-function set_k(_k :: Integer)
-    global k = UInt8(_k)
-end
-"""
 
 function set_q(_q :: UInt8)
     global q = _q
@@ -39,30 +25,13 @@ function set_q(_q :: UInt8)
     init_ones_and_twos_masks()
 end
 
-"""
-function set_H(_H :: Matrix)
-    global H = _H
-    global n = UInt8(size(H)[2])
-    global k = UInt8(n-size(H)[1])
-    init_ones_and_twos_masks()
-end
-"""
 
 function set_H(_H :: Matrix, params :: DecodeParams, cb)
     if ~params.zeros_probed
         if (q == 8 || q == 9)
             global H = FFExtElemExpForm.(_H)
-            #if params.ndrops > 0
-            #    pos = UInt8.(1:size(cb)[2])
-            #    cws = [SyndromeComponent.(cw, pos) for cw in eachrow(cb)]
-            #    global BKTree_cb = BKTree((x, y) -> sum(x .!= y), cws)
-            #end
         else
             global H = _H
-            #if params.ndrops > 0
-            #    cws = [collect(cw) for cw in eachrow(cb)]
-            #    global BKTree_cb = BKTree((x, y) -> sum(x .!= y), cws)
-            #end
         end
         if params.ndrops > 0
             cws = [collect(cw) for cw in eachrow(cb)]
