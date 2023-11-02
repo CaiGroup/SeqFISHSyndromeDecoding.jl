@@ -1,5 +1,6 @@
 
-import Base: +, -, *, ^, iszero
+import Base: +, -, *, ^, ==, !=, /, iszero
+using BKTrees
 
 """
     ℤnRingElem
@@ -47,9 +48,26 @@ function set_H(_H :: Matrix)
 end
 """
 
-function set_H(_H :: Matrix, params)
-    if (q == 8 || q == 9) && ~params.zeros_probed
-        global H = FFExtElemExpForm.(_H)
+function set_H(_H :: Matrix, params :: DecodeParams, cb)
+    if ~params.zeros_probed
+        if (q == 8 || q == 9)
+            global H = FFExtElemExpForm.(_H)
+            #if params.ndrops > 0
+            #    pos = UInt8.(1:size(cb)[2])
+            #    cws = [SyndromeComponent.(cw, pos) for cw in eachrow(cb)]
+            #    global BKTree_cb = BKTree((x, y) -> sum(x .!= y), cws)
+            #end
+        else
+            global H = _H
+            #if params.ndrops > 0
+            #    cws = [collect(cw) for cw in eachrow(cb)]
+            #    global BKTree_cb = BKTree((x, y) -> sum(x .!= y), cws)
+            #end
+        end
+        if params.ndrops > 0
+            cws = [collect(cw) for cw in eachrow(cb)]
+            global BKTree_cb = BKTree((x, y) -> sum(x .!= y), cws)
+        end
     else
         global H = _H
     end
@@ -92,6 +110,12 @@ inv₊(x :: UInt8) =  ℤnRingElem((q - x) % q)
 
 *(a :: ℤnRingElem, b :: ℤnRingElem) = a * b.v
 
+/(a :: ℤnRingElem, b :: ℤnRingElem) = ℤnRing_div_table[a, b]
+
+/(a :: Unsigned, b :: ℤnRingElem) = ℤnRing_div_table[typeof(b)(a), b]
+
+/(a :: ℤnRingElem, b :: Unsigned) = ℤnRing_div_table[a, typeof(a)(b)]
+
 #function *(a :: ℤnRingElem, b :: ℤnRingElem)
     #@assert typeof(a) == typeof(b)
     #a*b.v
@@ -111,6 +135,10 @@ iszero(x :: ℤnRingElem) = iszero(x.v)
 
 abstract type SyndromeComponent end
 
+==(a :: SyndromeComponent, b :: SyndromeComponent) = a.s == b.s
+
+!=(a :: SyndromeComponent, b :: SyndromeComponent) = a.s != b.s
+
 struct SyndromeComponentℤnRing <: SyndromeComponent
     s :: Tuple{Vararg{ℤnRingElem}}
 end
@@ -128,6 +156,8 @@ function func_from_H_val(h_val)
         return identity
     elseif h_val == -1
         return inv₊
+    elseif typeof(h_val) == FFExtElemExpForm 
+        return (x) -> (h_val) * x
     elseif h_val > 1 
         return (x) -> ℤnRingElem(UInt8(h_val)) * x
     else
@@ -195,3 +225,14 @@ function check_mpath_decodable(drop_pos :: UInt8, s :: SyndromeComponentℤnRing
         return (decodable = false, coeff = nothing)
     end
 end
+
+function make_div_table_Prime_Field(q)
+    global ℤnRing_div_table = ℤnRingElem.(zeros(UInt8,q,q))
+    for i = 0x00:UInt8(q-1), j = i:UInt8(q-1)
+        res = ℤnRingElem(i)*ℤnRingElem(j)
+        ℤnRing_div_table[res,i+1] = ℤnRingElem(j)
+        ℤnRing_div_table[res,j+1] = ℤnRingElem(i)
+    end
+end
+
+

@@ -27,7 +27,7 @@ pc_matrices = [[1 1 -1 -1;]]
     set_q(UInt8(q))
     params = DecodeParams()
     set_zeros_probed(params, true)
-    set_H(pc_matrices[i], params)
+    set_H(pc_matrices[i], params, cb)
 
     @test length(sim_true(ntargets).x) == ntargets
     @test length(encode(sim_true(ntargets), cb).x) == n*ntargets
@@ -52,7 +52,7 @@ end
     set_q(UInt8(q))
     params = DecodeParams()
     set_zeros_probed(params, true)
-    set_H(pc_matrices[i], params)
+    set_H(pc_matrices[i], params, cb)
 
     @test test_dag(300, cb, 0.05, 0.15, 0.1, 0)
     @test test_dag(300, cb, 0.05, 0.15, 0.1, 1)
@@ -71,7 +71,7 @@ end
         set_q(UInt8(q))
         params = DecodeParams()
         set_zeros_probed(params, true)
-        set_H(pc_matrices[i], params)
+        set_H(pc_matrices[i], params, cb)
         ntargets = 50000
         @test test_get_cw_pos_bnds(ntargets, cb, 0.0, 0.0, 0.0)
 
@@ -86,7 +86,7 @@ println("full decode perfect")
     for (i, cb) in enumerate(cbs), ntargets in [1, 10, 100]
         params_ = DecodeParams()
         set_zeros_probed(params_, true)
-        set_H(pc_matrices[i], params_)
+        set_H(pc_matrices[i], params_, cb)
         H = pc_matrices[i]
 
         lat_thresh = 0.0

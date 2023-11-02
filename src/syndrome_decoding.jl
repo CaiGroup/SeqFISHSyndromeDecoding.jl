@@ -110,6 +110,11 @@ function check_inputs(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: De
         @assert "round" in names(pnts)
         @assert "pseudocolor" in names(pnts)
     end
+    if ~params.zeros_probed && size(H)[1] < 2*params.ndrops
+        error("Reed-Solomon Codes require 2 parity check symbols for every error corrected. Your code has ", size(H)[1], " parity check symbols, but you requested correction of up to ", params.ndrops, " errors.")
+    end
+
+
     @assert params.ndrops <= size(H)[1]
     @assert params.ndrops >= 0
 end
@@ -198,10 +203,10 @@ function get_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: D
     sort_readouts!(pnts)
 
     set_q(q)
-    set_H(H, params)
+    set_H(H, params, cb)
     #set_n(UInt8(n))
     #set_k(n-size(H)[1])
-    if params.ndrops > 0
+    if params.ndrops > 0 && params.zeros_probed
         get_decode_table()
     end
 
@@ -533,9 +538,6 @@ struct DotAdjacencyGraphBlankRound3D <: DotAdjacencyGraphBlankRound
 end
 
 function DotAdjacencyGraphBlankRound(pnts :: DataFrame, lat_thresh :: Real, z_thresh :: Real, n, ndrops, w)
-    if ndrops != 0
-        error("Drops are not yet supported for experiments that do not probe zeros")
-    end
 
     g = SimpleDiGraph(nrow(pnts))
     data_2d = length(unique(pnts.z)) == 1
@@ -561,12 +563,12 @@ function DotAdjacencyGraphBlankRound(pnts :: DataFrame, lat_thresh :: Real, z_th
         if ismissing(cw_round_ranges[round])
             push!(trees, make_KDTree(pnts[1:0, :]))
         else
-            start_pnt = find_previous_round_start(cw_round_ranges, w-(n-round)-1)
+            start_pnt = find_previous_round_start(cw_round_ranges, maximum([w-(n-round)-1-ndrops,1]))
             end_pnt = (cw_round_ranges[round][1]-1)
             push!(trees, make_KDTree(pnts[start_pnt:end_pnt, :]))
         end
     end
-    first_potential_barcode_final_dot=find_previous_round_start(cw_round_ranges,w)
+    first_potential_barcode_final_dot=find_previous_round_start(cw_round_ranges,w-ndrops)
     if data_2d
         DotAdjacencyGraphBlankRound2D(g, cw_round_ranges, n, trees, lat_thresh, pnts, ndrops, w, first_potential_barcode_final_dot)
     else
@@ -644,8 +646,8 @@ Define SimpleDiGraph neighbors function for DotAdjacencyGraph
 """
 function neighbors(g :: DotAdjacencyGraphBlankRound2D, dot)
     nbrs = inrange(g.trees[g.pnts.pos[dot]], [g.pnts.x[dot], g.pnts.y[dot]], g.lat_thresh, true)
-    if g.pnts.pos[dot] >  g.n - g.w + 2
-        pnts_prior_rnds = find_previous_round_start(g.cw_round_ranges, g.w - (g.n - g.pnts.round[dot]+1))
+    if g.pnts.pos[dot] >  g.n - g.w + 2 + g.ndrops
+        pnts_prior_rnds = find_previous_round_start(g.cw_round_ranges, g.w -g.ndrops - (g.n - g.pnts.round[dot]+1))
         nbrs .+= pnts_prior_rnds - 1
     end
     return nbrs
@@ -658,8 +660,8 @@ Define SimpleDiGraph neighbors function for DotAdjacencyGraph
 """
 function neighbors(g :: DotAdjacencyGraphBlankRound3D, dot)
     nbrs = inrange(g.trees[g.pnts.pos[dot]], [g.pnts.x[dot], g.pnts.y[dot], g.pnts.z[dot]], g.lat_thresh, true)
-    if g.pnts.pos[dot] >  g.n - g.w + 2
-        pnts_prior_rnds = find_previous_round_start(g.cw_round_ranges, g.w - (g.n - g.pnts.round[dot]+1))
+    if g.pnts.pos[dot] >  g.n - g.w + 2 + g.ndrops
+        pnts_prior_rnds = find_previous_round_start(g.cw_round_ranges, g.w - g.ndrops - (g.n - g.pnts.round[dot]+1))
         nbrs .+= pnts_prior_rnds - 1
     end
     return nbrs

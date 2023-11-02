@@ -53,7 +53,7 @@ pc_matrices = [RS_q7_k4_H, RS_q11_k7_H, RS_q11_k7_H, RS_q11_k8_H, hamming_merfis
     set_q(UInt8(q))
     params = DecodeParams()
     set_zeros_probed(params, false)
-    set_H(pc_matrices[i], params)
+    set_H(pc_matrices[i], params, cb)
 
     @test length(sim_true(ntargets, len_cb).x) == ntargets
     @test length(encode(sim_true(ntargets, len_cb), cb).x) == w*ntargets
@@ -78,7 +78,7 @@ end
     set_q(UInt8(q))
     params = DecodeParams()
     set_zeros_probed(params, false)
-    set_H(pc_matrices[i], params)
+    set_H(pc_matrices[i], params, cb)
 
     @test test_dag(300, cb, 0.05, 0.15, 0.1, 0)
     #@test test_dag(300, cb, 0.05, 0.15, 0.1, 1)
@@ -125,7 +125,7 @@ println("full decode perfect RS")
         set_z_var_cost_coeff(params, z_var_factor)
         set_s_var_cost_coeff(params, s_var_factor)
         set_lw_var_cost_coeff(params, lw_var_factor)
-        set_H(pc_matrices[i], params)
+        set_H(pc_matrices[i], params, cb)
         set_zeros_probed(params, false)
         
         pnts, g = construct_test_dag(ntargets, 0, 0, 0, cb, ndrops)
@@ -177,18 +177,82 @@ println("full decode perfect RS search radius")
         set_z_var_cost_coeff(params, z_var_factor)
         set_s_var_cost_coeff(params, s_var_factor)
         set_lw_var_cost_coeff(params, lw_var_factor)
-        set_H(pc_matrices[i], params)
+        set_H(pc_matrices[i], params, cb)
         set_zeros_probed(params, false)
-        set_H(pc_matrices[i], params)
+        set_skip_thresh(params, skip_thresh)
+        set_skip_density_thresh(params, skip_density_thresh)
+        set_H(pc_matrices[i], params, cb)
         pnts, g = construct_test_dag(ntargets, 0, 0, 0, cb, ndrops)
 
         pnts.z = zeros(nrow(pnts))
         decode_syndromes!(pnts, cb, H, params)
         @test pnts.species == [Int(p) for p in pnts.decoded]
     end
+end
+
+println("full decode drops RS")
+@testset "full decode drops RS" begin
+    for (i, cb) in enumerate(cbs), ntargets in [1, 2, 10, 100]
+        H = pc_matrices[i]
+        if size(H)[1] > 1
+            ndrops = 1
+
+            encoded = construct_test_encoding(ntargets, cb)
+            lat_thresh = 0.0
+            z_thresh = 0
+            if typeof(cb[1,1]) == String
+                w = maximum(sum(cb .!= "0", dims=2))
+            else
+                w = maximum(sum(.~ iszero.(cb), dims=2))
+            end
+
+            to_drop = rand(1:w , ntargets) + w*Array(0:(ntargets-1))
+            deleteat!(encoded, to_drop)
+            lat_thresh = 0.0
+            z_thresh = 0.0
+            free_dot_energy = 5.0
+            mip_sa_thresh = 80
+
+            ndots = ntargets*length(cb[1,:])
+            free_dot_cost = 5.0
+
+            c_final = 2
+            n_chains = 100
+            l_chain = 300
+            c₀ = free_dot_energy * 40
+            lat_var_factor = 8000.0
+            z_var_factor = 1.0
+            lw_var_factor = 0.0
+            s_var_factor = 0.0
+            erasure_penalty = 4.0
+            converge_thresh = 100 * ndots
+            skip_thresh = 2000
+            skip_density_thresh=2000
+            params = DecodeParams(
+                lat_thresh,
+                z_thresh,
+                lat_var_factor,
+                z_var_factor,
+                lw_var_factor,
+                s_var_factor,
+                ndrops,
+                false,
+                mip_sa_thresh,
+                free_dot_energy,
+                n_chains,
+                l_chain,
+                c₀,
+                (c₀/c_final-1)/log(n_chains),
+                erasure_penalty,
+                converge_thresh,
+                skip_thresh,
+                skip_density_thresh
+            )
+            decode_syndromes!(encoded, cb, H, params)
+            @test encoded.species == encoded.decoded
+        end
     end
-
-
+end
 """
 println("full decode perfect RS barcode pairs w same coords")
 @testset "full decode perfect RS barcode pairs w same coords" begin

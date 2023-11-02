@@ -2,7 +2,7 @@
 
 julia_version = "1.9.3"
 manifest_format = "2.0"
-project_hash = "ac9fb063bace677b5e04dd2c759741b8987d6055"
+project_hash = "4ed416f03e0b97e5fde8cd8b398cedb81201309f"
 
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
@@ -16,6 +16,12 @@ version = "0.2.0"
 
 [[deps.Artifacts]]
 uuid = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
+
+[[deps.BKTrees]]
+deps = ["DataStructures", "Pkg", "Random", "Test"]
+git-tree-sha1 = "85fea78936ddf31e24b08a3151eb996ddbd2479e"
+uuid = "63f0b19f-427a-5b2a-b609-1f7cb59889f7"
+version = "0.0.1"
 
 [[deps.Base64]]
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"

@@ -139,3 +139,37 @@ FF3_ext2_poly_form_dict = Dict([
 
 to_ff3_2_poly_form(elem ::FFExtElemExpForm) = FF3_ext2_poly_form_dict[elem.pow]
 to_ff2_3_poly_form(elem ::FFExtElemExpForm) = FF2_ext3_poly_form_dict[elem.pow]
+
+
+function make_div_table_ext(q)
+    raise(error("not implemented"))
+    global div_table = Dict()
+
+    for i = 0:(q-1), j = 0:(q-1)
+        if q == 8 || q == 9
+
+        else
+            ie = FF
+            p = i*q
+        end
+    end
+
+end
+
+const  BKStringDict = Dict(
+    [
+        (0,"0"),
+        (1,"1"),
+        (2,"2"),
+        (3,"3"),
+        (4,"4"),
+        (5,"5"),
+        (6,"6"),
+        (7,"7"),
+        (8,"8"),
+        (9,"9"),
+        (10,"a"),
+        (11,"b"),
+        (12,"c")
+    ]
+)
