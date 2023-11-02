@@ -1,7 +1,7 @@
 name = "SeqFISHSyndromeDecoding"
 uuid = "51ea57f1-910f-46fc-b3bd-0d8c863eb521"
 authors = ["jonat <jawhite@caltech.edu>"]
-version = "0.1.3"
+version = "0.1.4"
 
 [deps]
 BKTrees = "63f0b19f-427a-5b2a-b609-1f7cb59889f7"
