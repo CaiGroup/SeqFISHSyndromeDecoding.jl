@@ -113,7 +113,16 @@ function check_inputs(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: De
     if ~params.zeros_probed && size(H)[1] < 2*params.ndrops
         error("Reed-Solomon Codes require 2 parity check symbols for every error corrected. Your code has ", size(H)[1], " parity check symbols, but you requested correction of up to ", params.ndrops, " errors.")
     end
-
+    if "round" in names(pnts)
+        @assert maximum(pnts.round) <= n
+    end
+    if "pseudocolor" in names(pnts)
+        if params.zeros_probed
+            @assert maximum(pnts.pseudocolor) <= q
+        else
+            @assert maximum(pnts.pseudocolor) < q
+        end
+    end
 
     @assert params.ndrops <= size(H)[1]
     @assert params.ndrops >= 0
@@ -187,7 +196,7 @@ function get_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: D
     if params.zeros_probed
         w = n
     else
-        if typeof(cb[1,1]) == String
+        if typeof(cb[1,1]) <: AbstractString
             w = minimum(sum(cb .!= "0", dims=2))
         else
             w = minimum(sum(cb .!= 0, dims=2))

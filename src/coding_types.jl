@@ -30,12 +30,16 @@ function set_H(_H :: Matrix, params :: DecodeParams, cb)
     if ~params.zeros_probed
         if (q == 8 || q == 9)
             global H = FFExtElemExpForm.(_H)
+            if params.ndrops > 0
+                cws = [String.(collect(cw)) for cw in eachrow(cb)]
+                global BKTree_cb = BKTree((x, y) -> sum(x .!= y), cws)
+            end
         else
             global H = _H
-        end
-        if params.ndrops > 0
-            cws = [collect(cw) for cw in eachrow(cb)]
-            global BKTree_cb = BKTree((x, y) -> sum(x .!= y), cws)
+            if params.ndrops > 0
+                cws = [collect(cw) for cw in eachrow(cb)]
+                global BKTree_cb = BKTree((x, y) -> sum(x .!= y), cws)
+            end
         end
     else
         global H = _H

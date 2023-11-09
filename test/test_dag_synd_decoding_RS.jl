@@ -9,6 +9,7 @@ using SeqFISHSyndromeDecoding: add_code_cols!, syndrome_find_barcodes!, DotAdjac
 using DelimitedFiles
 using Test
 using DataFrames
+using CSV
 
 
 #RS_q5_k2_cb = readdlm("RS_q5_k2_cb.csv", ',', UInt8)
@@ -29,9 +30,14 @@ RS_q9_n8_k5_w4cb = readdlm("codes/RS_q9_n8_k5_w4cb.csv", ',', String)
 
 RS_q11_n12_k9_H = readdlm("codes/RS_q9_n8_k5_H.csv", ',', String)
 RS_q11_n12_k9_w4cb = readdlm("codes/RS_q9_n8_k5_w4cb.csv", ',', String)
+q9_n10_k7_w4_ncws1000_v1 = String.(Matrix(select(DataFrame(CSV.File("codes/q9_n10_k7_w4_ncws1000_v1.csv")), Not(:gene_name))))
+RS_q9_n10_k7_H = readdlm("codes/RS_q9_n10_k7_H.csv", ',', String)
 
-cbs = [RS_q7_k4_w4cb, RS_q11_k7_w4cb, RS_q11_k7_w5cb, RS_q11_k8_w4cb, hamming_merfish_cb, RS_q8_n7_k4_w4cb, RS_q9_n8_k5_w4cb, RS_q11_n12_k9_w4cb]
-pc_matrices = [RS_q7_k4_H, RS_q11_k7_H, RS_q11_k7_H, RS_q11_k8_H, hamming_merfish_H, RS_q8_n7_k4_H, RS_q9_n8_k5_H, RS_q11_n12_k9_H]
+#cbs = [RS_q7_k4_w4cb, RS_q11_k7_w4cb, RS_q11_k7_w5cb, RS_q11_k8_w4cb, hamming_merfish_cb, RS_q8_n7_k4_w4cb, RS_q9_n8_k5_w4cb, RS_q11_n12_k9_w4cb]
+#pc_matrices = [RS_q7_k4_H, RS_q11_k7_H, RS_q11_k7_H, RS_q11_k8_H, hamming_merfish_H, RS_q8_n7_k4_H, RS_q9_n8_k5_H, RS_q11_n12_k9_H]
+
+cbs = [RS_q7_k4_w4cb, RS_q11_k7_w4cb, RS_q11_k7_w5cb, RS_q11_k8_w4cb, RS_q8_n7_k4_w4cb, RS_q9_n8_k5_w4cb, RS_q11_n12_k9_w4cb, q9_n10_k7_w4_ncws1000_v1]
+pc_matrices = [RS_q7_k4_H, RS_q11_k7_H, RS_q11_k7_H, RS_q11_k8_H, RS_q8_n7_k4_H, RS_q9_n8_k5_H, RS_q11_n12_k9_H, RS_q9_n10_k7_H]
 
 #cbs = [RS_q8_n7_k4_w4cb]
 #pc_matrices = [RS_q8_n7_k4_H]
@@ -114,7 +120,7 @@ println("full decode perfect RS")
         z_var_factor = 1.0
         lw_var_factor = 0.0
         s_var_factor = 0.0
-        erasure_penalty = 0.0
+        erasure_penalty = 1.0
         converge_thresh = 100 * ndots
         skip_thresh = 200000
         skip_density_thresh = 2000000
@@ -226,8 +232,8 @@ println("full decode drops RS")
             s_var_factor = 0.0
             erasure_penalty = 4.0
             converge_thresh = 100 * ndots
-            skip_thresh = 2000
-            skip_density_thresh=2000
+            skip_thresh = 200000000
+            skip_density_thresh=200000000000
             params = DecodeParams(
                 lat_thresh,
                 z_thresh,
@@ -248,11 +254,79 @@ println("full decode drops RS")
                 skip_thresh,
                 skip_density_thresh
             )
+            set_zeros_probed(params, false)
+            set_skip_thresh(params, skip_thresh)
             decode_syndromes!(encoded, cb, H, params)
             @test encoded.species == encoded.decoded
         end
     end
 end
+
+
+
+println("full decode drop RS search radius")
+@testset "full decode drop RS search radius" begin
+    for (i, cb) in enumerate(cbs), ntargets in [1, 10] #, 20] #, 30] #, 100]
+        H = pc_matrices[i]
+        if size(H)[1] > 1
+            n = length(cb[1,:])
+            q = length(unique(cb))
+            #set_n(UInt8(n))
+            set_q(UInt8(q))
+            
+            lat_thresh = 0.1
+            z_thresh = 0.0
+            ndrops = 1
+            free_dot_energy = 1.0
+            mip_sa_thresh = 800000000000
+            if typeof(cb[1,1]) == String
+                w = maximum(sum(cb .!= "0", dims=2))
+            else
+                w = maximum(sum(.~ iszero.(cb), dims=2))
+            end
+
+            ndots = ntargets*sum(cb[1,:] .!= 0)
+            free_dot_cost = 1.0
+
+            c_final = 2
+            n_chains = 100
+            l_chain = 300
+            c₀ = free_dot_energy * 40
+            lat_var_factor = 8000.0
+            z_var_factor = 1.0
+            lw_var_factor = 0.0
+            s_var_factor = 0.0
+            erasure_penalty = 1.0
+            converge_thresh = 100 * ndots
+            skip_thresh = 20000000000000
+            skip_density_thresh = 20000000000009
+            params = DecodeParams()
+            set_lat_var_cost_coeff(params, lat_var_factor)
+            set_xy_search_radius(params, lat_thresh)
+            set_free_dot_cost(params, free_dot_cost)
+            set_z_var_cost_coeff(params, z_var_factor)
+            set_s_var_cost_coeff(params, s_var_factor)
+            set_lw_var_cost_coeff(params, lw_var_factor)
+            set_n_allowed_drops(params, ndrops)
+            set_zeros_probed(params, false)
+            set_skip_thresh(params, skip_thresh)
+            set_skip_density_thresh(params, skip_density_thresh)
+            
+            set_H(pc_matrices[i], params, cb)
+
+            #pnts, g = construct_test_dag(ntargets, 0, 0, 0, cb, ndrops)
+            encoded = construct_test_encoding(ntargets, cb)
+
+            to_drop = rand(1:w , ntargets) + w*Array(0:(ntargets-1))
+            deleteat!(encoded, to_drop)        
+
+            encoded.z = zeros(nrow(encoded))
+            decode_syndromes!(encoded, cb, H, params)
+            @test encoded.species == [Int(p) for p in encoded.decoded]
+        end
+    end
+end
+
 """
 println("full decode perfect RS barcode pairs w same coords")
 @testset "full decode perfect RS barcode pairs w same coords" begin
