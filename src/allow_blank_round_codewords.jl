@@ -204,12 +204,14 @@ function trace_barcode_w_drops!(is, pnts, g, dot, cw_dict, w, syndromes, syndrom
     if ismissing(barcode_candidate)
         return
     end
-    if typeof(pnts.coeff[1]) == String
+    if typeof(pnts.coeff[1]) <: AbstractString
         message = fill("0", g.n)
+        message[pnts.round[barcode_candidate]] .= string.(pnts.coeff[barcode_candidate])
     else
         message = zeros(UInt8, g.n)
+        message[pnts.round[barcode_candidate]] .= pnts.coeff[barcode_candidate]
     end
-    message[pnts.round[barcode_candidate]] .= pnts.coeff[barcode_candidate]
+    
     r = find(BKTree_cb, message, g.ndrops)
     if length(r) == 1
         push!(barcode_candidates, barcode_candidate)
