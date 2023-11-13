@@ -4,7 +4,7 @@ using Gurobi
 
 function MIP_solve(cpath_df :: DataFrame, cpath_nbr_cpath_indices :: Vector{Vector{Int}}, optimizer)
 
-    costs = cpath_df.cost .- maximum(cpath_df.cost)
+    costs = cpath_df.cost .- 20.0 #5.0 .* length.(cpath_df.cpath) #.- maximum(cpath_df.cost)
     n = length(costs)
 
     model = Model(optimizer)
