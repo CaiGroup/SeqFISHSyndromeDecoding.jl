@@ -335,7 +335,7 @@ end
 
 println("full decode drop RS search radius")
 @testset "full decode drop RS search radius" begin
-    for (i, cb) in enumerate(cbs), ntargets in [1, 10] #, 20] #, 30] #, 100]
+    for (i, cb) in enumerate(cbs), ntargets in [1, 10, 30] #, 100]
         H = pc_matrices[i]
         if size(H)[1] > 1
             n = length(cb[1,:])
