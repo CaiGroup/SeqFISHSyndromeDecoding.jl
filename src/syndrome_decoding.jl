@@ -317,6 +317,7 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, 
         filter!(:cpath => cpath -> length(cpath) >= n - params.ndrops, cpath_df)
     else
         w = minimum(sum(cb .!= "0" .&& cb .!= 0, dims=2))
+        filter!(:cpath => cpath -> length(cpath) >= w - params.ndrops, cpath_df)
     end
 
     cost(cpath) = obj_function(cpath, pnts, w, params)
