@@ -139,8 +139,12 @@ function find_barcode_candidates!(
 
                 start_ind = maximum([1, r - (Int64(g.n) - w  + g.ndrops + 1)])
                 for ndot in dot_neighbors
-                    find_barcode_candidates!(g, pnts, cw_dict, w, syndromes, unprocessed_inrange_dots, syndrome_block_sizes, barcode_candidates, gene_nums, ndot)
-                    append!.(len_nbrs[start_ind:end], length.(syndromes[ndot][start_ind:end]))
+                    if unprocessed_inrange_dots[ndot] == 0
+                        append!.(len_nbrs[start_ind:end], fill(0, length(len_nbrs[start_ind:end])))
+                    else
+                        find_barcode_candidates!(g, pnts, cw_dict, w, syndromes, unprocessed_inrange_dots, syndrome_block_sizes, barcode_candidates, gene_nums, ndot)
+                        append!.(len_nbrs[start_ind:end], length.(syndromes[ndot][start_ind:end]))
+                    end
                 end
                 nsyndc[2:end] .+= sum.(len_nbrs)
             end
@@ -163,15 +167,16 @@ function sum_dot_syndrome_components!(g, r, nsyndc, dot_neighbors, syndromes, do
     # for dot in neighbors
     start = maximum([2, g.w - (g.n - r)])
     for neighbor in dot_neighbors
-
         # add syndrome components to appropriate block
-        @inbounds end_ind = synd_ind[2:end] .+ length.(syndromes[neighbor]) .- 1
-        for i in start:length(dot_synd_cs)
-            dot_synd_cs[i][synd_ind[i]:end_ind[i-1]] += syndromes[neighbor][i-1]
-        end
+        if length(syndromes[neighbor]) != 0
+            @inbounds end_ind = synd_ind[2:end] .+ length.(syndromes[neighbor]) .- 1
+            for i in start:length(dot_synd_cs)
+                @inbounds dot_synd_cs[i][synd_ind[i]:end_ind[i-1]] += syndromes[neighbor][i-1]
+            end
 
-        # keep track of indices of each neighbor's syndrome component block
-        synd_ind[2:end] .= end_ind .+ 1
+            # keep track of indices of each neighbor's syndrome component block
+        @inbounds synd_ind[2:end] .= end_ind .+ 1
+        end
     end
     
 end
