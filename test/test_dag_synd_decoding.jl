@@ -150,8 +150,7 @@ println("full decode drops")
         z_thresh = 0
         n = length(cb[1,:])
 
-        to_drop = rand(1:n , ntargets) + n*Array(0:(ntargets-1))
-        deleteat!(encoded, to_drop)
+        
         lat_thresh = 0.0
         z_thresh = 0.0
         free_dot_energy = 5.0
@@ -192,6 +191,14 @@ println("full decode drops")
             skip_thresh,
             skip_density_thresh
         )
+        decode_syndromes!(encoded, cb, H, params)
+        @test encoded.species == encoded.decoded
+        
+
+        select!(encoded, Not(["decoded", "mpath"]))
+        sort!(encoded, :dot_ID)
+        to_drop = rand(1:n , ntargets) + n*Array(0:(ntargets-1))
+        deleteat!(encoded, to_drop)
         decode_syndromes!(encoded, cb, H, params)
         @test encoded.species == encoded.decoded
     end

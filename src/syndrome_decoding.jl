@@ -110,8 +110,11 @@ function check_inputs(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: De
         @assert "round" in names(pnts)
         @assert "pseudocolor" in names(pnts)
     end
-    if ~params.zeros_probed && size(H)[1] < 2*params.ndrops
-        error("Reed-Solomon Codes require 2 parity check symbols for every error corrected. Your code has ", size(H)[1], " parity check symbols, but you requested correction of up to ", params.ndrops, " errors.")
+    if ~params.zeros_probed
+        @assert typeof(cb) == typeof(H)
+        if size(H)[1] < 2*params.ndrops
+            error("Reed-Solomon Codes require 2 parity check symbols for every error corrected. Your code has ", size(H)[1], " parity check symbols, but you requested correction of up to ", params.ndrops, " errors.")
+        end
     end
     if "round" in names(pnts)
         @assert maximum(pnts.round) <= n
