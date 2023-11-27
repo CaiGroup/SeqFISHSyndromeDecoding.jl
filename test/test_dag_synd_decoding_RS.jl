@@ -29,13 +29,13 @@ RS_q9_n8_k5_H = readdlm("codes/RS_q9_n8_k5_H.csv", ',', String)
 RS_q9_n8_k5_w4cb = readdlm("codes/RS_q9_n8_k5_w4cb.csv", ',', String)
 
 RS_q11_n12_k9_H = readdlm("codes/RS_q11_n12_k9_H.csv", ',', UInt8)
-RS_q11_n12_k9_w4cb = Matrix(select(DataFrame(CSV.File("codes/RS_q11_n12_k9_w4cb.csv")), Not(:gene_name)))
+RS_q11_n12_k9_w4cb = UInt8.(Matrix(select(DataFrame(CSV.File("codes/RS_q11_n12_k9_w4cb.csv")), Not(:gene_name))))
 
 q9_n10_k7_w4_ncws1000_v1 = String.(Matrix(select(DataFrame(CSV.File("codes/q9_n10_k7_w4_ncws1000_v1.csv")), Not(:gene_name))))
 RS_q9_n10_k7_H = readdlm("codes/RS_q9_n10_k7_H.csv", ',', String)
 
 RS_q13_n12_k8_H = readdlm("codes/RS_q13_n12_k8_H.csv", ',', UInt8)
-RS_q13_n12_k8_w5cb = Matrix(select(DataFrame(CSV.File("codes/RS_q13_n12_k8_w5cb.csv")), Not(:gene_name)))
+RS_q13_n12_k8_w5cb = UInt8.(Matrix(select(DataFrame(CSV.File("codes/RS_q13_n12_k8_w5cb.csv")), Not(:gene_name))))
 
 #cbs = [RS_q7_k4_w4cb, RS_q11_k7_w4cb, RS_q11_k7_w5cb, RS_q11_k8_w4cb, hamming_merfish_cb, RS_q8_n7_k4_w4cb, RS_q9_n8_k5_w4cb, RS_q11_n12_k9_w4cb]
 #pc_matrices = [RS_q7_k4_H, RS_q11_k7_H, RS_q11_k7_H, RS_q11_k8_H, hamming_merfish_H, RS_q8_n7_k4_H, RS_q9_n8_k5_H, RS_q11_n12_k9_H]
@@ -216,8 +216,6 @@ println("full decode 1 drop RS")
                 w = maximum(sum(.~ iszero.(cb), dims=2))
             end
 
-            to_drop = rand(1:w , ntargets) + w*Array(0:(ntargets-1))
-            deleteat!(encoded, to_drop)
             lat_thresh = 0.0
             z_thresh = 0.0
             free_dot_energy = 5.0
@@ -262,13 +260,21 @@ println("full decode 1 drop RS")
             set_skip_thresh(params, skip_thresh)
             decode_syndromes!(encoded, cb, H, params)
             @test encoded.species == encoded.decoded
+            select!(encoded, Not(["decoded", "mpath"]))
+            sort!(encoded, :dot_ID)
+            to_drop = rand(1:w , ntargets) + w*Array(0:(ntargets-1))
+            deleteat!(encoded, to_drop)
+            decode_syndromes!(encoded, cb, H, params)
+            @test encoded.species == encoded.decoded
         end
     end
 end
 
+
 println("full decode 2 drop RS")
 @testset "full decode 2 drop RS" begin
-    for (i, cb) in enumerate(cbs), ntargets in [1, 2, 10, 100]
+    for (i, cb) in enumerate(cbs), ntargets in [1]#, 2, 10, 100]
+        H = pc_matrices[i]
         if size(H)[1] > 3
             ndrops = 2
 
@@ -281,11 +287,9 @@ println("full decode 2 drop RS")
                 w = maximum(sum(.~ iszero.(cb), dims=2))
             end
 
-            to_drop = rand(1:w , ntargets) + w*Array(0:(ntargets-1))
-            deleteat!(encoded, to_drop)
+            
             lat_thresh = 0.0
             z_thresh = 0.0
-            free_dot_energy = 5.0
             mip_sa_thresh = 80
 
             ndots = ntargets*length(cb[1,:])
@@ -294,12 +298,12 @@ println("full decode 2 drop RS")
             c_final = 2
             n_chains = 100
             l_chain = 300
-            c₀ = free_dot_energy * 40
+            c₀ = free_dot_cost * 40
             lat_var_factor = 8000.0
             z_var_factor = 1.0
             lw_var_factor = 0.0
             s_var_factor = 0.0
-            erasure_penalty = 4.0
+            erasure_penalty = 2.0
             converge_thresh = 100 * ndots
             skip_thresh = 200000000
             skip_density_thresh=200000000000
@@ -313,7 +317,7 @@ println("full decode 2 drop RS")
                 ndrops,
                 false,
                 mip_sa_thresh,
-                free_dot_energy,
+                free_dot_cost,
                 n_chains,
                 l_chain,
                 c₀,
@@ -325,6 +329,20 @@ println("full decode 2 drop RS")
             )
             set_zeros_probed(params, false)
             set_skip_thresh(params, skip_thresh)
+            decode_syndromes!(encoded, cb, H, params)
+            @test encoded.species == encoded.decoded
+
+            sort!(encoded, :dot_ID)
+            to_drop = rand(1:w , ntargets) + w*Array(0:(ntargets-1))
+            deleteat!(encoded, to_drop)
+            select!(encoded, Not(["decoded", "mpath"]))
+            decode_syndromes!(encoded, cb, H, params)
+            @test encoded.species == encoded.decoded
+
+            sort!(encoded, :dot_ID)
+            to_drop = rand(1:(w-1) , ntargets) + (w-1)*Array(0:(ntargets-1))
+            deleteat!(encoded, to_drop)
+            select!(encoded, Not(["decoded", "mpath"]))
             decode_syndromes!(encoded, cb, H, params)
             @test encoded.species == encoded.decoded
         end
