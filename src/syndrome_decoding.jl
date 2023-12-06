@@ -562,25 +562,38 @@ function DotAdjacencyGraphBlankRound(pnts :: DataFrame, lat_thresh :: Real, z_th
 
     # Find the indices of dots representing each place, cᵢ, in a codeword start.
     cw_round_ranges = get_cw_round_ranges(pnts, n)
+
+    #make KDTrees to search for dots that may be neigbors to dots each barcoding round that 
     trees = []
-    for round in 1:(n-w+1)
-        if ismissing(cw_round_ranges[round])
-            push!(trees, make_KDTree(pnts[1:0, :]))
+
+    # Dots in any previous round may be neighbors with dots in rounds up to the n-w+1st round in paths that may represent a decodable barcode
+    for round in 1:(n-w+1) 
+        if ismissing(cw_round_ranges[round]) # if there are no dots in the barcoding round
+            push!(trees, make_KDTree(pnts[1:0, :])) #make empty KBTree
         else
+            # make KDTree that searches dots in all previous rounds
             end_pnt = (cw_round_ranges[round][1]-1)
-            push!(trees, make_KDTree(pnts[1:end_pnt, :]))
+            push!(trees, make_KDTree(pnts[1:end_pnt, :])) 
         end
     end
 
-    for (i, round) in enumerate((n-w+2):n)
-        if ismissing(cw_round_ranges[round])
-            push!(trees, make_KDTree(pnts[1:0, :]))
+    # dots in the n-w+2st or greater barcoding round cannot form paths in the DAG representing valid barcodes with early dots 
+    # since no path containing directed edges will be long enough (paths must have length of at least w-ndrops to be decodable)
+    for (i, round) in enumerate((n-w+2):n) 
+        if ismissing(cw_round_ranges[round]) # if no dots in round
+            push!(trees, make_KDTree(pnts[1:0, :])) # make empty KDTree
         else
+            # make KDTree searching previous rounds starting at maximum([w-(n-round)-1-ndrops,1]), which may
+            # be included in paths of decodable length when directed edges connect dots in both rounds
             start_pnt = find_previous_round_start(cw_round_ranges, maximum([w-(n-round)-1-ndrops,1]))
             end_pnt = (cw_round_ranges[round][1]-1)
             push!(trees, make_KDTree(pnts[start_pnt:end_pnt, :]))
         end
     end
+
+    # note: row indices of dots in the pnts DataFrame are sorted by barcoding round
+    # find the index of the first dot that may be the dot of highest barcoding round in a decodable path through the DAG.
+    # all dots of higher index also may be the dot of highest barcoding round in a decodable path through the DAG.
     first_potential_barcode_final_dot=find_previous_round_start(cw_round_ranges,w-ndrops)
     if data_2d
         DotAdjacencyGraphBlankRound2D(g, cw_round_ranges, n, trees, lat_thresh, pnts, ndrops, w, first_potential_barcode_final_dot)
