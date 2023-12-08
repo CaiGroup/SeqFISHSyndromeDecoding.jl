@@ -176,7 +176,7 @@ function find_barcode_candidates!(
             @inbounds syndromes[dot] = dot_synd_cs[1:(end-1)]
             map(is -> trace_barcode!(is, pnts, g, dot, cw_dict, w, syndromes, syndrome_block_sizes, barcode_candidates, gene_nums), enumerate(dot_synd_cs[end]))
             for drops in 1:g.ndrops
-                map(is -> trace_barcode_w_drops!(is, pnts, g, dot, cw_dict, w, syndromes, syndrome_block_sizes, barcode_candidates, gene_nums), enumerate(dot_synd_cs[end-drops]))
+                map(is -> trace_barcode_w_drops!(is, pnts, g, dot, cw_dict, w, syndromes, syndrome_block_sizes, barcode_candidates, gene_nums, drops), enumerate(dot_synd_cs[end-drops]))
             end
         end
     end
@@ -204,7 +204,7 @@ end
 function trace_barcode!(is, pnts, g, dot, cw_dict, w, syndromes, syndrome_block_sizes, barcode_candidates, gene_nums)
     (i, s) = is
     if iszero(s)
-        barcode_candidate = recursive_get_synd_neighbors_blank_rounds(pnts, g, dot, i, 1, w, syndromes, syndrome_block_sizes, false)
+        barcode_candidate = recursive_get_synd_neighbors_blank_rounds(pnts, g, dot, i, 1, w, syndromes, syndrome_block_sizes, 0)
         if ismissing(barcode_candidate)
             return
         end
@@ -222,10 +222,10 @@ function trace_barcode!(is, pnts, g, dot, cw_dict, w, syndromes, syndrome_block_
     end
 end
 
-function trace_barcode_w_drops!(is, pnts, g, dot, cw_dict, w, syndromes, syndrome_block_sizes, barcode_candidates, gene_nums)
+function trace_barcode_w_drops!(is, pnts, g, dot, cw_dict, w, syndromes, syndrome_block_sizes, barcode_candidates, gene_nums, drops)
     (i, s) = is
     
-    barcode_candidate = recursive_get_synd_neighbors_blank_rounds(pnts, g, dot, i, 1, w, syndromes, syndrome_block_sizes, true)
+    barcode_candidate = recursive_get_synd_neighbors_blank_rounds(pnts, g, dot, i, 1, w, syndromes, syndrome_block_sizes, drops)
     if ismissing(barcode_candidate)
         return
     end
@@ -236,8 +236,7 @@ function trace_barcode_w_drops!(is, pnts, g, dot, cw_dict, w, syndromes, syndrom
         message = zeros(UInt8, g.n)
         message[pnts.round[barcode_candidate]] .= pnts.coeff[barcode_candidate]
     end
-    
-    r = find(BKTree_cb, message, g.ndrops)
+    r = find(BKTree_cb, message, drops)
     if length(r) == 1
         push!(barcode_candidates, barcode_candidate)
         push!(gene_nums, cw_dict[r[1][2]])
@@ -261,16 +260,16 @@ function get_RS_error(H, S, ndrops)
 end
 
 
-function recursive_get_synd_neighbors_blank_rounds(pnts, g, dot, synd_ind, recursion_depth, w, syndromes, syndrome_block_sizes, drop_bc :: Bool)
+function recursive_get_synd_neighbors_blank_rounds(pnts, g, dot, synd_ind, recursion_depth, w, syndromes, syndrome_block_sizes, ndrops)
     # if this is the last dot in the message, return number of dot in an array
-    if recursion_depth == w - g.ndrops*drop_bc
+    if recursion_depth == w - ndrops
         cpath = Int[dot]
-        sizehint!(cpath, w - g.ndrops*drop_bc)
+        sizehint!(cpath, w - ndrops)
         return cpath
     end
 
     #otherwise, get neighbor of the dot that produced the zero syndrome
-    neighbor, neighbor_synd_ind = get_synd_neighbors_blank_round(g, dot, synd_ind, syndrome_block_sizes, recursion_depth, w, drop_bc)
+    neighbor, neighbor_synd_ind = get_synd_neighbors_blank_round(g, dot, synd_ind, syndrome_block_sizes, recursion_depth, w, ndrops)
 
     # if neighbor has been cleared, return missing
     if length(syndromes[neighbor]) == 0
@@ -278,7 +277,7 @@ function recursive_get_synd_neighbors_blank_rounds(pnts, g, dot, synd_ind, recur
     end
 
     # Add result to recursively defined array, and return
-    res = recursive_get_synd_neighbors_blank_rounds(pnts, g, neighbor, neighbor_synd_ind, recursion_depth+1, w, syndromes, syndrome_block_sizes, drop_bc)
+    res = recursive_get_synd_neighbors_blank_rounds(pnts, g, neighbor, neighbor_synd_ind, recursion_depth+1, w, syndromes, syndrome_block_sizes, ndrops)
     if ismissing(res)
         return missing
     else
@@ -289,7 +288,7 @@ end
 """
 Helper Function used to trace back groups of dots that produce zero syndrome, and therefore are codewords
 """
-function get_synd_neighbors_blank_round(g, dot, synd_ind, syndrome_block_sizes, recursion_depth, w, drop_bc :: Bool)
+function get_synd_neighbors_blank_round(g, dot, synd_ind, syndrome_block_sizes, recursion_depth, w, ndrops)
     # keep track of number of syndromes from the dot that have been searched through
     cum_n_syndromes = 0
 
@@ -299,12 +298,12 @@ function get_synd_neighbors_blank_round(g, dot, synd_ind, syndrome_block_sizes, 
         # move the index tracker to the index just past the end of where syndrome
         # components from this neighbor are stored.
         
-        cum_n_syndromes += syndrome_block_sizes[dot][w - drop_bc*g.ndrops - recursion_depth][i]
+        cum_n_syndromes += syndrome_block_sizes[dot][w - ndrops - recursion_depth][i]
 
         #if the syndrome includes a component from this particular neighbor
         if synd_ind <= cum_n_syndromes
             # find the index of the neighbors syndrome component of interest
-            neighbor_synd_ind = synd_ind - cum_n_syndromes + syndrome_block_sizes[dot][w - drop_bc*g.ndrops-recursion_depth][i]
+            neighbor_synd_ind = synd_ind - cum_n_syndromes + syndrome_block_sizes[dot][w - ndrops-recursion_depth][i]
             return [neighbor, neighbor_synd_ind]
         end
     end
