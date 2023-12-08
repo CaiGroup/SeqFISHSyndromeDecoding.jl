@@ -404,12 +404,28 @@ println("full decode drop RS search radius")
             #pnts, g = construct_test_dag(ntargets, 0, 0, 0, cb, ndrops)
             encoded = construct_test_encoding(ntargets, cb)
 
+            decode_syndromes!(encoded, cb, H, params)
+            @test encoded.species == [Int(p) for p in encoded.decoded]
+
+            select!(encoded, Not(["decoded", "mpath"]))
             to_drop = rand(1:w , ntargets) + w*Array(0:(ntargets-1))
             deleteat!(encoded, to_drop)        
 
             encoded.z = zeros(nrow(encoded))
             decode_syndromes!(encoded, cb, H, params)
             @test encoded.species == [Int(p) for p in encoded.decoded]
+            """
+            if size(H)[1] > 3
+                select!(encoded, Not(["decoded", "mpath"]))
+                to_drop = rand(1:(w-1) , ntargets) + (w-1)*Array(0:(ntargets-1))
+                deleteat!(encoded, to_drop)
+                set_n_allowed_drops(params, 2)
+
+                encoded.z = zeros(nrow(encoded))
+                decode_syndromes!(encoded, cb, H, params)
+                @test encoded.species == [Int(p) for p in encoded.decoded]
+            end
+            """
         end
     end
 end
