@@ -81,7 +81,6 @@ end
 
 
 @testset "Test DotAdjacencyGraph RS" for (i, cb) in enumerate(cbs)
-
     n = length(cb[1,:])
     q = length(unique(cb))
     #set_n(UInt8(n))
@@ -350,10 +349,9 @@ println("full decode 2 drop RS")
 end
 
 
-
 println("full decode drop RS search radius")
 @testset "full decode drop RS search radius" begin
-    for (i, cb) in enumerate(cbs), ntargets in [1, 10, 30] #, 100]
+    for (i, cb) in enumerate(cbs), ntargets in [1,2, 10, 30] #, 100]
         H = pc_matrices[i]
         if size(H)[1] > 1
             n = length(cb[1,:])
@@ -408,15 +406,16 @@ println("full decode drop RS search radius")
             @test encoded.species == [Int(p) for p in encoded.decoded]
 
             select!(encoded, Not(["decoded", "mpath"]))
+            sort!(encoded, :dot_ID)
             to_drop = rand(1:w , ntargets) + w*Array(0:(ntargets-1))
             deleteat!(encoded, to_drop)        
 
             encoded.z = zeros(nrow(encoded))
             decode_syndromes!(encoded, cb, H, params)
             @test encoded.species == [Int(p) for p in encoded.decoded]
-            """
             if size(H)[1] > 3
                 select!(encoded, Not(["decoded", "mpath"]))
+                sort!(encoded, :dot_ID)
                 to_drop = rand(1:(w-1) , ntargets) + (w-1)*Array(0:(ntargets-1))
                 deleteat!(encoded, to_drop)
                 set_n_allowed_drops(params, 2)
@@ -425,7 +424,6 @@ println("full decode drop RS search radius")
                 decode_syndromes!(encoded, cb, H, params)
                 @test encoded.species == [Int(p) for p in encoded.decoded]
             end
-            """
         end
     end
 end
