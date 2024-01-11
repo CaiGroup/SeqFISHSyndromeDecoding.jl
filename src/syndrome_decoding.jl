@@ -111,7 +111,8 @@ function check_inputs(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: De
         @assert "pseudocolor" in names(pnts)
     end
     if ~params.zeros_probed
-        @assert typeof(cb) == typeof(H)
+        #if typeof(cb)
+        #@assert typeof(cb) == typeof(H)
         if size(H)[1] < 2*params.ndrops
             error("Reed-Solomon Codes require 2 parity check symbols for every error corrected. Your code has ", size(H)[1], " parity check symbols, but you requested correction of up to ", params.ndrops, " errors.")
         end
@@ -135,7 +136,7 @@ function sort_readouts!(pnts :: DataFrame)
     if "hyb" in names(pnts)
         sort!(pnts, :hyb)
     elseif "round" in names(pnts) && "pseudocolor" in names(pnts)
-        sort!(pnts, [:round, :pseudocolor])
+        sort!(pnts, [:round, :pseudocolor, :x, :y, :z])
     end
 end
 
@@ -323,6 +324,7 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, 
         filter!(:cpath => cpath -> length(cpath) >= w - params.ndrops, cpath_df)
     end
 
+    sort_readouts!(pnts)
     cost(cpath) = obj_function(cpath, pnts, w, params)
     pnts[!,"decoded"] = fill(0, nrow(pnts))
     pnts[!, "mpath"] = [[] for i = 1:length(pnts.x)]
