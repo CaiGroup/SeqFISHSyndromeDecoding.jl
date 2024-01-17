@@ -46,9 +46,13 @@ and decoding result indicated as the row of the codebook matrix matched to.
 Split up points into weakly connected components, then finds possible codeword messages
 and runs simulated annealing to assign them. The pnts dataframe should have hybridization, x, y, and z columns
 """
-function decode_syndromes!(pnts :: DataFrame, cb, H :: Matrix, params :: DecodeParams, optimizer = GLPK.Optimizer)
+function decode_syndromes!(pnts :: DataFrame, cb, H :: Matrix, params :: DecodeParams, optimizer = GLPK.Optimizer, tforms = nothing)
     #println("start syndrome decoding")
-    cpath_df = get_codepaths(pnts, cb, H, params)
+    if tforms == nothing # pnts preregistered
+        cpath_df = get_codepaths(pnts, cb, H, params)
+    else
+        cpath_df = get_codepaths(pnts, cb, H, params, tforms)
+    end
 
     if typeof(cpath_df) != DataFrame || nrow(cpath_df) == 0
         println("No viable barcodes")
@@ -164,13 +168,13 @@ Computes codepaths with syndrome decoding, removes codepaths that exceed the cos
 of not decoding their component dots, and
 and returns DataFrame of candidate codepaths.
 """
-function get_codepaths(pnts :: DataFrame, cb_df :: DataFrame, H :: Matrix, params :: DecodeParams)
+function get_codepaths(pnts :: DataFrame, cb_df :: DataFrame, H :: Matrix, params :: DecodeParams, tforms=nothing)
     if typeof(cb_df[2, 2]) <: AbstractString
         cb = Matrix(string.(cb_df[!, 2:end]))
     else
         cb = Matrix(UInt8.(cb_df[!, 2:end]))
     end
-    return get_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: DecodeParams)
+    get_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: DecodeParams, tforms)
 end
 
 """
@@ -190,7 +194,7 @@ Arguments
 - `H` : The parity check Matrix
 - `params` : DecodeParams object holding the parameters for decoding
 """
-function get_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: DecodeParams)
+function get_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: DecodeParams, tforms=nothing)
 
     cb_dict = make_cw_dict(cb)
     alphabet = sort(unique(cb))
@@ -241,7 +245,7 @@ function get_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: D
         clust_pnts = pnts[dbscan_cluster, :]
         sort_readouts!(clust_pnts)
         add_code_cols!(clust_pnts)
-        g = DotAdjacencyGraph(clust_pnts, params, n, w)
+        g = DotAdjacencyGraph(clust_pnts, params, n, w, tforms)
         #g = DotAdjacencyGraph(clust_pnts, params.lat_thresh, params.z_thresh, n, params.ndrops)
 
         cost(cpath) = obj_function(cpath, clust_pnts, w, params)
@@ -396,6 +400,12 @@ Generate KDTree to aid in building adjacency graphs.
 """
 make_KDTree2D(pnts :: DataFrame) = KDTree(Array([pnts.x pnts.y]'))
 
+function make_KDTree2D(pnts :: Matrix)
+    unregistered_pnts = Array([pnts.x pnts.y])
+    registered_pnts = unregistered_pnts * tform[1:2, 1:2] .+ tform[1:2,4]
+    return KDTree(Array([registered_pnts]'))
+end
+
 """
     make_KDTree3D(pnts :: DataFrame)
 
@@ -404,6 +414,12 @@ Generate KDTree to aid in building adjacency graphs.
 function make_KDTree3D(pnts :: DataFrame, lat_thresh, z_thresh)
     z_scaled = pnts.z .* lat_thresh ./ z_thresh
     return KDTree(Array([pnts.x pnts.y z_scaled]'))
+end
+
+function make_KDTree3D(pnts :: Matrix, lat_thresh, z_thresh)
+    z_scaled = pnts[:,3] .* lat_thresh ./ z_thresh
+    pnts[:,3] .= z_scaled
+    return KDTree(Array(pnts'))
 end
 
 """
@@ -480,9 +496,9 @@ struct DotAdjacencyGraph3D <: DotAdjacencyGraph
     ndrops :: Int64
 end
 
-function DotAdjacencyGraph(pnts :: DataFrame, params :: DecodeParams, n, w)
+function DotAdjacencyGraph(pnts :: DataFrame, params :: DecodeParams, n, w, tforms=nothing)
     if params.zeros_probed
-        return DotAdjacencyGraph(pnts, params.lat_thresh, params.z_thresh, n, params.ndrops)
+        return DotAdjacencyGraph(pnts, params.lat_thresh, params.z_thresh, n, params.ndrops, tforms)
     else
         return DotAdjacencyGraphBlankRound(pnts, params.lat_thresh, params.z_thresh, n, params.ndrops, w)
     end
@@ -497,7 +513,7 @@ end
 Construct a dot adjacency graph where dots close to each other have directed
 edges pointing towards the dot representing an earlier symbor
 """
-function DotAdjacencyGraph(pnts :: DataFrame, lat_thresh :: Real, z_thresh :: Real, n, ndrops)
+function DotAdjacencyGraph(pnts :: DataFrame, lat_thresh :: Real, z_thresh :: Real, n, ndrops, tforms=nothing)
     g = SimpleDiGraph(nrow(pnts))
 
     data_2d = length(unique(pnts.z)) == 1
@@ -508,10 +524,23 @@ function DotAdjacencyGraph(pnts :: DataFrame, lat_thresh :: Real, z_thresh :: Re
         start_round = maximum([round-1-ndrops, 1])
         start_pnt = cw_pos_bnds[start_round]
         end_pnt = (cw_pos_bnds[round]-1)
-        if data_2d
-            push!(trees, make_KDTree2D(pnts[start_pnt:end_pnt, :]))
+        if tforms == nothing 
+            if data_2d
+                push!(trees, make_KDTree2D(pnts[start_pnt:end_pnt, :]))
+            else
+                push!(trees, make_KDTree3D(pnts[start_pnt:end_pnt, :], lat_thresh, z_thresh))
+            end
         else
-            push!(trees, make_KDTree3D(pnts[start_pnt:end_pnt, :], lat_thresh, z_thresh))
+            registered_pnts = copy(pnts[start_pnt:end_pnt, :])
+            for neighbor_round in start_round:(round-1)
+                tform = tforms[neighbor_round, round, :, :]
+                registered_pnts[:, [:x, :y, :z]] .= Array(registered_pnts[registered_pnts.round .== neighbor_round, [:x, :y, :z]]) * tform[:, 1:3] + tform[:, 4]
+            end
+            if data_2d
+                push!(trees, KDTree(registered_pnts'))
+            else
+                push!(trees, MakeKDTree3D(registered_pnts, lat_thresh, z_thresh))
+            end
         end
     end
 
@@ -550,7 +579,7 @@ struct DotAdjacencyGraphBlankRound3D <: DotAdjacencyGraphBlankRound
     first_potential_barcode_final_dot
 end
 
-function DotAdjacencyGraphBlankRound(pnts :: DataFrame, lat_thresh :: Real, z_thresh :: Real, n, ndrops, w)
+function DotAdjacencyGraphBlankRound(pnts :: DataFrame, lat_thresh :: Real, z_thresh :: Real, n, ndrops, w, tforms=nothing)
 
     g = SimpleDiGraph(nrow(pnts))
     data_2d = length(unique(pnts.z)) == 1
@@ -705,14 +734,14 @@ end
 
 """
 """
-function syndrome_find_barcodes!(pnts ::DataFrame, g :: abstractDotAdjacencyGraph, cb ::Matrix, ndrops, w)
+function syndrome_find_barcodes!(pnts ::DataFrame, g :: abstractDotAdjacencyGraph, cb ::Matrix, ndrops, w, tforms=nothing)
     cw_dict = make_cw_dict(cb)
     if typeof(g) <: DotAdjacencyGraphBlankRound
-        cpaths, decode_cands = find_blank_round_codewords(pnts ::DataFrame, g :: DotAdjacencyGraphBlankRound, cw_dict, w)
+        cpaths, decode_cands = find_blank_round_codewords(pnts ::DataFrame, g :: DotAdjacencyGraphBlankRound, cw_dict, w, tforms)
     elseif ndrops == 0
-        cpaths, decode_cands = find_barcodes_mem_eff(pnts, g, cw_dict)
+        cpaths, decode_cands = find_barcodes_mem_eff(pnts, g, cw_dict, tforms)
     else
-        cpaths, decode_cands = syndrome_find_barcodes!(pnts, g, ndrops, cw_dict)
+        cpaths, decode_cands = syndrome_find_barcodes!(pnts, g, ndrops, cw_dict, tforms)
     end
     return cpaths, decode_cands
 end
@@ -724,7 +753,8 @@ barcodes, and returns dataframe of message path candidates.
 function syndrome_find_barcodes!(pnts ::DataFrame,
                                       g :: DotAdjacencyGraph,
                                       ndrops :: Int,
-                                      cw_dict :: Dict
+                                      cw_dict :: Dict,
+                                      tforms
                                       )
     syndromes, syndrome_coeff_positions = compute_syndromes(pnts, g)
 

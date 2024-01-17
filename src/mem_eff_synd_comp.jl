@@ -1,11 +1,24 @@
-inrng(tree, dot, g :: DotAdjacencyGraph2D) = inrange(tree, [g.pnts.x[dot], g.pnts.y[dot]], g.lat_thresh, true)
-inrng(tree, dot, g :: DotAdjacencyGraph3D) = inrange(tree, [g.pnts.x[dot], g.pnts.y[dot], g.pnts.z[dot]], g.lat_thresh, true)
+function inrng(tree, dot, g :: DotAdjacencyGraph2D, tforms, round_search)
+    if tforms == nothing
+        return inrange(tree, [g.pnts.x[dot], g.pnts.y[dot]], g.lat_thresh, true)
+    else
+        tform = tforms[g.pnts.round[dot], round_search]
+        registered = Array(g.pnts[dot, [:x, :y]]) * tform[1:2, 1:2] .+ tform[1:2, 4]
+        return inrange(tree, registered, g.lat_thresh, true)
+    end
+end
 
+function inrng(tree, dot, g :: DotAdjacencyGraph3D, tforms, round_search)
+    if tforms == nothing
+        return inrange(tree, [g.pnts.x[dot], g.pnts.y[dot], g.pnts.z[dot]], g.lat_thresh, true)
+    else
+        tform = tforms[g.pnts.round[dot], round_search]
+        registered = Array(g.pnts[dot, [:x, :y, :z]]) * tform[:, 1:3] .+ tform[:, 4]
+        return inrange(tree, registered, g.lat_thresh, true)
+    end
+end
 
-function find_barcodes_mem_eff(pnts ::DataFrame,
-                               g :: DotAdjacencyGraph,
-                               cw_dict
-    )
+function find_barcodes_mem_eff(pnts ::DataFrame, g :: DotAdjacencyGraph, cw_dict, tforms)
     
     syndromes = fill(Vector{SyndromeComponent}(), nrow(pnts))
     syndrome_block_sizes = fill(Vector{Int64}(), nrow(pnts))
@@ -23,21 +36,21 @@ function find_barcodes_mem_eff(pnts ::DataFrame,
     # Count how many dots in other rounds are in range of each dot in the last round
     for dot in final_round_dots
         for round in 1:(g.n-1)
-            unprocessed_inrange_dots[dot] += length(inrng(round_trees[round], dot, g))
+            unprocessed_inrange_dots[dot] += length(inrng(round_trees[round], dot, g, tforms, round))
             #unprocessed_inrange_dots[dot] += length(inrange(round_trees[round], [pnts.x[dot], pnts.y[dot]], g.lat_thresh))
         end 
     end
 
     # Count how many dots in the last round are within the search radius of each dot in previous round
     for dot in 1:(g.cw_pos_bnds[g.n]-1)
-        inrange_last_round_dots = inrng(last_round_tree, dot, g)
+        inrange_last_round_dots = inrng(last_round_tree, dot, g, tforms, g.n)
 
         #inrange_last_round_dots = inrange(last_round_tree, [pnts.x[dot], pnts.y[dot]], g.lat_thresh, true)
         unprocessed_inrange_dots[dot] = length(inrange_last_round_dots)
     end
     
     # Count how many dots in the last round are in range of each other
-    final_round_dot_n_uncomputed_neighbors = [length(inrng(last_round_tree, dot, g)) - 1 for dot in final_round_dots]
+    final_round_dot_n_uncomputed_neighbors = [length(inrng(last_round_tree, dot, g, tforms, g.n)) - 1 for dot in final_round_dots]
     #final_round_dot_n_uncomputed_neighbors = [length(inrange(last_round_tree, [pnts.x[dot], pnts.y[dot]], g.lat_thresh)) - 1 for dot in final_round_dots]
 
     unprocessed_last_round_dots = collect(get_cw_pos_inds(g,g.n))
@@ -65,7 +78,7 @@ function find_barcodes_mem_eff(pnts ::DataFrame,
         append!(gene_nums, dot_gene_nums)
     
         #final_round_dot_n_uncomputed_neighbors[inrange(last_round_tree, [pnts.x[dot], pnts.y[dot]], g.lat_thresh)] .-= 1
-        final_round_dot_n_uncomputed_neighbors[inrng(last_round_tree, dot, g)] .-= 1
+        final_round_dot_n_uncomputed_neighbors[inrng(last_round_tree, dot, g, tforms, g.n)] .-= 1
 
         # remove dot from list of unprocessed final round dots
         deleteat!(unprocessed_last_round_dots, dot_ind)        
@@ -73,7 +86,7 @@ function find_barcodes_mem_eff(pnts ::DataFrame,
         #free space  
         for round in 1:(g.n-1)
             #for inrange_dot in inrange(round_trees[round], [pnts.x[dot], pnts.y[dot]], g.lat_thresh)
-            for inrange_dot in inrng(round_trees[round], dot, g)
+            for inrange_dot in inrng(round_trees[round], dot, g, tforms, round)
                 inrange_dot_ind = inrange_dot + g.cw_pos_bnds[round] - 1
                 unprocessed_inrange_dots[inrange_dot_ind] -= 1
                 if unprocessed_inrange_dots[inrange_dot_ind] == 0
