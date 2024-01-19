@@ -1,21 +1,56 @@
-function inrng(tree, dot, g :: DotAdjacencyGraph2D, tforms, round_search)
-    if tforms == nothing
-        return inrange(tree, [g.pnts.x[dot], g.pnts.y[dot]], g.lat_thresh, true)
-    else
-        tform = tforms[g.pnts.round[dot], round_search]
-        registered = Array(g.pnts[dot, [:x, :y]]) * tform[1:2, 1:2] .+ tform[1:2, 4]
-        return inrange(tree, registered, g.lat_thresh, true)
+make_round_trees(pnts, g :: DotAdjacencyGraphRegistered2D) = [make_KDTree2D(pnts[get_cw_pos_inds(g, r), :]) for r in 1:g.n] 
+
+make_round_trees(pnts, g :: DotAdjacencyGraphRegistered3D) = [make_KDTree3D(pnts[get_cw_pos_inds(g, r), :], g.lat_thresh, g.z_thresh) for r in 1:g.n]
+
+function make_round_trees(pnts, g :: DotAdjacencyGraphPairwise2D)
+    round_trees = []
+    for round in 1:g.n
+        round_pseudocolor_trees = []
+        for pseudocolor in 0:q # q is global
+            push!(round_pseudocolor_trees, make_KDTree_2D(pnts[pnts.round .== round .&& pnts.pseudocolor .== pseudocolor, :]))
+        end
+        push!(round_trees, round_pseudocolor_trees)
     end
+    return round_trees
 end
 
-function inrng(tree, dot, g :: DotAdjacencyGraph3D, tforms, round_search)
-    if tforms == nothing
-        return inrange(tree, [g.pnts.x[dot], g.pnts.y[dot], g.pnts.z[dot]], g.lat_thresh, true)
-    else
-        tform = tforms[g.pnts.round[dot], round_search]
-        registered = Array(g.pnts[dot, [:x, :y, :z]]) * tform[:, 1:3] .+ tform[:, 4]
-        return inrange(tree, registered, g.lat_thresh, true)
+function make_round_trees(pnts, g :: DotAdjacencyGraphPairwise3D)
+    round_trees = []
+    for round in 1:g.n
+        round_pseudocolor_trees = []
+        for pseudocolor in 0:q # q is global
+            push!(round_pseudocolor_trees, make_KDTree_3D(pnts[pnts.round .== round .&& pnts.pseudocolor .== pseudocolor, :]))
+        end
+        push!(round_trees, round_pseudocolor_trees)
     end
+    return round_trees
+end
+
+inrng(tree, dot, g :: DotAdjacencyGraphRegistered2D) = inrange(tree, [g.pnts.x[dot], g.pnts.y[dot]], g.lat_thresh, true)
+inrng(tree, dot, g :: DotAdjacencyGraphRegistered3D) = inrange(tree, [g.pnts.x[dot], g.pnts.y[dot], g.pnts.z[dot]], g.lat_thresh, true)
+
+"""
+function inrng(tree, dot, g :: DotAdjacencyGraphRegistered2D, tforms, round_search)
+    tform = tforms[g.pnts.round[dot], round_search]
+    registered = Array(g.pnts[dot, [:x, :y]]) * tform[1:2, 1:2] .+ tform[1:2, 4]
+    return inrange(tree, registered, g.lat_thresh, true)
+end
+
+function inrng(tree, dot, g :: DotAdjacencyGraphRegistered3D, tforms, round_search)
+    tform = tforms[g.pnts.round[dot], round_search]
+    registered = Array(g.pnts[dot, [:x, :y, :z]]) * tform[:, 1:3] .+ tform[:, 4]
+    return inrange(tree, registered, g.lat_thresh, true)
+end
+"""
+
+function inrng(tree, dot, g :: DotAdjacencyGraphPairwise2D, tforms, nbr_round)
+    for pseudocolor in 0:q
+        searching_round = g.pnts.round[dot]
+        searching_pseudocolor = pnts.g.pnts.pseudocolor[dot]
+        tform = get_tform(searching_round, searching_pseudocolor, nbr_round, nbr_round_pseudocolor)
+        registered = Array(g.pnts[dot, [:x, :y]]) * tform[1:2, 1:2] .+ tform[1:2, 4]
+    end
+    return inrange(tree, registered, g.lat_thresh, true)
 end
 
 function find_barcodes_mem_eff(pnts ::DataFrame, g :: DotAdjacencyGraph, cw_dict, tforms)
@@ -26,11 +61,9 @@ function find_barcodes_mem_eff(pnts ::DataFrame, g :: DotAdjacencyGraph, cw_dict
     final_round_dots = get_cw_pos_inds(g, g.n)
 
     unprocessed_inrange_dots = fill(0, nv(g.g))
-    if typeof(g) == DotAdjacencyGraph2D
-        round_trees = [make_KDTree2D(pnts[get_cw_pos_inds(g, r), :]) for r in 1:g.n] 
-    elseif typeof(g) == DotAdjacencyGraph3D
-        round_trees = [make_KDTree3D(pnts[get_cw_pos_inds(g, r), :], g.lat_thresh, g.z_thresh) for r in 1:g.n]
-    end
+
+    round_trees = make_round_trees(pnts, g)
+
     last_round_tree = round_trees[end]
 
     # Count how many dots in other rounds are in range of each dot in the last round

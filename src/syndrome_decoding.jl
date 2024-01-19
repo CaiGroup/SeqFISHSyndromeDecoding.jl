@@ -590,9 +590,9 @@ function DotAdjacencyGraph(pnts :: DataFrame, lat_thresh :: Real, z_thresh :: Re
                 for nbr_round in start_round:(round-1)
                     for nbr_round_pseudocolor in 0:q
                         
-                        tform = tforms[] #[neighbor_round, round, :, :]
-                        registered_pnts[registered_pnts.round .== neighbor_round
-                        registered_pnts[:, [:x, :y, :z]] .= Array(, [:x, :y, :z]]) * tform[:, 1:3] + tform[:, 4]
+                        tform = get_tform(searching_round, searching_pseudocolor, nbr_round, nbr_round_pseudocolor) #tforms[] #[neighbor_round, round, :, :]
+                        nbr_rnd_pc_pnts = registered_pnts[registered_pnts.round .== nbr_round .&& registered_pnts.pseudocolor .== nbr_round_pseudocolor, :]
+                        registered_pnts[:, [:x, :y, :z]] .= Array(nbr_rnd_pc_pnts[:, [:x, :y, :z]]) * tform[:, 1:3] + tform[:, 4]
                         if data_2d
                             #push!(trees, KDTree(registered_pnts'))
                             trees[round, pseudocolor] = KDTree(registered_pnts')
@@ -606,10 +606,18 @@ function DotAdjacencyGraph(pnts :: DataFrame, lat_thresh :: Real, z_thresh :: Re
         end
     end
 
-    if data_2d
-        return DotAdjacencyGraph2D(g, cw_pos_bnds, n, trees, lat_thresh, pnts, ndrops)
+    if tforms == nothing
+        if data_2d
+            return DotAdjacencyGraphRegistered2D(g, cw_pos_bnds, n, trees, lat_thresh, pnts, ndrops)
+        else
+            return DotAdjacencyGraphRegistered3D(g, cw_pos_bnds, n, trees, lat_thresh, z_thresh, pnts, ndrops)
+        end
     else
-        return DotAdjacencyGraph3D(g, cw_pos_bnds, n, trees, lat_thresh, z_thresh, pnts, ndrops)
+        if data_2d
+            return DotAdjacencyGraphPairwise2D(g, cw_pos_bnds, n, trees, lat_thresh, pnts, ndrops)
+        else
+            return DotAdjacencyGraphPairwise3D(g, cw_pos_bnds, n, trees, lat_thresh, z_thresh, pnts, ndrops)
+        end
     end
 end
 
@@ -748,9 +756,12 @@ function neighbors(g :: DotAdjacencyGraphRegistered2D, n)
     return nbrs .+ pnts_prior_rnds
 end
 
-function neighbors(g :: DotAdjacencyGraphPairwise2D, n)
-    nbrs = inrange(g.trees[g.pnts.pos[n]], [g.pnts.x[n], g.pnts.y[n]], g.lat_thresh, true)
-    pnts_prior_rnds = g.cw_pos_bnds[maximum([g.pnts.pos[n]-1-g.ndrops, 1])] - 1
+function neighbors(g :: DotAdjacencyGraphPairwise2D, dot)
+    round = g.pnts.round[dot]
+    pseudocolor = g.pnts.pseudocolor[dot]
+    inrange(g.trees[round, pseudocolor], [g.pnts.x[dot], g.pnts.y[dot]], g.lat_thresh, true)
+    #nbrs = inrange(g.trees[g.pnts.pos[n]], [g.pnts.x[n], g.pnts.y[n]], g.lat_thresh, true)
+    pnts_prior_rnds = g.cw_pos_bnds[maximum([round-1-g.ndrops, 1])] - 1
     return nbrs .+ pnts_prior_rnds
 end
 
@@ -763,6 +774,15 @@ Define SimpleDiGraph neighbors function for DotAdjacencyGraph
 function neighbors(g :: DotAdjacencyGraph3D, n)
     nbrs = inrange(g.trees[g.pnts.pos[n]], [g.pnts.x[n], g.pnts.y[n], g.pnts.z[n]], g.lat_thresh, true)
     pnts_prior_rnds = g.cw_pos_bnds[maximum([g.pnts.pos[n]-1-g.ndrops, 1])] - 1
+    return nbrs .+ pnts_prior_rnds
+end
+
+function neighbors(g :: DotAdjacencyGraphPairwise3D, dot)
+    round = g.pnts.round[dot]
+    pseudocolor = g.pnts.pseudocolor[dot]
+    inrange(g.trees[round, pseudocolor], [g.pnts.x[dot], g.pnts.y[dot], g.pnts.z[dot]], g.lat_thresh, true)
+    #nbrs = inrange(g.trees[g.pnts.pos[n]], [g.pnts.x[n], g.pnts.y[n]], g.lat_thresh, true)
+    pnts_prior_rnds = g.cw_pos_bnds[maximum([round-1-g.ndrops, 1])] - 1
     return nbrs .+ pnts_prior_rnds
 end
 
