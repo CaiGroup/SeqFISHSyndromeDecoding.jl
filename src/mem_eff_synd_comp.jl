@@ -26,8 +26,8 @@ function make_round_trees(pnts, g :: DotAdjacencyGraphPairwise3D)
     return round_trees
 end
 
-inrng(tree, dot, g :: DotAdjacencyGraphRegistered2D) = inrange(tree, [g.pnts.x[dot], g.pnts.y[dot]], g.lat_thresh, true)
-inrng(tree, dot, g :: DotAdjacencyGraphRegistered3D) = inrange(tree, [g.pnts.x[dot], g.pnts.y[dot], g.pnts.z[dot]], g.lat_thresh, true)
+inrng(tree, dot, g :: DotAdjacencyGraphRegistered2D, tforms, round) = inrange(tree, [g.pnts.x[dot], g.pnts.y[dot]], g.lat_thresh, true)
+inrng(tree, dot, g :: DotAdjacencyGraphRegistered3D, tforms, round) = inrange(tree, [g.pnts.x[dot], g.pnts.y[dot], g.pnts.z[dot]], g.lat_thresh, true)
 
 """
 function inrng(tree, dot, g :: DotAdjacencyGraphRegistered2D, tforms, round_search)
@@ -43,14 +43,18 @@ function inrng(tree, dot, g :: DotAdjacencyGraphRegistered3D, tforms, round_sear
 end
 """
 
-function inrng(tree, dot, g :: DotAdjacencyGraphPairwise2D, tforms, nbr_round)
+function inrng(round_trees, dot, g :: DotAdjacencyGraphPairwise2D, tforms, nbr_round)
+    inrange_dots = []
     for pseudocolor in 0:q
         searching_round = g.pnts.round[dot]
         searching_pseudocolor = pnts.g.pnts.pseudocolor[dot]
         tform = get_tform(searching_round, searching_pseudocolor, nbr_round, nbr_round_pseudocolor)
-        registered = Array(g.pnts[dot, [:x, :y]]) * tform[1:2, 1:2] .+ tform[1:2, 4]
+        registered_dot_coordinates = Array(g.pnts[dot, [:x, :y]]) * tform[1:2, 1:2] .+ tform[1:2, 4]
+        round_pseudocolor_dots = inrange(round_trees[pseudocolor], registered_dot_coordinates, p.lat_thresh, true)
+        round_pseudocolor_dots .+= p.round_pc_block_starts[nbr_round, nbr_round_pseudocolor]
+        vcat(inrange_dots, round_pseudocolor_dots)
     end
-    return inrange(tree, registered, g.lat_thresh, true)
+    return inrange_dots
 end
 
 function find_barcodes_mem_eff(pnts ::DataFrame, g :: DotAdjacencyGraph, cw_dict, tforms)

@@ -268,7 +268,7 @@ function get_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: D
         clust_pnts = pnts[dbscan_cluster, :]
         sort_readouts!(clust_pnts)
         add_code_cols!(clust_pnts)
-        g = DotAdjacencyGraph(clust_pnts, params, n, w, q, tforms)
+        g = DotAdjacencyGraph(clust_pnts, params, n, w, tforms)
         #g = DotAdjacencyGraph(clust_pnts, params.lat_thresh, params.z_thresh, n, params.ndrops)
 
         cost(cpath) = obj_function(cpath, clust_pnts, w, params)
@@ -516,10 +516,11 @@ struct DotAdjacencyGraphPairwise2D <: DotAdjacencyGraph2D
     g :: SimpleDiGraph
     cw_pos_bnds :: Array{Int64}
     n :: Int8
-    trees :: Vector{KDTree}
+    trees :: Matrix{KDTree}
     lat_thresh :: Float64
     pnts :: DataFrame
     ndrops :: Int64
+    round_pc_block_starts :: Int64
 end
 
 struct DotAdjacencyGraphRegistered3D <: DotAdjacencyGraph3D
@@ -537,11 +538,12 @@ struct DotAdjacencyGraphPairwise3D <: DotAdjacencyGraph3D
     g :: SimpleDiGraph
     cw_pos_bnds :: Array{Int64}
     n :: Int8
-    trees :: Vector{KDTree}
+    trees :: Matrix{KDTree}
     lat_thresh :: Float64
     z_thresh :: Float64
     pnts :: DataFrame
     ndrops :: Int64
+    round_pc_block_starts :: Int64
 end
 
 function DotAdjacencyGraph(pnts :: DataFrame, params :: DecodeParams, n, w, tforms=nothing)
@@ -561,7 +563,7 @@ end
 Construct a dot adjacency graph where dots close to each other have directed
 edges pointing towards the dot representing an earlier symbor
 """
-function DotAdjacencyGraph(pnts :: DataFrame, lat_thresh :: Real, z_thresh :: Real, n, ndrops, q, tforms=nothing)
+function DotAdjacencyGraph(pnts :: DataFrame, lat_thresh :: Real, z_thresh :: Real, n, ndrops, tforms=nothing)
     g = SimpleDiGraph(nrow(pnts))
 
     data_2d = length(unique(pnts.z)) == 1
@@ -571,6 +573,7 @@ function DotAdjacencyGraph(pnts :: DataFrame, lat_thresh :: Real, z_thresh :: Re
         trees = []
     else
         trees = Matrix{KDTree}(undef, n, q)
+        round_pseudocolor_start_positions = Matrix{Int64}(undef, n, q)
     end
 
     for round in 1:n
@@ -584,11 +587,10 @@ function DotAdjacencyGraph(pnts :: DataFrame, lat_thresh :: Real, z_thresh :: Re
                 push!(trees, make_KDTree3D(pnts[start_pnt:end_pnt, :], lat_thresh, z_thresh))
             end
         else
-            round_pseudocolorsgroupby(pnts[start_pnt:end_pnt, :], ["round", "pseudocolor"])
-            for searching_pseudocolor in 0:q
+            for searching_pseudocolor in 0:(q-1)
                 registered_pnts = copy(pnts[start_pnt:end_pnt, :])
                 for nbr_round in start_round:(round-1)
-                    for nbr_round_pseudocolor in 0:q
+                    for nbr_round_pseudocolor in 0:(q-1)
                         
                         tform = get_tform(searching_round, searching_pseudocolor, nbr_round, nbr_round_pseudocolor) #tforms[] #[neighbor_round, round, :, :]
                         nbr_rnd_pc_pnts = registered_pnts[registered_pnts.round .== nbr_round .&& registered_pnts.pseudocolor .== nbr_round_pseudocolor, :]
@@ -602,6 +604,7 @@ function DotAdjacencyGraph(pnts :: DataFrame, lat_thresh :: Real, z_thresh :: Re
                         end
                     end
                 end
+                round_pseudocolor_start_positions[round, searching_pseudocolor] = findfirst(d -> d.round==round && d.pseudocolor==searching_pseudocolor, pnts)
             end
         end
     end
@@ -614,9 +617,9 @@ function DotAdjacencyGraph(pnts :: DataFrame, lat_thresh :: Real, z_thresh :: Re
         end
     else
         if data_2d
-            return DotAdjacencyGraphPairwise2D(g, cw_pos_bnds, n, trees, lat_thresh, pnts, ndrops)
+            return DotAdjacencyGraphPairwise2D(g, cw_pos_bnds, n, trees, lat_thresh, pnts, ndrops, round_pseudocolor_start_positions)
         else
-            return DotAdjacencyGraphPairwise3D(g, cw_pos_bnds, n, trees, lat_thresh, z_thresh, pnts, ndrops)
+            return DotAdjacencyGraphPairwise3D(g, cw_pos_bnds, n, trees, lat_thresh, z_thresh, pnts, ndrops, round_pseudocolor_start_positions)
         end
     end
 end
@@ -780,7 +783,7 @@ end
 function neighbors(g :: DotAdjacencyGraphPairwise3D, dot)
     round = g.pnts.round[dot]
     pseudocolor = g.pnts.pseudocolor[dot]
-    inrange(g.trees[round, pseudocolor], [g.pnts.x[dot], g.pnts.y[dot], g.pnts.z[dot]], g.lat_thresh, true)
+    nbrs = inrange(g.trees[round, pseudocolor], [g.pnts.x[dot], g.pnts.y[dot], g.pnts.z[dot]], g.lat_thresh, true)
     #nbrs = inrange(g.trees[g.pnts.pos[n]], [g.pnts.x[n], g.pnts.y[n]], g.lat_thresh, true)
     pnts_prior_rnds = g.cw_pos_bnds[maximum([round-1-g.ndrops, 1])] - 1
     return nbrs .+ pnts_prior_rnds
