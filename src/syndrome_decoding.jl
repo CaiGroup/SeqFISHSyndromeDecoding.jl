@@ -60,7 +60,7 @@ function decode_syndromes!(pnts :: DataFrame, cb, H :: Matrix, params :: DecodeP
         return
     end
 
-    return choose_optimal_codepaths(pnts, cb, H, params, cpath_df, optimizer, tforms)
+    return choose_optimal_codepaths(pnts, cb, H, params, cpath_df, optimizer, tforms=tforms)
 end
 
 """
@@ -333,7 +333,7 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb_df :: DataFrame, H :: Ma
     end
     gene = cb_df[!, 1]
     gene_number = Array(1:length(gene))
-    decoded, discarded_cpaths = choose_optimal_codepaths(pnts, cb, H, params, cpath_df, optimizer, tforms)
+    decoded, discarded_cpaths = choose_optimal_codepaths(pnts, cb, H, params, cpath_df, optimizer, tforms=nothing)
     gene_df = DataFrame("gene_name" => gene, "gene_number" => gene_number)
     decoded_joined = rightjoin(gene_df, decoded, on=:gene_number)
     if ret_discarded
@@ -343,7 +343,7 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb_df :: DataFrame, H :: Ma
     end
 end
 
-function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: DecodeParams, cpath_df :: DataFrame, optimizer, tforms=nothing)
+function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: DecodeParams, cpath_df :: DataFrame, optimizer; tforms=nothing)
 
     n = length(cb[1,:])
     ndots = nrow(pnts)
