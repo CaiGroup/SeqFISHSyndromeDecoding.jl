@@ -7,7 +7,7 @@ function make_round_trees(pnts, g :: DotAdjacencyGraphPairwise2D)
     for round in 1:g.n
         round_pseudocolor_trees = []
         for pseudocolor in 0:q # q is global
-            push!(round_pseudocolor_trees, make_KDTree_2D(pnts[pnts.round .== round .&& pnts.pseudocolor .== pseudocolor, :]))
+            push!(round_pseudocolor_trees, make_KDTree2D(pnts[pnts.pos .== round .&& pnts.coeff .== pseudocolor, :]))
         end
         push!(round_trees, round_pseudocolor_trees)
     end
@@ -19,15 +19,15 @@ function make_round_trees(pnts, g :: DotAdjacencyGraphPairwise3D)
     for round in 1:g.n
         round_pseudocolor_trees = []
         for pseudocolor in 0:q # q is global
-            push!(round_pseudocolor_trees, make_KDTree_3D(pnts[pnts.round .== round .&& pnts.pseudocolor .== pseudocolor, :]))
+            push!(round_pseudocolor_trees, make_KDTree3D(pnts[pnts.pos .== round .&& pnts.coeff .== pseudocolor, :]))
         end
         push!(round_trees, round_pseudocolor_trees)
     end
     return round_trees
 end
 
-inrng(tree, dot, g :: DotAdjacencyGraphRegistered2D, tforms, round) = inrange(tree, [g.pnts.x[dot], g.pnts.y[dot]], g.lat_thresh, true)
-inrng(tree, dot, g :: DotAdjacencyGraphRegistered3D, tforms, round) = inrange(tree, [g.pnts.x[dot], g.pnts.y[dot], g.pnts.z[dot]], g.lat_thresh, true)
+inrng(tree, dot, g :: DotAdjacencyGraphRegistered2D, tforms :: Nothing, round) = inrange(tree, [g.pnts.x[dot], g.pnts.y[dot]], g.lat_thresh, true)
+inrng(tree, dot, g :: DotAdjacencyGraphRegistered3D, tforms :: Nothing, round) = inrange(tree, [g.pnts.x[dot], g.pnts.y[dot], g.pnts.z[dot]], g.lat_thresh, true)
 
 """
 function inrng(tree, dot, g :: DotAdjacencyGraphRegistered2D, tforms, round_search)
@@ -43,15 +43,16 @@ function inrng(tree, dot, g :: DotAdjacencyGraphRegistered3D, tforms, round_sear
 end
 """
 
-function inrng(round_trees, dot, g :: DotAdjacencyGraphPairwise2D, tforms, nbr_round)
+function inrng(round_trees, dot, g :: DotAdjacencyGraphPairwise2D, tforms :: DataFrame, nbr_round)
     inrange_dots = []
-    for pseudocolor in 0:q
-        searching_round = g.pnts.round[dot]
-        searching_pseudocolor = pnts.g.pnts.pseudocolor[dot]
-        tform = get_tform(searching_round, searching_pseudocolor, nbr_round, nbr_round_pseudocolor)
-        registered_dot_coordinates = Array(g.pnts[dot, [:x, :y]]) * tform[1:2, 1:2] .+ tform[1:2, 4]
-        round_pseudocolor_dots = inrange(round_trees[pseudocolor], registered_dot_coordinates, p.lat_thresh, true)
-        round_pseudocolor_dots .+= p.round_pc_block_starts[nbr_round, nbr_round_pseudocolor]
+    searching_round = g.pnts.pos[dot]
+    searching_pseudocolor = g.pnts.coeff[dot]
+    for nbr_round_pseudocolor in 0:(q-1)    
+        tform = get_tform(tforms, searching_round, searching_pseudocolor, nbr_round, nbr_round_pseudocolor)
+        registered_dot_coordinates = Array(tform[1:2, 1:2] * Array(g.pnts[dot, [:x, :y]])) .+ tform[1:2, 4]
+        nbr_rnd_pc_ind = nbr_round_pseudocolor == 0 ? q : nbr_round_pseudocolor
+        round_pseudocolor_dots = inrange(round_trees[nbr_rnd_pc_ind], registered_dot_coordinates, g.lat_thresh, true)
+        round_pseudocolor_dots .+= g.round_pc_block_starts[nbr_round, nbr_rnd_pc_ind]
         vcat(inrange_dots, round_pseudocolor_dots)
     end
     return inrange_dots

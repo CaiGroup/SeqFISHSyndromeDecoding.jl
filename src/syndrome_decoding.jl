@@ -8,6 +8,7 @@ using Statistics
 using Clustering
 using JuMP
 using GLPK
+using Revise
 
 """
     decode_syndromes!(
@@ -59,7 +60,7 @@ function decode_syndromes!(pnts :: DataFrame, cb, H :: Matrix, params :: DecodeP
         return
     end
 
-    return choose_optimal_codepaths(pnts, cb, H, params, cpath_df, optimizer)
+    return choose_optimal_codepaths(pnts, cb, H, params, cpath_df, optimizer, tforms)
 end
 
 """
@@ -75,7 +76,7 @@ function decode_syndromes!(pnts :: DataFrame, cb_df :: DataFrame, H :: Matrix, p
 end
 """
 
-function obj_function(cpath, pnts, cw_w, params)
+function obj_function(cpath, pnts, cw_w, params, tforms :: Nothing)
     lat_var_factor = params.lat_var_factor
     z_var_factor = params.z_var_factor
     lw_var_factor = params.lw_var_factor
@@ -92,7 +93,7 @@ function obj_function(cpath, pnts, cw_w, params)
     return lat_var_cost + z_var_cost + lw_var_cost + s_var_cost + erasure_cost
 end
 
-function obj_function(cpath, pnts, cw_w, params, tforms)
+function obj_function(cpath, pnts, cw_w, params, tforms :: DataFrame)
     lat_var_factor = params.lat_var_factor
     z_var_factor = params.z_var_factor
     lw_var_factor = params.lw_var_factor
@@ -100,11 +101,14 @@ function obj_function(cpath, pnts, cw_w, params, tforms)
     dot_erasure_penalty = params.erasure_penalty
 
     cpath_pnts = pnts[cpath, :]
+    dists = []
     for i in 1:(nrow(cpath_pnts) - 1), j in (i+1):nrow(cpath_pnts)
-
+        tform = get_tform(tforms, cpath_pnts.pos[i], cpath_pnts.coeff[i], cpath_pnts.pos[j], cpath_pnts.coeff[j])
+        dist = sqrt((cpath_pnts[j, [:x, :y, :z]] .- (cpath_pnts[i, [:x, :y, :z]] * tform[:,1:3] .+ tform[:,4])).^2)
+        push!(dists, dist)
     end
 
-    lat_var_cost = (var(pnts.x[cpath]) + var(pnts.y[cpath])) * lat_var_factor
+    lat_var_cost = (mean(dists)) * lat_var_factor
     z_var_cost = var(pnts.z[cpath]) * z_var_factor
     lw_var_cost = var(log2.(pnts.w[cpath])) * lw_var_factor
     s_var_cost = var(pnts.s[cpath]) * s_var_factor
@@ -271,8 +275,9 @@ function get_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: D
         g = DotAdjacencyGraph(clust_pnts, params, n, w, tforms)
         #g = DotAdjacencyGraph(clust_pnts, params.lat_thresh, params.z_thresh, n, params.ndrops)
 
-        cost(cpath) = obj_function(cpath, clust_pnts, w, params)
-        code_paths, gene_nums = syndrome_find_barcodes!(clust_pnts, g, cb, params.ndrops, w)
+        cost(cpath) = obj_function(cpath, clust_pnts, w, params, tforms)
+
+        code_paths, gene_nums = syndrome_find_barcodes!(clust_pnts, g, cb, params.ndrops, w, tforms)
         costs = cost.(code_paths)
 
         cpath_df = DataFrame(cpath = code_paths, cost = costs, gene_number = gene_nums)
@@ -320,7 +325,7 @@ Choose best codepaths from previouly found candidates that may have been found w
 to the passed parameters.
 
 """
-function choose_optimal_codepaths(pnts :: DataFrame, cb_df :: DataFrame, H :: Matrix, params :: DecodeParams, cpath_df :: DataFrame, optimizer; ret_discarded :: Bool=false)
+function choose_optimal_codepaths(pnts :: DataFrame, cb_df :: DataFrame, H :: Matrix, params :: DecodeParams, cpath_df :: DataFrame, optimizer; ret_discarded :: Bool=false, tforms=nothing)
     if typeof(cb_df[2, 2]) <: AbstractString
         cb = Matrix(string.(cb_df[!, 2:end]))
     else
@@ -328,7 +333,7 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb_df :: DataFrame, H :: Ma
     end
     gene = cb_df[!, 1]
     gene_number = Array(1:length(gene))
-    decoded, discarded_cpaths = choose_optimal_codepaths(pnts, cb, H, params, cpath_df, optimizer)
+    decoded, discarded_cpaths = choose_optimal_codepaths(pnts, cb, H, params, cpath_df, optimizer, tforms)
     gene_df = DataFrame("gene_name" => gene, "gene_number" => gene_number)
     decoded_joined = rightjoin(gene_df, decoded, on=:gene_number)
     if ret_discarded
@@ -338,7 +343,7 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb_df :: DataFrame, H :: Ma
     end
 end
 
-function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: DecodeParams, cpath_df :: DataFrame, optimizer)
+function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: DecodeParams, cpath_df :: DataFrame, optimizer, tforms=nothing)
 
     n = length(cb[1,:])
     ndots = nrow(pnts)
@@ -350,7 +355,8 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, 
         filter!(:cpath => cpath -> length(cpath) >= w - params.ndrops, cpath_df)
     end
 
-    cost(cpath) = obj_function(cpath, pnts, w, params)
+    cost(cpath) = obj_function(cpath, pnts, w, params, tforms)
+
     pnts[!,"decoded"] = fill(0, nrow(pnts))
     pnts[!, "mpath"] = [[] for i = 1:length(pnts.x)]
 
@@ -520,7 +526,7 @@ struct DotAdjacencyGraphPairwise2D <: DotAdjacencyGraph2D
     lat_thresh :: Float64
     pnts :: DataFrame
     ndrops :: Int64
-    round_pc_block_starts :: Int64
+    round_pc_block_starts :: Matrix
 end
 
 struct DotAdjacencyGraphRegistered3D <: DotAdjacencyGraph3D
@@ -543,7 +549,7 @@ struct DotAdjacencyGraphPairwise3D <: DotAdjacencyGraph3D
     z_thresh :: Float64
     pnts :: DataFrame
     ndrops :: Int64
-    round_pc_block_starts :: Int64
+    round_pc_block_starts :: Matrix
 end
 
 function DotAdjacencyGraph(pnts :: DataFrame, params :: DecodeParams, n, w, tforms=nothing)
@@ -591,20 +597,23 @@ function DotAdjacencyGraph(pnts :: DataFrame, lat_thresh :: Real, z_thresh :: Re
                 registered_pnts = copy(pnts[start_pnt:end_pnt, :])
                 for nbr_round in start_round:(round-1)
                     for nbr_round_pseudocolor in 0:(q-1)
-                        
-                        tform = get_tform(searching_round, searching_pseudocolor, nbr_round, nbr_round_pseudocolor) #tforms[] #[neighbor_round, round, :, :]
-                        nbr_rnd_pc_pnts = registered_pnts[registered_pnts.round .== nbr_round .&& registered_pnts.pseudocolor .== nbr_round_pseudocolor, :]
-                        registered_pnts[:, [:x, :y, :z]] .= Array(nbr_rnd_pc_pnts[:, [:x, :y, :z]]) * tform[:, 1:3] + tform[:, 4]
-                        if data_2d
-                            #push!(trees, KDTree(registered_pnts'))
-                            trees[round, pseudocolor] = KDTree(registered_pnts')
-                        else
-                            #push!(trees, MakeKDTree3D(registered_pnts, lat_thresh, z_thresh))
-                            trees[round, pseudocolor] = MakeKDTree3D(registered_pnts, lat_thresh, z_thresh)
-                        end
+                        tform = get_tform(tforms, round, searching_pseudocolor, nbr_round, nbr_round_pseudocolor) #tforms[] #[neighbor_round, round, :, :]
+                        rows_of_interest = registered_pnts.pos .== nbr_round .&& registered_pnts.coeff .== nbr_round_pseudocolor
+                        nbr_rnd_pc_pnts = registered_pnts[rows_of_interest, :]
+                        registered_pnts[rows_of_interest, [:x, :y, :z]] .= ((Array(nbr_rnd_pc_pnts[:, [:x, :y, :z]]) * tform[:, 1:3]) .+ Matrix(tform[:, 4]'))
                     end
                 end
-                round_pseudocolor_start_positions[round, searching_pseudocolor] = findfirst(d -> d.round==round && d.pseudocolor==searching_pseudocolor, pnts)
+                spc_ind = searching_pseudocolor == 0 ? q : searching_pseudocolor
+                if data_2d
+                    #push!(trees, KDTree(registered_pnts'))
+                    trees[round, spc_ind] = KDTree(Matrix(registered_pnts[:,[:x, :y]])')
+                else
+                    #push!(trees, MakeKDTree3D(registered_pnts, lat_thresh, z_thresh))
+                    trees[round, spc_ind] = MakeKDTree3D(registered_pnts, lat_thresh, z_thresh)
+                end
+                println("Round $round")
+                println("spc_ind: $spc_ind")
+                round_pseudocolor_start_positions[round, spc_ind] = findfirst(d -> d.pos==round && d.coeff ==searching_pseudocolor, eachrow(pnts))
             end
         end
     end
@@ -624,8 +633,8 @@ function DotAdjacencyGraph(pnts :: DataFrame, lat_thresh :: Real, z_thresh :: Re
     end
 end
 
-function get_tform(searching_round, searching_pseudocolor, nbr_round, nbr_round_pseudocolor)
-    return tforms[tforms.r_src .== nbr_round .&& tforms.pc_src .== nbr_round_pseudocolor .&& tforms.dst_r .== searching_round .&& tforms.dst_pc .== searching_pseudocolor, "tform"]
+function get_tform(tforms, searching_round, searching_pseudocolor, nbr_round, nbr_round_pseudocolor)
+    return tforms[(tforms.r_src .== nbr_round) .&& (tforms.pc_src .== nbr_round_pseudocolor) .&& (tforms.r_dst .== searching_round) .&& (tforms.pc_dst .== searching_pseudocolor), "tform"][1]
 end
 
 abstract type DotAdjacencyGraphBlankRound <: abstractDotAdjacencyGraph end
