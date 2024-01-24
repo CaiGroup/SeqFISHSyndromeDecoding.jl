@@ -26,16 +26,6 @@ function test_drop_random_dots(cb, ntargets, drop_rate)
     return n_dropped
 end
 
-function get_n_q_w(cb)
-    ncws, n = size(cb)
-    q = length(unique(cb))
-    if typeof(cb[1,1]) == String
-        w = maximum(sum(cb .!= "0", dims=2))
-    else
-        w = maximum(sum(.~ iszero.(cb), dims=2))
-    end
-    [n, q, w]
-end
 
 function test_add_loc_errors(n,rstdv, cb)
     pnts = construct_test_encoding(n, cb)

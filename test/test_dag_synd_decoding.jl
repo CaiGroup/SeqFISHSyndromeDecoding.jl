@@ -1,8 +1,8 @@
 
-include("simulation_fncs.jl")
+#include("simulation_fncs.jl")
+#include("test_synd_decode_fncs.jl")
 
 using SeqFISHSyndromeDecoding
-include("test_synd_decode_fncs.jl")
 using SeqFISHSyndromeDecoding: add_code_cols!, DotAdjacencyGraph, set_q, set_H
 
 
