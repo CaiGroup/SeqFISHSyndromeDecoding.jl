@@ -144,9 +144,9 @@ iszero(x :: SyndromeComponent) = all(iszero.(x.s))
 
 inv₊(s :: SyndromeComponentℤnRing) = typeof(s)(inv₊.(s.s))
 
-get_pos(hyb :: UInt8) = ceil(UInt8, hyb / q)
+get_pos(hyb :: Integer) = ceil(UInt8, hyb / q)
 
-get_coeff(hyb :: UInt8, pos :: UInt8) = (hyb - (pos - 0x01) * q) % q
+get_coeff(hyb :: Integer, pos :: Integer) = UInt8((hyb - (pos - 0x01) * q) % q)
 
 
 function get_decode_table()

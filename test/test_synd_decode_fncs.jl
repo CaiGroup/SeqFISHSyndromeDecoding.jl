@@ -45,9 +45,9 @@ function test_add_loc_errors_2(n,rstdv,cb)
 end
 
 
-function test_dag_edges(ntargets, cb, ndrops)
+function test_dag_edges(ntargets, cb, ndrops, tforms=nothing)
     n, q, w = get_n_q_w(cb)
-    pnts, g = construct_test_dag(ntargets, 0.0, 0.0, 0.0, cb, ndrops)
+    pnts, g = construct_test_dag(ntargets, 0.0, 0.0, 0.0, cb, ndrops, tforms=tforms)
     sum_edges = sum([length(neighbors(g, d)) for d in 1:nrow(pnts)])
     #ne(g.g) == length(pnts.dot_ID)*(factorial(n)/(factorial(n-2)*2))/n
     sum_edges == length(pnts.dot_ID)*(factorial(n)/(factorial(n-2)*2))/n
@@ -114,7 +114,7 @@ function test_reconstruct_decode_message(ntargets, cb)
     true
 end
 
-function encoded_2_dag!(pnts, cb, lat_thresh, z_thresh, ndrops)
+function encoded_2_dag!(pnts, cb, lat_thresh, z_thresh, ndrops, tforms=nothing)
     n, q, w = get_n_q_w(cb)
 
     if ("round" in names(pnts)) && ("pseudocolor" in names(pnts))
@@ -124,27 +124,27 @@ function encoded_2_dag!(pnts, cb, lat_thresh, z_thresh, ndrops)
     end
     add_code_cols!(pnts)
     if n > w
-        DotAdjacencyGraphBlankRound(pnts, lat_thresh, z_thresh, n, ndrops, w)
+        DotAdjacencyGraphBlankRound(pnts, lat_thresh, z_thresh, n, ndrops, w, tforms=tforms)
     else
-        return DotAdjacencyGraph(pnts, lat_thresh, z_thresh, n, ndrops)
+        return DotAdjacencyGraph(pnts, lat_thresh, z_thresh, n, ndrops, tforms=tforms)
     end
 end
 
-function test_dag(ntargets, cb, rstdv, lat_thresh, z_thresh, ndrops)
-    pnts, g = construct_test_dag(ntargets, rstdv, lat_thresh, z_thresh, cb, ndrops)
+function test_dag(ntargets, cb, rstdv, lat_thresh, z_thresh, ndrops, tforms=nothing)
+    pnts, g = construct_test_dag(ntargets, rstdv, lat_thresh, z_thresh, cb, ndrops, tforms=tforms)
     nv(g.g) == length(pnts.dot_ID)
 end
 
-function construct_test_dag(ntargets, rstdv, lat_thresh, z_thresh, cb, ndrops)
+function construct_test_dag(ntargets, rstdv, lat_thresh, z_thresh, cb, ndrops; tforms=nothing)
     pnts = construct_test_encoding(ntargets, cb)
     n, q, w = get_n_q_w(cb)
     add_localization_errors!(pnts, rstdv)
-    g = encoded_2_dag!(pnts, cb, lat_thresh, z_thresh, ndrops)
+    g = encoded_2_dag!(pnts, cb, lat_thresh, z_thresh, ndrops, tforms)
     [pnts, g]
 end
 
-function test_get_cw_pos_bnds(ntargets, cb, rstdv, lat_thresh, z_thresh, ndrops=0)
-    pnts, g = construct_test_dag(ntargets, rstdv, lat_thresh, z_thresh, cb, ndrops)
+function test_get_cw_pos_bnds(ntargets, cb, rstdv, lat_thresh, z_thresh; ndrops=0, tforms=nothing)
+    pnts, g = construct_test_dag(ntargets, rstdv, lat_thresh, z_thresh, cb, ndrops, tforms=tforms)
     n = maximum(pnts.pos)
     for posᵢ in 1:n
         if pnts.pos[get_cw_pos_inds(g, posᵢ)] != fill(posᵢ, length(get_cw_pos_inds(g, posᵢ)))
@@ -154,12 +154,12 @@ function test_get_cw_pos_bnds(ntargets, cb, rstdv, lat_thresh, z_thresh, ndrops=
     true
 end
 
-function test_compute_syndromes(ntargets :: Int64, cb, ndrops)
+function test_compute_syndromes(ntargets :: Int64, cb, ndrops, tforms=nothing)
     n, q, w = get_n_q_w(cb)
     rstdv = 0.0
     lat_thresh = 0.0
     z_thresh = 0.0
-    pnts, g = construct_test_dag(ntargets, rstdv, lat_thresh, z_thresh, cb, ndrops)
+    pnts, g = construct_test_dag(ntargets, rstdv, lat_thresh, z_thresh, cb, ndrops, tforms=tforms)
     syndromes, syndrome_coeff_positions = compute_syndromes(pnts, g)
     final_pos_dots = get_cw_pos_inds(g, n)
     fpd_sndrs = syndromes[final_pos_dots]

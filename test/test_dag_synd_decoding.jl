@@ -57,8 +57,8 @@ end
     @test test_dag(300, cb, 0.05, 0.15, 0.1, 0)
     @test test_dag(300, cb, 0.05, 0.15, 0.1, 1)
     #@test test_dag_edges(300, cb)
-    @test test_get_cw_pos_bnds(300, cb, 0.1, 0.3,1,0)
-    @test test_get_cw_pos_bnds(300, cb, 0.1, 0.3,1,1)
+    @test test_get_cw_pos_bnds(300, cb, 0.1, 0.3,1,ndrops=0)
+    @test test_get_cw_pos_bnds(300, cb, 0.1, 0.3,1,ndrops=1)
 end
 
 

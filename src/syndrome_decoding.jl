@@ -8,7 +8,7 @@ using Statistics
 using Clustering
 using JuMP
 using GLPK
-using Revise
+#using Revise
 
 """
     decode_syndromes!(
@@ -47,7 +47,7 @@ and decoding result indicated as the row of the codebook matrix matched to.
 Split up points into weakly connected components, then finds possible codeword messages
 and runs simulated annealing to assign them. The pnts dataframe should have hybridization, x, y, and z columns
 """
-function decode_syndromes!(pnts :: DataFrame, cb, H :: Matrix, params :: DecodeParams, optimizer = GLPK.Optimizer, tforms = nothing)
+function decode_syndromes!(pnts :: DataFrame, cb, H :: Matrix, params :: DecodeParams; optimizer = GLPK.Optimizer, tforms = nothing)
     #println("start syndrome decoding")
     if tforms == nothing # pnts preregistered
         cpath_df = get_codepaths(pnts, cb, H, params)
@@ -93,7 +93,7 @@ function obj_function(cpath, pnts, cw_w, params, tforms :: Nothing)
     return lat_var_cost + z_var_cost + lw_var_cost + s_var_cost + erasure_cost
 end
 
-function obj_function(cpath, pnts, cw_w, params, tforms :: DataFrame)
+function obj_function(cpath, pnts, cw_w, params, tforms :: Dict)
     lat_var_factor = params.lat_var_factor
     z_var_factor = params.z_var_factor
     lw_var_factor = params.lw_var_factor
@@ -104,7 +104,8 @@ function obj_function(cpath, pnts, cw_w, params, tforms :: DataFrame)
     dists = []
     for i in 1:(nrow(cpath_pnts) - 1), j in (i+1):nrow(cpath_pnts)
         tform = get_tform(tforms, cpath_pnts.pos[i], cpath_pnts.coeff[i], cpath_pnts.pos[j], cpath_pnts.coeff[j])
-        dist = sqrt((cpath_pnts[j, [:x, :y, :z]] .- (cpath_pnts[i, [:x, :y, :z]] * tform[:,1:3] .+ tform[:,4])).^2)
+        #tform = get_tform(tforms, cpath_pnts.round[i], cpath_pnts.coeff[i], cpath_pnts.round[j], cpath_pnts.coeff[j])
+        dist = mean((Array(cpath_pnts[j, [:x, :y, :z]]) .- (tform[:,1:3] * Array(cpath_pnts[i, [:x, :y, :z]]) .+ tform[:,4])).^2)
         push!(dists, dist)
     end
 
@@ -237,6 +238,12 @@ function get_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: D
         end
     end
 
+    if typeof(tforms) == DataFrame
+        tforms_dict = get_tform_dict(tforms)
+    else
+        tforms_dict = nothing
+    end
+
     if typeof(H[1,1]) <: AbstractString
         H = string.(H)
         cb = string.(cb)
@@ -270,14 +277,15 @@ function get_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: D
 
     find_cluster_cpaths = function(dbscan_cluster)
         clust_pnts = pnts[dbscan_cluster, :]
+        #println("cluster size: ", nrow(clust_pnts))
         sort_readouts!(clust_pnts)
         add_code_cols!(clust_pnts)
-        g = DotAdjacencyGraph(clust_pnts, params, n, w, tforms)
+        g = DotAdjacencyGraph(clust_pnts, params, n, w, tforms_dict)
         #g = DotAdjacencyGraph(clust_pnts, params.lat_thresh, params.z_thresh, n, params.ndrops)
 
-        cost(cpath) = obj_function(cpath, clust_pnts, w, params, tforms)
+        cost(cpath) = obj_function(cpath, clust_pnts, w, params, tforms_dict)
 
-        code_paths, gene_nums = syndrome_find_barcodes!(clust_pnts, g, cb, params.ndrops, w, tforms)
+        code_paths, gene_nums = syndrome_find_barcodes!(clust_pnts, g, cb, params.ndrops, w, tforms_dict)
         costs = cost.(code_paths)
 
         cpath_df = DataFrame(cpath = code_paths, cost = costs, gene_number = gene_nums)
@@ -326,7 +334,7 @@ to the passed parameters.
 
 """
 function choose_optimal_codepaths(pnts :: DataFrame, cb_df :: DataFrame, H :: Matrix, params :: DecodeParams, cpath_df :: DataFrame, optimizer; ret_discarded :: Bool=false, tforms=nothing)
-    if typeof(cb_df[2, 2]) <: AbstractString
+    if any(typeof(cb_df[2:end, 2:end]) .<: AbstractString) #typeof(cb_df[2, 2]) <: AbstractString
         cb = Matrix(string.(cb_df[!, 2:end]))
     else
         cb = Matrix(UInt8.(cb_df[!, 2:end]))
@@ -355,10 +363,17 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, 
         filter!(:cpath => cpath -> length(cpath) >= w - params.ndrops, cpath_df)
     end
 
-    cost(cpath) = obj_function(cpath, pnts, w, params, tforms)
+    if typeof(tforms) == DataFrame
+        tforms_dict = get_tform_dict(tforms)
+    else
+        tforms_dict = nothing
+    end
+
+    cost(cpath) = obj_function(cpath, pnts, w, params, tforms_dict)
 
     pnts[!,"decoded"] = fill(0, nrow(pnts))
     pnts[!, "mpath"] = [[] for i = 1:length(pnts.x)]
+    add_code_cols!(pnts)
 
     cpath_df[!, "cost"] = cost.(cpath_df[!, "cpath"])
     sort!(cpath_df, :cost)
@@ -554,9 +569,9 @@ end
 
 function DotAdjacencyGraph(pnts :: DataFrame, params :: DecodeParams, n, w, tforms=nothing)
     if params.zeros_probed
-        return DotAdjacencyGraph(pnts, params.lat_thresh, params.z_thresh, n, params.ndrops, tforms)
+        return DotAdjacencyGraph(pnts, params.lat_thresh, params.z_thresh, n, params.ndrops, tforms=tforms)
     else
-        return DotAdjacencyGraphBlankRound(pnts, params.lat_thresh, params.z_thresh, n, params.ndrops, w)
+        return DotAdjacencyGraphBlankRound(pnts, params.lat_thresh, params.z_thresh, n, params.ndrops, w, tforms=tforms)
     end
 end
 
@@ -569,24 +584,24 @@ end
 Construct a dot adjacency graph where dots close to each other have directed
 edges pointing towards the dot representing an earlier symbor
 """
-function DotAdjacencyGraph(pnts :: DataFrame, lat_thresh :: Real, z_thresh :: Real, n, ndrops, tforms=nothing)
+function DotAdjacencyGraph(pnts :: DataFrame, lat_thresh :: Real, z_thresh :: Real, n, ndrops; tforms=nothing)
     g = SimpleDiGraph(nrow(pnts))
 
     data_2d = length(unique(pnts.z)) == 1
     # Find the indices of dots representing each place, cᵢ, in a codeword start.
     cw_pos_bnds = get_cw_pos_bounds(pnts, n)
-    if tforms == nothing
+    if isnothing(tforms)
         trees = []
     else
         trees = Matrix{KDTree}(undef, n, q)
-        round_pseudocolor_start_positions = Matrix{Int64}(undef, n, q)
+        round_pseudocolor_start_positions = Matrix{Union{Int64, Nothing}}(undef, n, q)
     end
 
     for round in 1:n
         start_round = maximum([round-1-ndrops, 1])
         start_pnt = cw_pos_bnds[start_round]
         end_pnt = (cw_pos_bnds[round]-1)
-        if tforms == nothing 
+        if isnothing(tforms) 
             if data_2d
                 push!(trees, make_KDTree2D(pnts[start_pnt:end_pnt, :]))
             else
@@ -611,14 +626,18 @@ function DotAdjacencyGraph(pnts :: DataFrame, lat_thresh :: Real, z_thresh :: Re
                     #push!(trees, MakeKDTree3D(registered_pnts, lat_thresh, z_thresh))
                     trees[round, spc_ind] = MakeKDTree3D(registered_pnts, lat_thresh, z_thresh)
                 end
-                println("Round $round")
-                println("spc_ind: $spc_ind")
+                #round_pseudocolor_start_positions[round, spc_ind] = start_pnt - 1 #findfirst(d -> d.pos==round && d.coeff ==searching_pseudocolor, eachrow(pnts))
+
+                #get the adjustment factor (global start index minus 1) for dots in each pseudocolor-round.
                 round_pseudocolor_start_positions[round, spc_ind] = findfirst(d -> d.pos==round && d.coeff ==searching_pseudocolor, eachrow(pnts))
+                if ~isnothing(round_pseudocolor_start_positions[round, spc_ind])
+                    round_pseudocolor_start_positions[round, spc_ind] -= 1
+                end
             end
         end
     end
 
-    if tforms == nothing
+    if isnothing(tforms)
         if data_2d
             return DotAdjacencyGraphRegistered2D(g, cw_pos_bnds, n, trees, lat_thresh, pnts, ndrops)
         else
@@ -633,8 +652,13 @@ function DotAdjacencyGraph(pnts :: DataFrame, lat_thresh :: Real, z_thresh :: Re
     end
 end
 
-function get_tform(tforms, searching_round, searching_pseudocolor, nbr_round, nbr_round_pseudocolor)
-    return tforms[(tforms.r_src .== nbr_round) .&& (tforms.pc_src .== nbr_round_pseudocolor) .&& (tforms.r_dst .== searching_round) .&& (tforms.pc_dst .== searching_pseudocolor), "tform"][1]
+function get_tform_dict(tforms :: DataFrame)
+    return Dict([((rsrc=row.r_src, pcsrc=row.pc_src, rdst=row.r_dst, pcdst=row.pc_dst), row.tform[1]) for row in eachrow(tforms)])
+end
+
+function get_tform(tforms :: Dict, searching_round, searching_pseudocolor, nbr_round, nbr_round_pseudocolor)
+    #return tforms[(tforms.r_src .== nbr_round) .&& (tforms.pc_src .== (nbr_round_pseudocolor .% q)) .&& (tforms.r_dst .== searching_round) .&& (tforms.pc_dst .== (searching_pseudocolor .% q)), "tform"][1]
+    return tforms[(rsrc=nbr_round, pcsrc = (nbr_round_pseudocolor .% q), rdst = searching_round, pcdst = (searching_pseudocolor .% q))]
 end
 
 abstract type DotAdjacencyGraphBlankRound <: abstractDotAdjacencyGraph end
@@ -769,9 +793,9 @@ function neighbors(g :: DotAdjacencyGraphRegistered2D, n)
 end
 
 function neighbors(g :: DotAdjacencyGraphPairwise2D, dot)
-    round = g.pnts.round[dot]
-    pseudocolor = g.pnts.pseudocolor[dot]
-    inrange(g.trees[round, pseudocolor], [g.pnts.x[dot], g.pnts.y[dot]], g.lat_thresh, true)
+    round = g.pnts.pos[dot]
+    pseudocolor = g.pnts.coeff[dot] == 0 ? q : g.pnts.coeff[dot]
+    nbrs = inrange(g.trees[round, pseudocolor], [g.pnts.x[dot], g.pnts.y[dot]], g.lat_thresh, true)
     #nbrs = inrange(g.trees[g.pnts.pos[n]], [g.pnts.x[n], g.pnts.y[n]], g.lat_thresh, true)
     pnts_prior_rnds = g.cw_pos_bnds[maximum([round-1-g.ndrops, 1])] - 1
     return nbrs .+ pnts_prior_rnds
