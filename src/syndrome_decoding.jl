@@ -653,7 +653,7 @@ function DotAdjacencyGraph(pnts :: DataFrame, lat_thresh :: Real, z_thresh :: Re
 end
 
 function get_tform_dict(tforms :: DataFrame)
-    return Dict([((rsrc=row.r_src, pcsrc=row.pc_src, rdst=row.r_dst, pcdst=row.pc_dst), row.tform[1]) for row in eachrow(tforms)])
+    return Dict([((rsrc=row.r_src, pcsrc=row.pc_src, rdst=row.r_dst, pcdst=row.pc_dst), row.tform) for row in eachrow(tforms)])
 end
 
 function get_tform(tforms :: Dict, searching_round, searching_pseudocolor, nbr_round, nbr_round_pseudocolor)

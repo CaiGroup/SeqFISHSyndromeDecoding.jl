@@ -123,10 +123,15 @@ function encoded_2_dag!(pnts, cb, lat_thresh, z_thresh, ndrops, tforms=nothing)
         sort!(pnts, :hyb)
     end
     add_code_cols!(pnts)
-    if n > w
-        DotAdjacencyGraphBlankRound(pnts, lat_thresh, z_thresh, n, ndrops, w, tforms)
+    if isnothing(tforms)
+        tforms_dict = nothing
     else
-        return DotAdjacencyGraph(pnts, lat_thresh, z_thresh, n, ndrops, tforms=tforms)
+        tforms_dict = SeqFISHSyndromeDecoding.get_tform_dict(tforms)
+    end
+    if n > w
+        DotAdjacencyGraphBlankRound(pnts, lat_thresh, z_thresh, n, ndrops, w, tforms_dict)
+    else
+        return DotAdjacencyGraph(pnts, lat_thresh, z_thresh, n, ndrops, tforms=tforms_dict)
     end
 end
 

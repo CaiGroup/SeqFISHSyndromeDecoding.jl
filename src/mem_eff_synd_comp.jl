@@ -137,7 +137,7 @@ function find_barcodes_mem_eff(pnts ::DataFrame, g :: DotAdjacencyGraph, cw_dict
         #free space  
         for round in 1:(g.n-1)
             #for inrange_dot in inrange(round_trees[round], [pnts.x[dot], pnts.y[dot]], g.lat_thresh)
-            for inrange_dot in inrng(round_trees[round], dot, g, tforms, round)
+            for inrange_dot in inrng(round_trees[round], dot, g, tforms, round, false)
                 #println("round $round, inrange_dot $inrange_dot")
                 inrange_dot_ind = inrange_dot + g.cw_pos_bnds[round] - 1
                 unprocessed_inrange_dots[inrange_dot_ind] -= 1
