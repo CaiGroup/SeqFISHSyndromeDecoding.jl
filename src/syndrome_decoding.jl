@@ -571,7 +571,7 @@ function DotAdjacencyGraph(pnts :: DataFrame, params :: DecodeParams, n, w, tfor
     if params.zeros_probed
         return DotAdjacencyGraph(pnts, params.lat_thresh, params.z_thresh, n, params.ndrops, tforms=tforms)
     else
-        return DotAdjacencyGraphBlankRound(pnts, params.lat_thresh, params.z_thresh, n, params.ndrops, w, tforms=tforms)
+        return DotAdjacencyGraphBlankRound(pnts, params.lat_thresh, params.z_thresh, n, params.ndrops, w, tforms)
     end
 end
 

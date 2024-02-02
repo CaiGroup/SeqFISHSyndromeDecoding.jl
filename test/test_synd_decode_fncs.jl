@@ -124,7 +124,7 @@ function encoded_2_dag!(pnts, cb, lat_thresh, z_thresh, ndrops, tforms=nothing)
     end
     add_code_cols!(pnts)
     if n > w
-        DotAdjacencyGraphBlankRound(pnts, lat_thresh, z_thresh, n, ndrops, w, tforms=tforms)
+        DotAdjacencyGraphBlankRound(pnts, lat_thresh, z_thresh, n, ndrops, w, tforms)
     else
         return DotAdjacencyGraph(pnts, lat_thresh, z_thresh, n, ndrops, tforms=tforms)
     end
