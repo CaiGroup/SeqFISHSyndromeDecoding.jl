@@ -26,11 +26,11 @@ Arguments
 	- `s` : the sigma width parameter of the psfs
     - `w` : the weight (or brightness) of the psfs
     Additionally, there the data frame must either have columns
-    - `Round` : the barcoding round in which the psf was found
+    - `round` : the barcoding round in which the psf was found
     - `pseudocolor` : the pseudocolor of the barcoding round in which the psf was found
-    or the Round and pseudocolor can be computed from the hybridization
+    or the round and pseudocolor can be computed from the hybridization
     - `hyb` : the hybridization in which the dot was found
-    where Round = ceil(hyb / q), pseudocolor = (hyb - (Round - 1) * q) % q, and q is the number of pseudocolors.
+    where round = ceil(hyb / q), pseudocolor = (hyb - (round - 1) * q) % q, and q is the number of pseudocolors.
 
 - `cb` : The codebook.
 - `H` : The parity check Matrix
@@ -48,10 +48,9 @@ and runs simulated annealing to assign them. The pnts dataframe should have hybr
 """
 function decode_syndromes!(pnts :: DataFrame, cb, H :: Matrix, params :: DecodeParams, optimizer = GLPK.Optimizer)
     #println("start syndrome decoding")
-    sort!(pnts, :hyb)
     cpath_df = get_codepaths(pnts, cb, H, params)
 
-    if nrow(cpath_df) == 0
+    if typeof(cpath_df) != DataFrame || nrow(cpath_df) == 0
         println("No viable barcodes")
         return
     end
@@ -65,14 +64,14 @@ function decode_syndromes!(pnts :: DataFrame, cb_df :: DataFrame, H :: Matrix, p
     cb = Matrix(UInt8.(cb_df[!, 2:end]))
     gene = cb_df[!, "Gene"]
     value = Array(1:length(gene))
-    decoded = decode_syndromes!(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: Matrix, params :: DecodeParams)
+    decoded = decode_syndromes!(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: DecodeParams)
     gene_value_df = DataFrame("Gene" => gene, "value" => value)
     decoded_joined = rightjoin(gene_value_df, decoded, on=:value)
 
 end
 """
 
-function obj_function(cpath, pnts, cw_n, params)
+function obj_function(cpath, pnts, cw_w, params)
     lat_var_factor = params.lat_var_factor
     z_var_factor = params.z_var_factor
     lw_var_factor = params.lw_var_factor
@@ -84,25 +83,61 @@ function obj_function(cpath, pnts, cw_n, params)
     lw_var_cost = var(log2.(pnts.w[cpath])) * lw_var_factor
     s_var_cost = var(pnts.s[cpath]) * s_var_factor
 
-    erasure_cost = (cw_n - length(cpath)) * dot_erasure_penalty
+    erasure_cost = (cw_w - length(cpath)) * dot_erasure_penalty
 
     return lat_var_cost + z_var_cost + lw_var_cost + s_var_cost + erasure_cost
 end
 
 """
 """
-function check_inputs(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: Matrix, params :: DecodeParams)
+function check_inputs(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: DecodeParams)
     alphabet = sort(unique(cb))
     q = UInt8(length(alphabet))
     n = length(cb[1,:])
+    if ~params.zeros_probed && ~("round" in names(pnts)) && ~("pseudocolor" in names(pnts))
+        println("names(pnts): ", names(pnts))
+        error("'round' and 'pseudocolor' columns must be included to decode experiments where zeros are not probed.")
+    end
+    @assert alphabet[1] == 0x00 || alphabet[1] == "0"
+    if ~(typeof(alphabet[1]) <: AbstractString)
+        @assert alphabet[q] < q
+        @assert all(alphabet .>= 0)
+    end
+    if "hyb" in names(pnts)
+        @assert maximum(pnts[!,"hyb"]) <= q*n
+        @assert minimum(pnts[!,"hyb"]) > 0
+    else
+        @assert "round" in names(pnts)
+        @assert "pseudocolor" in names(pnts)
+    end
+    if ~params.zeros_probed
+        #if typeof(cb)
+        #@assert typeof(cb) == typeof(H)
+        if size(H)[1] < 2*params.ndrops
+            error("Reed-Solomon Codes require 2 parity check symbols for every error corrected. Your code has ", size(H)[1], " parity check symbols, but you requested correction of up to ", params.ndrops, " errors.")
+        end
+    end
+    if "round" in names(pnts)
+        @assert maximum(pnts.round) <= n
+    end
+    if "pseudocolor" in names(pnts)
+        if params.zeros_probed
+            @assert maximum(pnts.pseudocolor) <= q
+        else
+            @assert maximum(pnts.pseudocolor) < q
+        end
+    end
 
-    @assert alphabet[1] == 0x00
-    @assert alphabet[q] < q
-    @assert all(alphabet .>= 0)
-    @assert maximum(pnts[!,"hyb"]) <= q*n
-    @assert minimum(pnts[!,"hyb"]) > 0
     @assert params.ndrops <= size(H)[1]
     @assert params.ndrops >= 0
+end
+
+function sort_readouts!(pnts :: DataFrame)
+    if "hyb" in names(pnts)
+        sort!(pnts, :hyb)
+    elseif "round" in names(pnts) && "pseudocolor" in names(pnts)
+        sort!(pnts, [:round, :pseudocolor, :x, :y, :z])
+    end
 end
 
 """
@@ -116,11 +151,11 @@ Arguments
 	- `s` : the sigma width parameter of the psfs
     - `w` : the weight (or brightness) of the psfs
     Additionally, there the data frame must either have columns
-    - `Round` : the barcoding round in which the psf was found
+    - `round` : the barcoding round in which the psf was found
     - `pseudocolor` : the pseudocolor of the barcoding round in which the psf was found
-    or the Round and pseudocolor can be computed from the hybridization
+    or the round and pseudocolor can be computed from the hybridization
     - `hyb` : the hybridization in which the dot was found
-    where Round = ceil(hyb / q), pseudocolor = (hyb - (Round - 1) * q) % q, and q is the number of pseudocolors.
+    where round = ceil(hyb / q), pseudocolor = (hyb - (round - 1) * q) % q, and q is the number of pseudocolors.
 
 - `cb` : The codebook.
 - `H` : The parity check Matrix
@@ -131,12 +166,16 @@ of not decoding their component dots, and
 and returns DataFrame of candidate codepaths.
 """
 function get_codepaths(pnts :: DataFrame, cb_df :: DataFrame, H :: Matrix, params :: DecodeParams)
-    cb = Matrix(UInt8.(cb_df[!, 2:end]))
-    return get_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: Matrix, params :: DecodeParams)
+    if typeof(cb_df[2, 2]) <: AbstractString
+        cb = Matrix(string.(cb_df[!, 2:end]))
+    else
+        cb = Matrix(UInt8.(cb_df[!, 2:end]))
+    end
+    return get_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: DecodeParams)
 end
 
 """
-    get_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: Matrix, params :: DecodeParams)
+    get_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: DecodeParams)
 
 Computes codepaths with syndrome decoding, removes codepaths that exceed the cost
 of not decoding their component dots, and returns DataFrame of candidate codepaths.
@@ -150,29 +189,49 @@ Arguments
     - `w` : the weight (or brightness) of the psfs
 - `cb` : The codebook.
 - `H` : The parity check Matrix
-- `params` : DecodeParams object holding the parameters for decoding    
+- `params` : DecodeParams object holding the parameters for decoding
 """
-function get_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: Matrix, params :: DecodeParams)
-    
+function get_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: DecodeParams)
+
     cb_dict = make_cw_dict(cb)
     alphabet = sort(unique(cb))
     q = UInt8(length(alphabet))
     n = length(cb[1,:])
+    if params.zeros_probed
+        w = n
+    else
+        if typeof(cb[1,1]) <: AbstractString
+            w = minimum(sum(cb .!= "0", dims=2))
+        else
+            w = minimum(sum(cb .!= 0, dims=2))
+        end
+    end
+
+    if typeof(H[1,1]) <: AbstractString
+        H = string.(H)
+        cb = string.(cb)
+    end
 
     check_inputs(pnts, cb, H, params)
+    sort_readouts!(pnts)
 
     set_q(q)
-    set_H(H)
-    set_n(UInt8(n))
-    if params.ndrops > 0
+    set_H(H, params, cb)
+    #set_n(UInt8(n))
+    #set_k(n-size(H)[1])
+    if params.ndrops > 0 && params.zeros_probed
         get_decode_table()
     end
 
     #break into clusters
     if nrow(pnts) > 3
         pnts_mat = Array([pnts.x pnts.y pnts.z]')
-        dbr = dbscan(pnts_mat, params.lat_thresh, min_neighbors=1, min_cluster_size=n-params.ndrops)
-        dbscan_clusters = [sort(vcat(dbc.core_indices,  dbc.boundary_indices)) for dbc in dbr]
+        dbr = dbscan(pnts_mat, params.lat_thresh, min_neighbors=1, min_cluster_size=w-params.ndrops)
+        if typeof(dbr) <: AbstractArray
+            dbscan_clusters = [sort(vcat(dbc.core_indices,  dbc.boundary_indices)) for dbc in dbr]
+        else
+            dbscan_clusters = [sort(vcat(dbc.core_indices,  dbc.boundary_indices)) for dbc in dbr.clusters]
+        end
     elseif nrow(pnts) == 3
         dbscan_clusters = [[1,2,3]]
     else
@@ -181,12 +240,13 @@ function get_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: Matrix, para
 
     find_cluster_cpaths = function(dbscan_cluster)
         clust_pnts = pnts[dbscan_cluster, :]
-        sort!(clust_pnts, :hyb)
+        sort_readouts!(clust_pnts)
         add_code_cols!(clust_pnts)
-        g = DotAdjacencyGraph(clust_pnts, params.lat_thresh, params.z_thresh, n, params.ndrops)
+        g = DotAdjacencyGraph(clust_pnts, params, n, w)
+        #g = DotAdjacencyGraph(clust_pnts, params.lat_thresh, params.z_thresh, n, params.ndrops)
 
-        cost(cpath) = obj_function(cpath, clust_pnts, n, params)
-        code_paths, gene_nums = syndrome_find_message_paths!(clust_pnts, g, cb, params.ndrops)
+        cost(cpath) = obj_function(cpath, clust_pnts, w, params)
+        code_paths, gene_nums = syndrome_find_barcodes!(clust_pnts, g, cb, params.ndrops, w)
         costs = cost.(code_paths)
 
         cpath_df = DataFrame(cpath = code_paths, cost = costs, gene_number = gene_nums)
@@ -197,10 +257,9 @@ function get_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: Matrix, para
         cpath_df[!,"y"] = mean.([clust_pnts.y[cpath] for cpath in cpath_df.cpath])
         cpath_df[!,"z"] = mean.([clust_pnts.z[cpath] for cpath in cpath_df.cpath])
         replace!.(i->dbscan_cluster[i], cpath_df.cpath)
-        
+
         return cpath_df
     end
-
     cpath_df = vcat(map(find_cluster_cpaths, dbscan_clusters)...)
     return cpath_df
 end
@@ -218,11 +277,11 @@ Arguments
 	- `s` : the sigma width parameter of the psfs
     - `w` : the weight (or brightness) of the psfs
     Additionally, there the data frame must either have columns
-    - `Round` : the barcoding round in which the psf was found
+    - `round` : the barcoding round in which the psf was found
     - `pseudocolor` : the pseudocolor of the barcoding round in which the psf was found
-    or the Round and pseudocolor can be computed from the hybridization
+    or the round and pseudocolor can be computed from the hybridization
     - `hyb` : the hybridization in which the dot was found
-    where Round = ceil(hyb / q), pseudocolor = (hyb - (Round - 1) * q) % q, and q is the number of pseudocolors.
+    where round = ceil(hyb / q), pseudocolor = (hyb - (round - 1) * q) % q, and q is the number of pseudocolors.
 
 - `cb` : The codebook.
 - `H` : The parity check Matrix
@@ -236,7 +295,11 @@ to the passed parameters.
 
 """
 function choose_optimal_codepaths(pnts :: DataFrame, cb_df :: DataFrame, H :: Matrix, params :: DecodeParams, cpath_df :: DataFrame, optimizer; ret_discarded :: Bool=false)
-    cb = Matrix(UInt8.(cb_df[!, 2:end]))
+    if typeof(cb_df[2, 2]) <: AbstractString
+        cb = Matrix(string.(cb_df[!, 2:end]))
+    else
+        cb = Matrix(UInt8.(cb_df[!, 2:end]))
+    end
     gene = cb_df[!, 1]
     gene_number = Array(1:length(gene))
     decoded, discarded_cpaths = choose_optimal_codepaths(pnts, cb, H, params, cpath_df, optimizer)
@@ -249,12 +312,20 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb_df :: DataFrame, H :: Ma
     end
 end
 
-function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: Matrix, params :: DecodeParams, cpath_df :: DataFrame, optimizer)
+function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: DecodeParams, cpath_df :: DataFrame, optimizer)
 
     n = length(cb[1,:])
     ndots = nrow(pnts)
-    filter!(:cpath => cpath -> length(cpath) >= n - params.ndrops, cpath_df)
-    cost(cpath) = obj_function(cpath, pnts, n, params)
+    if params.zeros_probed
+        w = n
+        filter!(:cpath => cpath -> length(cpath) >= n - params.ndrops, cpath_df)
+    else
+        w = minimum(sum(cb .!= "0" .&& cb .!= 0, dims=2))
+        filter!(:cpath => cpath -> length(cpath) >= w - params.ndrops, cpath_df)
+    end
+
+    sort_readouts!(pnts)
+    cost(cpath) = obj_function(cpath, pnts, w, params)
     pnts[!,"decoded"] = fill(0, nrow(pnts))
     pnts[!, "mpath"] = [[] for i = 1:length(pnts.x)]
 
@@ -294,7 +365,7 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix{UInt8}, H :: M
             continue
         else
             cpath_nbrs, cpath_partial_conflicts, cpath_partial_conflict_transitions = get_cpath_conflict_graph_remove_redundant_cpaths!(cc_cpath_df, ndots, n)
-           
+
             # get heuristic start point?
             if nrow(cc_cpath_df) < params.mip_sa_thresh
                 low_cost_state = MIP_solve(cc_cpath_df, cpath_nbrs, optimizer)
@@ -325,7 +396,17 @@ end
 
 Generate KDTree to aid in building adjacency graphs.
 """
-make_KDTree(pnts :: DataFrame) = KDTree(Array([pnts.x pnts.y]'))
+make_KDTree2D(pnts :: DataFrame) = KDTree(Array([pnts.x pnts.y]'))
+
+"""
+    make_KDTree3D(pnts :: DataFrame)
+
+Generate KDTree to aid in building adjacency graphs.
+"""
+function make_KDTree3D(pnts :: DataFrame, lat_thresh, z_thresh)
+    z_scaled = pnts.z .* lat_thresh ./ z_thresh
+    return KDTree(Array([pnts.x pnts.y z_scaled]'))
+end
 
 """
     make_cw_dict(cb)
@@ -347,27 +428,30 @@ Add columns giving the coefficient and position the dot encodes in a codeword
 and its associated syndrome component.
 """
 function add_code_cols!(pnts :: DataFrame)
-    if "Round" in names(pnts)
-        pos = pnts.Round
+    if "round" in names(pnts)
+        pnts.pos = UInt8.(pnts.round)
     else
-        pos = get_pos.(pnts.hyb)
+        pnts.pos = get_pos.(pnts.hyb)
     end
 
     if "pseudocolor" in names(pnts)
-        coeff = pnts.pseudocolor
+        if q == 8 || q == 9
+            pnts.coeff = map(c -> pseudocolor_2_savestring[c], pnts.pseudocolor)
+        else
+            pnts.coeff = UInt8.(pnts.pseudocolor)
+        end
     else
-        coeff = get_coeff.(pnts.hyb, pos)
+        pnts.coeff = get_coeff.(pnts.hyb, pnts.pos)
     end
 
-    sc = SyndromeComponent.(coeff, pos)
-    pnts.pos = pos
-    pnts.coeff = coeff
-    pnts.sc = sc
-
+    pnts.sc = SyndromeComponent.(pnts.coeff, pnts.pos)
     pnts.decoded = zeros(length(pnts.x))
     pnts.mpath = [[] for i = 1:length(pnts.x)]
 end
 
+abstract type abstractDotAdjacencyGraph end
+
+abstract type DotAdjacencyGraph <: abstractDotAdjacencyGraph end
 
 """
     DotAdjacencyGraph(g :: SimpleDiGraph
@@ -377,7 +461,7 @@ end
 
 Structure for storing the dot adjacency graph with some parameters
 """
-struct DotAdjacencyGraph
+struct DotAdjacencyGraph2D <: DotAdjacencyGraph
     g :: SimpleDiGraph
     cw_pos_bnds :: Array{Int64}
     n :: Int8
@@ -385,6 +469,25 @@ struct DotAdjacencyGraph
     lat_thresh :: Float64
     pnts :: DataFrame
     ndrops :: Int64
+end
+
+struct DotAdjacencyGraph3D <: DotAdjacencyGraph
+    g :: SimpleDiGraph
+    cw_pos_bnds :: Array{Int64}
+    n :: Int8
+    trees :: Vector{KDTree}
+    lat_thresh :: Float64
+    z_thresh :: Float64
+    pnts :: DataFrame
+    ndrops :: Int64
+end
+
+function DotAdjacencyGraph(pnts :: DataFrame, params :: DecodeParams, n, w)
+    if params.zeros_probed
+        return DotAdjacencyGraph(pnts, params.lat_thresh, params.z_thresh, n, params.ndrops)
+    else
+        return DotAdjacencyGraphBlankRound(pnts, params.lat_thresh, params.z_thresh, n, params.ndrops, w)
+    end
 end
 
 """
@@ -399,6 +502,7 @@ edges pointing towards the dot representing an earlier symbor
 function DotAdjacencyGraph(pnts :: DataFrame, lat_thresh :: Real, z_thresh :: Real, n, ndrops)
     g = SimpleDiGraph(nrow(pnts))
 
+    data_2d = length(unique(pnts.z)) == 1
     # Find the indices of dots representing each place, cᵢ, in a codeword start.
     cw_pos_bnds = get_cw_pos_bounds(pnts, n)
     trees = []
@@ -406,12 +510,107 @@ function DotAdjacencyGraph(pnts :: DataFrame, lat_thresh :: Real, z_thresh :: Re
         start_round = maximum([round-1-ndrops, 1])
         start_pnt = cw_pos_bnds[start_round]
         end_pnt = (cw_pos_bnds[round]-1)
-        push!(trees, make_KDTree(pnts[start_pnt:end_pnt, :]))
+        if data_2d
+            push!(trees, make_KDTree2D(pnts[start_pnt:end_pnt, :]))
+        else
+            push!(trees, make_KDTree3D(pnts[start_pnt:end_pnt, :], lat_thresh, z_thresh))
+        end
     end
 
-    DotAdjacencyGraph(g, cw_pos_bnds, n, trees, lat_thresh, pnts, ndrops)
+    if data_2d
+        return DotAdjacencyGraph2D(g, cw_pos_bnds, n, trees, lat_thresh, pnts, ndrops)
+    else
+        return DotAdjacencyGraph3D(g, cw_pos_bnds, n, trees, lat_thresh, z_thresh, pnts, ndrops)
+    end
 end
 
+abstract type DotAdjacencyGraphBlankRound <: abstractDotAdjacencyGraph end
+
+
+struct DotAdjacencyGraphBlankRound2D <: DotAdjacencyGraphBlankRound
+    g :: SimpleDiGraph
+    cw_round_ranges
+    n :: Int8
+    trees :: Vector{KDTree}
+    lat_thresh :: Float64
+    pnts :: DataFrame
+    ndrops :: Int64
+    w :: Int64
+    first_potential_barcode_final_dot
+end
+
+struct DotAdjacencyGraphBlankRound3D <: DotAdjacencyGraphBlankRound
+    g :: SimpleDiGraph
+    cw_round_ranges
+    n :: Int8
+    trees :: Vector{KDTree}
+    lat_thresh :: Float64
+    z_thresh :: Float64
+    pnts :: DataFrame
+    ndrops :: Int64
+    w :: Int64
+    first_potential_barcode_final_dot
+end
+
+function DotAdjacencyGraphBlankRound(pnts :: DataFrame, lat_thresh :: Real, z_thresh :: Real, n, ndrops, w)
+
+    g = SimpleDiGraph(nrow(pnts))
+    data_2d = length(unique(pnts.z)) == 1
+    if data_2d
+        make_KDTree = make_KDTree2D
+    else
+        make_KDTree(df) = make_KDTree3D(df, lat_thresh, z_thresh)
+    end
+
+    # Find the indices of dots representing each place, cᵢ, in a codeword start.
+    cw_round_ranges = get_cw_round_ranges(pnts, n)
+
+    #make KDTrees to search for dots that may be neigbors to dots each barcoding round that 
+    trees = []
+
+    # Dots in any previous round may be neighbors with dots in rounds up to the n-w+1st round in paths that may represent a decodable barcode
+    for round in 1:(n-w+1) 
+        if ismissing(cw_round_ranges[round]) # if there are no dots in the barcoding round
+            push!(trees, make_KDTree(pnts[1:0, :])) #make empty KBTree
+        else
+            # make KDTree that searches dots in all previous rounds
+            end_pnt = (cw_round_ranges[round][1]-1)
+            push!(trees, make_KDTree(pnts[1:end_pnt, :])) 
+        end
+    end
+
+    # dots in the n-w+2st or greater barcoding round cannot form paths in the DAG representing valid barcodes with early dots 
+    # since no path containing directed edges will be long enough (paths must have length of at least w-ndrops to be decodable)
+    for (i, round) in enumerate((n-w+2):n) 
+        if ismissing(cw_round_ranges[round]) # if no dots in round
+            push!(trees, make_KDTree(pnts[1:0, :])) # make empty KDTree
+        else
+            # make KDTree searching previous rounds starting at maximum([w-(n-round)-1-ndrops,1]), which may
+            # be included in paths of decodable length when directed edges connect dots in both rounds
+            start_pnt = find_previous_round_start(cw_round_ranges, maximum([w-(n-round)-1-ndrops,1]))
+            end_pnt = (cw_round_ranges[round][1]-1)
+            push!(trees, make_KDTree(pnts[start_pnt:end_pnt, :]))
+        end
+    end
+
+    # note: row indices of dots in the pnts DataFrame are sorted by barcoding round
+    # find the index of the first dot that may be the dot of highest barcoding round in a decodable path through the DAG.
+    # all dots of higher index also may be the dot of highest barcoding round in a decodable path through the DAG.
+    first_potential_barcode_final_dot=find_previous_round_start(cw_round_ranges,w-ndrops)
+    if data_2d
+        DotAdjacencyGraphBlankRound2D(g, cw_round_ranges, n, trees, lat_thresh, pnts, ndrops, w, first_potential_barcode_final_dot)
+    else
+        DotAdjacencyGraphBlankRound3D(g, cw_round_ranges, n, trees, lat_thresh, z_thresh, pnts, ndrops, w, first_potential_barcode_final_dot)
+    end
+
+end
+
+function find_previous_round_start(cw_round_ranges, r0)
+    for r in r0:length(cw_round_ranges)
+        start = cw_round_ranges[r]
+        ismissing(start) ? r += 1 : return start[1]
+    end
+end
 
 """
 """
@@ -419,41 +618,104 @@ function get_cw_pos_bounds(pnts, n)
     cw_pos_bnds = [1]
     for cᵢ = 1:(n-1)
         if findfirst(x -> x>cᵢ, pnts.pos) == nothing
-            push!(cw_pos_bnds, length(pnts.hyb)+1)
+            push!(cw_pos_bnds, nrow(pnts)+1)
         else
             push!(cw_pos_bnds, findfirst(x -> x>cᵢ, pnts.pos))
         end
     end
-    push!(cw_pos_bnds,length(pnts.hyb)+1)
-
+    push!(cw_pos_bnds,nrow(pnts)+1)
     return cw_pos_bnds
 end
 
 """
-    neighbors(g :: DotAdjacencyGraph, n)
+"""
+function get_cw_round_ranges(pnts, n)
+    cw_round_ranges = []
+    sizehint!(cw_round_ranges, n)
+
+    for cᵢ = 1:n
+        if findfirst(x -> x==cᵢ, pnts.round) == nothing
+            push!(cw_round_ranges, missing)
+        else
+            push!(cw_round_ranges, findfirst(x -> x==cᵢ, pnts.round):findlast(x -> x==cᵢ, pnts.round))
+        end
+    end
+    return cw_round_ranges
+end
+
+"""
+    neighbors(g :: abstractDotAdjacencyGraph2D, n)
 
 Define SimpleDiGraph neighbors function for DotAdjacencyGraph
 """
-function neighbors(g :: DotAdjacencyGraph, n)
+
+function neighbors(g :: DotAdjacencyGraph2D, n)
     nbrs = inrange(g.trees[g.pnts.pos[n]], [g.pnts.x[n], g.pnts.y[n]], g.lat_thresh, true)
     pnts_prior_rnds = g.cw_pos_bnds[maximum([g.pnts.pos[n]-1-g.ndrops, 1])] - 1
     return nbrs .+ pnts_prior_rnds
 end
 
 """
+    neighbors(g :: abstractDotAdjacencyGraph3D, n)
+
+Define SimpleDiGraph neighbors function for DotAdjacencyGraph
+"""
+
+function neighbors(g :: DotAdjacencyGraph3D, n)
+    nbrs = inrange(g.trees[g.pnts.pos[n]], [g.pnts.x[n], g.pnts.y[n], g.pnts.z[n]], g.lat_thresh, true)
+    pnts_prior_rnds = g.cw_pos_bnds[maximum([g.pnts.pos[n]-1-g.ndrops, 1])] - 1
+    return nbrs .+ pnts_prior_rnds
+end
+
+"""
+    neighbors(g :: DotAdjacencyGraphBlankRound2D, n)
+
+Define SimpleDiGraph neighbors function for DotAdjacencyGraph
+"""
+function neighbors(g :: DotAdjacencyGraphBlankRound2D, dot)
+    nbrs = inrange(g.trees[g.pnts.pos[dot]], [g.pnts.x[dot], g.pnts.y[dot]], g.lat_thresh, true)
+    if g.pnts.pos[dot] >  g.n - g.w + 2 + g.ndrops
+        pnts_prior_rnds = find_previous_round_start(g.cw_round_ranges, g.w -g.ndrops - (g.n - g.pnts.round[dot]+1))
+        nbrs .+= pnts_prior_rnds - 1
+    end
+    return nbrs
+end
+
+"""
+    neighbors(g :: DotAdjacencyGraphBlankRound, n)
+
+Define SimpleDiGraph neighbors function for DotAdjacencyGraph
+"""
+function neighbors(g :: DotAdjacencyGraphBlankRound3D, dot)
+    nbrs = inrange(g.trees[g.pnts.pos[dot]], [g.pnts.x[dot], g.pnts.y[dot], g.pnts.z[dot]], g.lat_thresh, true)
+    if g.pnts.pos[dot] >  g.n - g.w + 2 + g.ndrops
+        pnts_prior_rnds = find_previous_round_start(g.cw_round_ranges, g.w - g.ndrops - (g.n - g.pnts.round[dot]+1))
+        nbrs .+= pnts_prior_rnds - 1
+    end
+    return nbrs
+end
+
+
+"""
     get_cw_pos_inds(g :: DotAdjacencyGraph, pos :: Int)
 
 Helper function to get the dots in the graph that represent a symbol in a given position of the codeword.
 """
-function get_cw_pos_inds(g :: DotAdjacencyGraph, pos :: Int)
+function get_cw_pos_inds(g :: DotAdjacencyGraph, pos :: Integer)
     return g.cw_pos_bnds[pos]:(g.cw_pos_bnds[pos+1]-1)
 end
 
 """
 """
-function syndrome_find_message_paths!(pnts ::DataFrame, g :: DotAdjacencyGraph, cb ::Matrix{UInt8}, ndrops)
+function syndrome_find_barcodes!(pnts ::DataFrame, g :: abstractDotAdjacencyGraph, cb ::Matrix, ndrops, w)
     cw_dict = make_cw_dict(cb)
-    cpaths, decode_cands = syndrome_find_message_paths!(pnts, g, cb, ndrops, cw_dict)
+    if typeof(g) <: DotAdjacencyGraphBlankRound
+        cpaths, decode_cands = find_blank_round_codewords(pnts ::DataFrame, g :: DotAdjacencyGraphBlankRound, cw_dict, w)
+    elseif ndrops == 0
+        cpaths, decode_cands = find_barcodes_mem_eff(pnts, g, cw_dict)
+    else
+        cpaths, decode_cands = syndrome_find_barcodes!(pnts, g, ndrops, cw_dict)
+    end
     return cpaths, decode_cands
 end
 
@@ -461,11 +723,10 @@ end
 Computes syndrome of every path in the message graph, determines which ones represent valid
 barcodes, and returns dataframe of message path candidates.
 """
-function syndrome_find_message_paths!(pnts ::DataFrame,
+function syndrome_find_barcodes!(pnts ::DataFrame,
                                       g :: DotAdjacencyGraph,
-                                      cb ::Matrix{UInt8},
-                                      ndrops,
-                                      cw_dict
+                                      ndrops :: Int,
+                                      cw_dict :: Dict
                                       )
     syndromes, syndrome_coeff_positions = compute_syndromes(pnts, g)
 
@@ -656,7 +917,7 @@ function recursive_get_synd_neighbors(
      )
 
     # if this is the last dot in the message, return number of dot in an array
-    if synd_ind == 1 && dot < g.cw_pos_bnds[2+g.ndrops] && recursion_depth >= (length(g.cw_pos_bnds)-1-g.ndrops)        
+    if synd_ind == 1 && dot < g.cw_pos_bnds[2+g.ndrops] && recursion_depth >= (length(g.cw_pos_bnds)-1-g.ndrops)
         cpath = Int[dot]
         sizehint!(cpath, g.n)
         return cpath

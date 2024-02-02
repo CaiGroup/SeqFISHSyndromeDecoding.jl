@@ -7,6 +7,27 @@ using DataFrames
 using Distributions
 using CSV
 
+savestring_2_pseudocolor = Dict(
+    [
+        ("0", 0),
+        ("1", 1),
+        ("α1", 2),
+        ("α", 2),
+        ("α2", 3),
+        ("α²", 3),
+        ("α3", 4),
+        ("α³", 4),
+        ("α4", 5),
+        ("α⁴", 5),
+        ("α5", 6),
+        ("α⁵", 6),
+        ("α6", 7),
+        ("α⁶", 7),
+        ("α7", 8),
+        ("α⁷", 8)
+    ]
+)
+
 """
     sim_true(n)
 
@@ -22,9 +43,11 @@ sim_true(n, max_species) = DataFrame(species = rand(1:max_species, n), x = rand(
 function get_n_q_w(cb)
     ncws, n = size(cb)
     q = length(unique(cb))
-    cw_nonzeros = [sum(cb[i, :] .!= -) for i in ncws]
-    w =  maximum(cw_nonzeros)
-    #w = sum(cb[1,:] .!= 0)
+    if typeof(cb[1,1]) == String 
+        w = maximum(sum(cb .!= "0", dims=2))
+    else
+        w = maximum(sum(.~ iszero.(cb), dims=2))
+    end
     [n, q, w]
 end
 
@@ -47,37 +70,46 @@ function encode(true_locs :: DataFrame, cb)
     qm1 = UInt8(q-1)
 
     npts = nrow(true_locs) #length(true_locs.species)
-    dot = Array(1:(npts*n))
+    dot = Array(1:(npts*wt))
     species = Int64[]
     x = Float64[]
     y = Float64[]
     #hyb = Int8[]
     hyb = UInt8[]
+    rounds = UInt8[]
+    pseudocolors = []
     for i = 1:npts
         target = true_locs[i, :]
         codeword = cb[target.species,:]
-        #for pos = 1:n
-        for pos = 0x01:n
-            if codeword[pos] != 0 && n > wt
+        for round = 0x01:n
+            if codeword[round] != 0 && codeword[round] != "0" && n > wt
                 push!(species, target.species)
                 push!(x, target.x)
                 push!(y, target.y)
-                dot_hyb = qm1*(pos-1)+codeword[pos]
-                push!(hyb, dot_hyb)
+                push!(rounds, round)
+                if typeof(codeword[round]) == String
+                    push!(pseudocolors, savestring_2_pseudocolor[codeword[round]])
+                else    
+                    push!(pseudocolors, codeword[round])
+                end
                 #push!(hyb, UInt8(dot_hyb))
             elseif n == wt
                 push!(species, target.species)
                 push!(x, target.x)
                 push!(y, target.y)
-                dot_hyb = q*(pos-1)+codeword[pos]
+                dot_hyb = q*(round-1)+codeword[round]
                 #codeword[pos] == 0x00 ? dot_hyb += 0x10 : nothing
-                codeword[pos] == 0x00 ? dot_hyb += UInt8(q) : nothing
+                codeword[round] == 0x00 ? dot_hyb += UInt8(q) : nothing
                 push!(hyb, dot_hyb)
                 #push!(hyb, UInt8(dot_hyb))
             end
         end
     end
-    pnts = DataFrame(dot_ID=dot,hyb=hyb,species=species,x=x,y=y)
+    if n > wt
+        pnts = DataFrame(dot_ID=dot,round=rounds,pseudocolor=pseudocolors,species=species,x=x,y=y)
+    else
+        pnts = DataFrame(dot_ID=dot,hyb=hyb,species=species,x=x,y=y)
+    end
     pnts[!, "z"] .= 1.0
     pnts[!, "w"] .= 1.0
     pnts[!, "s"] .= 1.0

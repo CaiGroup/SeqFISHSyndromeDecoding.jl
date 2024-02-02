@@ -1,16 +1,38 @@
 
 
-using SeqFISHSyndromeDecoding: ℤnRingElem, set_q, set_n, set_H, SyndromeComponent, check_mpath_decodable, get_decode_table
-
+using SeqFISHSyndromeDecoding: ℤnRingElem, set_q, set_H, SyndromeComponent, check_mpath_decodable, get_decode_table
+using SeqFISHSyndromeDecoding
 using Test
 using DelimitedFiles
 
-Eng2019_ontarget = readdlm("Eng2019_647.csv", ',', UInt8)
+Eng2019_ontarget = readdlm("codes/Eng2019_647.csv", ',', UInt8)
+RS_q5_k2_cb = readdlm("codes/RS_q5_k2_cb.csv", ',', UInt8)
+RS_q5_k2_H = readdlm("codes/RS_q5_k2_H.csv", ',', UInt8)
+
+RS_q7_k4_H = readdlm("codes/RS_q7_k4_H.csv", ',', UInt8)
+RS_q7_k4_w3cb = readdlm("codes/RS_q7_k4_w3cb.csv", ',', UInt8)
+RS_q7_k4_w4cb = readdlm("codes/RS_q7_k4_w4cb.csv", ',', UInt8)
+RS_q7_k4_w5cb = readdlm("codes/RS_q7_k4_w5cb.csv", ',', UInt8)
+
+RS_q8_n7_k4_H = readdlm("codes/RS_q8_n7_k4_H.csv", ',', String)
+RS_q8_n7_k4_w4cb = readdlm("codes/RS_q8_n7_k4_w4cb.csv", ',', String)
+
+RS_q9_n8_k5_H = readdlm("codes/RS_q9_n8_k5_H.csv", ',', String)
+RS_q9_n8_k5_w4cb = readdlm("codes/RS_q9_n8_k5_w4cb.csv", ',', String)
+
+hamming_merfish_cb = readdlm("codes/hamming_merfish_cb.csv", ',', UInt8)
+hamming_merfish_H = readdlm("codes/hamming_merfish_H.csv", ',', UInt8)
 
 cbs = [Eng2019_ontarget]
 Hs = [[1 1 -1 -1;]]
 
+cbs_zeros_unprobed = [RS_q5_k2_cb, RS_q7_k4_w3cb, RS_q7_k4_w4cb, RS_q7_k4_w5cb, hamming_merfish_cb, RS_q8_n7_k4_w4cb, RS_q9_n8_k5_w4cb]
+Hs_zeros_unprobed = [RS_q5_k2_H, RS_q7_k4_H, RS_q7_k4_H, RS_q7_k4_H, hamming_merfish_H, RS_q8_n7_k4_H, RS_q9_n8_k5_H]
+#cbs_zeros_unprobed = [RS_q9_n8_k5_w4cb]
+#Hs_zeros_unprobed = [RS_q9_n8_k5_H]
+
 @testset "all syndrome type tests" begin
+
 
 @testset "ℤnRingElem Arithmetic" begin
     for q = 0x01:0x14
@@ -28,14 +50,17 @@ Hs = [[1 1 -1 -1;]]
     end
 end
 
+
 @testset "Test parity check verification" begin
     for (i, cb) in enumerate(cbs)
         n = UInt8(length(cb[1,:]))
         pos = Array(0x01:n)
         q = UInt8(maximum(cb) + 1)
         set_q(q)
-        set_n(n)
-        set_H(Hs[i])
+        #set_n(n)
+        params = DecodeParams()
+        set_zeros_probed(params, true)
+        set_H(Hs[i], params, cb)
         for coeffs = eachrow(cb)
             syndrome = sum(SyndromeComponent.(coeffs, pos))
             @test iszero(syndrome)
@@ -50,8 +75,10 @@ end
         pos = Array(0x01:n)
         q = UInt8(maximum(cb) + 1)
         set_q(q)
-        set_n(n)
-        set_H(Hs[i])
+        #set_n(n)
+        params = DecodeParams()
+        set_zeros_probed(params, true)
+        set_H(Hs[i], params, cb)
         nrows = length(cb[:,1])
         for row = 1:nrows, drop_pos = pos
             coeffs = deepcopy(cb[row, :])
@@ -72,8 +99,10 @@ end
         pos = Array(0x01:n)
         q = UInt8(maximum(cb) + 1)
         set_q(q)
-        set_n(n)
-        set_H(Hs[i])
+        #set_n(n)
+        params = DecodeParams()
+        set_zeros_probed(params, true)
+        set_H(Hs[i], params, cb)
         qm1 = q - 0x01
         nrows = length(cb[:,1])
         R = CartesianIndices(Tuple([0x00:qm1 for i = 1:(n-1)]))
@@ -93,6 +122,25 @@ end
         @test ndecodable == Int(n)*Int64(q)^(Int64(n)-1)
     end
 end
+
+
+@testset "Test parity check verification blank" begin
+    for (i, cb) in enumerate(cbs_zeros_unprobed)
+        n = UInt8(length(cb[1,:]))
+        pos = Array(0x01:n)
+        q = UInt8(length(unique(cb))) #UInt8(maximum(cb) + 1)
+        set_q(q)
+        #set_n(n)
+        params = DecodeParams()
+        set_zeros_probed(params, false)
+        set_H(Hs_zeros_unprobed[i], params, cb)
+        for coeffs = eachrow(cb)
+            syndrome = sum(SyndromeComponent.(coeffs, pos))
+            @test iszero(syndrome)
+        end
+    end
+end
+
 
 """
 @testset "Q11N8SC decode table drops true positive" begin

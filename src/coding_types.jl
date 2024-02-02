@@ -1,5 +1,6 @@
 
-import Base: +, -, *, ^, iszero
+import Base: +, -, *, ^, ==, !=, /, iszero
+using BKTrees
 
 """
     ℤnRingElem
@@ -15,17 +16,45 @@ end
 q = 0x00
 H = zeros(Int64, (2,2))
 n = 0x00
+k = 0x00
 
-function set_n(_n :: UInt8)
-    global n = _n
-end
 
 function set_q(_q :: UInt8)
     global q = _q
+    global qm1 = q - 0x01
+    init_ones_and_twos_masks()
 end
 
-function set_H(_H :: Matrix)
-    global H = _H
+
+function set_H(_H :: Matrix, params :: DecodeParams, cb)
+    if ~params.zeros_probed
+        if (q == 8 || q == 9)
+            global H = FFExtElemExpForm.(_H)
+            if params.ndrops > 0
+                cws = [String.(collect(cw)) for cw in eachrow(cb)]
+                global BKTree_cb = BKTree((x, y) -> sum(x .!= y), cws)
+            end
+        else
+            global H = _H
+            if params.ndrops > 0
+                cws = [collect(cw) for cw in eachrow(cb)]
+                global BKTree_cb = BKTree((x, y) -> sum(x .!= y), cws)
+            end
+        end
+    else
+        global H = _H
+    end
+    global n = UInt8(size(H)[2])
+    global k = UInt8(n-size(H)[1])
+    init_ones_and_twos_masks()
+end
+
+function init_ones_and_twos_masks()
+    if q == 9 && n != 0x00
+        #initials ones place and twos place masks for bitwise operations
+        global ones_mask = vcat(fill(BitArray([1,0]),2*(n-k))...)
+        global twos_mask = .~ones_mask
+    end
 end
 
 add_mod(a :: ℤnRingElem, b :: ℤnRingElem, mod :: Unsigned) = (a.v + b.v) % mod
@@ -37,7 +66,7 @@ mult_mod(a :: ℤnRingElem, b :: ℤnRingElem, mod :: Unsigned) = (a.v * b.v) % 
 mult_mod(a :: Unsigned, b :: ℤnRingElem, mod :: Unsigned) = (a * b.v) % mod
 
 inv₊(x :: ℤnRingElem) =  ℤnRingElem((q - x.v) % q)
-inv₊(x :: UInt8) =  ℤnRingElem((q - x.v) % q)
+inv₊(x :: UInt8) =  ℤnRingElem((q - x) % q)
 
 
 +(a :: Unsigned, b :: ℤnRingElem) = typeof(b)(add_mod(a, b, q))
@@ -53,6 +82,12 @@ inv₊(x :: UInt8) =  ℤnRingElem((q - x.v) % q)
 *(a :: ℤnRingElem, b :: Unsigned) = typeof(a)(mult_mod(b, a, q))
 
 *(a :: ℤnRingElem, b :: ℤnRingElem) = a * b.v
+
+/(a :: ℤnRingElem, b :: ℤnRingElem) = ℤnRing_div_table[a, b]
+
+/(a :: Unsigned, b :: ℤnRingElem) = ℤnRing_div_table[typeof(b)(a), b]
+
+/(a :: ℤnRingElem, b :: Unsigned) = ℤnRing_div_table[a, typeof(a)(b)]
 
 #function *(a :: ℤnRingElem, b :: ℤnRingElem)
     #@assert typeof(a) == typeof(b)
@@ -71,16 +106,20 @@ end
 
 iszero(x :: ℤnRingElem) = iszero(x.v)
 
-struct SyndromeComponent
+abstract type SyndromeComponent end
+
+==(a :: SyndromeComponent, b :: SyndromeComponent) = a.s == b.s
+
+!=(a :: SyndromeComponent, b :: SyndromeComponent) = a.s != b.s
+
+struct SyndromeComponentℤnRing <: SyndromeComponent
     s :: Tuple{Vararg{ℤnRingElem}}
 end
 
 function SyndromeComponent(coeff :: UInt8, pos :: UInt8)
-    #coef_vec = fill(coeff, size(H)[1])
     pos_fncs = func_from_H_val.(H)
-    #SyndromeComponent([pos_fncs[i,pos](ℤnRingElem(coeff)) for i = 1:(size(H)[1])])
-    res = [pos_fncs[i,pos](ℤnRingElem(coeff)) for i = 1:(size(H)[1])]
-    SyndromeComponent(Tuple(res))
+    res = [pos_fncs[i,pos](ℤnRingElem(coeff)) for i = 1:(Base.size(H)[1])]
+    return SyndromeComponentℤnRing(Tuple(res))
 end
 
 function func_from_H_val(h_val)
@@ -90,16 +129,20 @@ function func_from_H_val(h_val)
         return identity
     elseif h_val == -1
         return inv₊
+    elseif typeof(h_val) == FFExtElemExpForm 
+        return (x) -> (h_val) * x
+    elseif h_val > 1 
+        return (x) -> ℤnRingElem(UInt8(h_val)) * x
     else
         raise(error("parity check function value $h_val not supported."))
     end
 end
 
-+(a :: SyndromeComponent, b :: SyndromeComponent) = typeof(a)(a.s .+ b.s)
++(a :: SyndromeComponentℤnRing, b :: SyndromeComponentℤnRing) = typeof(a)(a.s .+ b.s)
 
 iszero(x :: SyndromeComponent) = all(iszero.(x.s))
 
-inv₊(s :: SyndromeComponent) = typeof(s)(inv₊.(s.s))
+inv₊(s :: SyndromeComponentℤnRing) = typeof(s)(inv₊.(s.s))
 
 get_pos(hyb :: UInt8) = ceil(UInt8, hyb / q)
 
@@ -107,7 +150,7 @@ get_coeff(hyb :: UInt8, pos :: UInt8) = (hyb - (pos - 0x01) * q) % q
 
 
 function get_decode_table()
-    global decode_table = Dict{Tuple{UInt8, SyndromeComponent},  UInt8}()
+    global decode_table = Dict{Tuple{UInt8, SyndromeComponentℤnRing},  UInt8}()
     #global decode_table = Dict{Tuple{UInt8, UInt8},  UInt8}()
     #for coeff = 0x01:0x13, pos = 0x01:0x04
     for coeff = 0x01:(q - 0x01), pos = 0x01:n #0x04
@@ -134,7 +177,7 @@ end
 
 
 """
-    check_mpath_decodable(drop_pos :: UInt8, s :: SyndromeComponent)
+    check_mpath_decodable(drop_pos :: UInt8, s :: SyndromeComponentℤnRing)
 
 Checks to see if a message path with a drop can be decoded.
 Attempts to fill in the drop with syndrome decoding and decoding table.
@@ -143,7 +186,7 @@ If the drop is correctable, returns the pseudocolor/coeff of the dropped encodin
 
 otherwise, returns false
 """
-function check_mpath_decodable(drop_pos :: UInt8, s :: SyndromeComponent)
+function check_mpath_decodable(drop_pos :: UInt8, s :: SyndromeComponentℤnRing)
     if iszero(s)
         return (decodable = true, coeff = 0x00)
     end
@@ -155,3 +198,14 @@ function check_mpath_decodable(drop_pos :: UInt8, s :: SyndromeComponent)
         return (decodable = false, coeff = nothing)
     end
 end
+
+function make_div_table_Prime_Field(q)
+    global ℤnRing_div_table = ℤnRingElem.(zeros(UInt8,q,q))
+    for i = 0x00:UInt8(q-1), j = i:UInt8(q-1)
+        res = ℤnRingElem(i)*ℤnRingElem(j)
+        ℤnRing_div_table[res,i+1] = ℤnRingElem(j)
+        ℤnRing_div_table[res,j+1] = ℤnRingElem(i)
+    end
+end
+
+

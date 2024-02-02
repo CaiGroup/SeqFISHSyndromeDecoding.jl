@@ -1,5 +1,5 @@
 using SeqFISHSyndromeDecoding
-using SeqFISHSyndromeDecoding: syndrome_find_message_paths!, DotAdjacencyGraph,
+using SeqFISHSyndromeDecoding: DotAdjacencyGraph, DotAdjacencyGraphBlankRound,
 make_cw_dict, get_cw_pos_inds, add_code_cols!, compute_syndromes, neighbors, get_number_of_dots
 
 using DelimitedFiles
@@ -7,29 +7,33 @@ using Test
 using Graphs: nv, ne
 using DataFrames
 
-q20_cb = readdlm("Eng2019_647.csv", ',', UInt8)
+#q20_cb = readdlm("Eng2019_647.csv", ',', UInt8)
 
 
 function construct_test_encoding(n, cb)
-    true_locs = sim_true(n)
+    true_locs = sim_true(n, length(cb[:, 1]))
     encode(true_locs, cb)
 end
 
 """
-    test_drop_random_dots(cb, ntargets, drop_rate)
+    test_drop_random_dots(cb, ntargets, drop_rate)ƒ
 """
 function test_drop_random_dots(cb, ntargets, drop_rate)
     encoded = construct_test_encoding(ntargets, cb)
+    n_initial = nrow(encoded)
     drop_random_dots!(encoded, drop_rate)
-    n_dropped = length(cb[1,:])*ntargets - length(encoded.x)
+    n_dropped = n_initial - length(encoded.x)
     return n_dropped
 end
 
 function get_n_q_w(cb)
     ncws, n = size(cb)
     q = length(unique(cb))
-    cw_nonzeros = [sum(cb[i, :] .!= -) for i in ncws]
-    w =  maximum(cw_nonzeros)
+    if typeof(cb[1,1]) == String
+        w = maximum(sum(cb .!= "0", dims=2))
+    else
+        w = maximum(sum(.~ iszero.(cb), dims=2))
+    end
     [n, q, w]
 end
 
@@ -67,36 +71,43 @@ Converts a list of dots into a message vector.
 """
 function construct_message(pnts :: DataFrame, mdot_inds, cb :: Array)
     n, q, w = get_n_q_w(cb)
-    mcw = fill(typeof(cb[1,1])(0), n)
+    if typeof(cb[1,1]) == String
+        mcw = fill("0", n)
+    else
+        mcw = fill(0x00, n)
+    end
     for m_dot in mdot_inds
         mcw[pnts.pos[m_dot]] = pnts.coeff[m_dot]
     end
-    mcw
+    return mcw
 end
 
+"""
 function construct_message(pnts :: DataFrame, mdot_inds, n, q, w, symb_type :: DataType)
     if w == n
         mcw = fill(symb_type(q+1), n)
     else
         mcw = fill(symb_type(0), n)
     end
-    mdot_IDs = pnts.dot_ID[mdot_inds]
+    #mdot_IDs = pnts.dot_ID[mdot_inds]
     for m_dot in mdot_inds
         mcw[pnts.pos[m_dot]] = pnts.coeff[m_dot]
     end
-    mcw, mdot_IDs
+    
+    mcw#, mdot_IDs
 end
+"""
 
 function test_reconstruct_decode_message(ntargets, cb)
-    true_locs = sim_true(ntargets)
+    true_locs = sim_true(ntargets, length(cb[:, 1]))
     encoded = encode(true_locs, cb)
     n, q, w = get_n_q_w(cb)
     cw_dict = make_cw_dict(cb)
     symb_type = typeof(cb[1,1])
     add_code_cols!(encoded)
     for i = 1:ntargets
-        stop = n*i
-        start = stop - n + 1
+        stop = w*i
+        start = stop - w + 1
         mdots_inds = Array(start:stop)
 
         mcw = construct_message(encoded, mdots_inds, cb)
@@ -115,9 +126,18 @@ end
 
 function encoded_2_dag!(pnts, cb, lat_thresh, z_thresh, ndrops)
     n, q, w = get_n_q_w(cb)
-    sort!(pnts, :hyb)
+
+    if ("round" in names(pnts)) && ("pseudocolor" in names(pnts))
+        sort!(pnts, [:round, :pseudocolor])
+    else
+        sort!(pnts, :hyb)
+    end
     add_code_cols!(pnts)
-    DotAdjacencyGraph(pnts, lat_thresh, z_thresh, n, ndrops)
+    if n > w
+        DotAdjacencyGraphBlankRound(pnts, lat_thresh, z_thresh, n, ndrops, w)
+    else
+        return DotAdjacencyGraph(pnts, lat_thresh, z_thresh, n, ndrops)
+    end
 end
 
 function test_dag(ntargets, cb, rstdv, lat_thresh, z_thresh, ndrops)

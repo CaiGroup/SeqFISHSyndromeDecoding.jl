@@ -3,8 +3,7 @@ include("simulation_fncs.jl")
 
 using SeqFISHSyndromeDecoding
 include("test_synd_decode_fncs.jl")
-using SeqFISHSyndromeDecoding: add_code_cols!, syndrome_find_message_paths!, DotAdjacencyGraph,
-    set_n, set_q, set_H
+using SeqFISHSyndromeDecoding: add_code_cols!, DotAdjacencyGraph, set_q, set_H
 
 
 using DelimitedFiles
@@ -12,7 +11,7 @@ using Test
 using DataFrames
 
 
-q20_cb = readdlm("Eng2019_647.csv", ',', UInt8)
+q20_cb = readdlm("codes/Eng2019_647.csv", ',', UInt8)
 
 cbs = [q20_cb]
 pc_matrices = [[1 1 -1 -1;]]
@@ -24,9 +23,11 @@ pc_matrices = [[1 1 -1 -1;]]
     ntargets = 10
     n = length(cb[1,:])
     q = length(unique(cb))
-    set_n(UInt8(n))
+    #set_n(UInt8(n))
     set_q(UInt8(q))
-    set_H(pc_matrices[i])
+    params = DecodeParams()
+    set_zeros_probed(params, true)
+    set_H(pc_matrices[i], params, cb)
 
     @test length(sim_true(ntargets).x) == ntargets
     @test length(encode(sim_true(ntargets), cb).x) == n*ntargets
@@ -47,9 +48,11 @@ end
 
     n = length(cb[1,:])
     q = length(unique(cb))
-    set_n(UInt8(n))
+    #set_n(UInt8(n))
     set_q(UInt8(q))
-    set_H(pc_matrices[i])
+    params = DecodeParams()
+    set_zeros_probed(params, true)
+    set_H(pc_matrices[i], params, cb)
 
     @test test_dag(300, cb, 0.05, 0.15, 0.1, 0)
     @test test_dag(300, cb, 0.05, 0.15, 0.1, 1)
@@ -62,11 +65,13 @@ end
 
 @testset "test compute syndrome" begin
     for (i, cb) in enumerate(cbs)
-        n = length(cb[1,:])
+        #n = length(cb[1,:])
         q = length(unique(cb))
-        set_n(UInt8(n))
+        #set_n(UInt8(n))
         set_q(UInt8(q))
-        set_H(pc_matrices[i])
+        params = DecodeParams()
+        set_zeros_probed(params, true)
+        set_H(pc_matrices[i], params, cb)
         ntargets = 50000
         @test test_get_cw_pos_bnds(ntargets, cb, 0.0, 0.0, 0.0)
 
@@ -79,6 +84,9 @@ end
 println("full decode perfect")
 @testset "full decode perfect" begin
     for (i, cb) in enumerate(cbs), ntargets in [1, 10, 100]
+        params_ = DecodeParams()
+        set_zeros_probed(params_, true)
+        set_H(pc_matrices[i], params_, cb)
         H = pc_matrices[i]
 
         lat_thresh = 0.0
@@ -114,6 +122,7 @@ println("full decode perfect")
             lw_var_factor,
             s_var_factor,
             ndrops,
+            true,
             mip_sa_thresh,
             free_dot_energy,
             n_chains,
@@ -141,8 +150,7 @@ println("full decode drops")
         z_thresh = 0
         n = length(cb[1,:])
 
-        to_drop = rand(1:n , ntargets) + n*Array(0:(ntargets-1))
-        deleteat!(encoded, to_drop)
+        
         lat_thresh = 0.0
         z_thresh = 0.0
         free_dot_energy = 5.0
@@ -171,6 +179,7 @@ println("full decode drops")
             lw_var_factor,
             s_var_factor,
             ndrops,
+            true,
             mip_sa_thresh,
             free_dot_energy,
             n_chains,
@@ -182,6 +191,14 @@ println("full decode drops")
             skip_thresh,
             skip_density_thresh
         )
+        decode_syndromes!(encoded, cb, H, params)
+        @test encoded.species == encoded.decoded
+        
+
+        select!(encoded, Not(["decoded", "mpath"]))
+        sort!(encoded, :dot_ID)
+        to_drop = rand(1:n , ntargets) + n*Array(0:(ntargets-1))
+        deleteat!(encoded, to_drop)
         decode_syndromes!(encoded, cb, H, params)
         @test encoded.species == encoded.decoded
     end
