@@ -139,7 +139,7 @@ function find_barcodes_mem_eff(pnts ::DataFrame, g :: DotAdjacencyGraph, cw_dict
             #for inrange_dot in inrange(round_trees[round], [pnts.x[dot], pnts.y[dot]], g.lat_thresh)
             for inrange_dot in inrng(round_trees[round], dot, g, tforms, round)
                 #println("round $round, inrange_dot $inrange_dot")
-                inrange_dot_ind = inrange_dot #+ g.cw_pos_bnds[round] - 1
+                inrange_dot_ind = inrange_dot + g.cw_pos_bnds[round] - 1
                 unprocessed_inrange_dots[inrange_dot_ind] -= 1
                 if unprocessed_inrange_dots[inrange_dot_ind] == 0
                     syndromes[inrange_dot_ind] = []
