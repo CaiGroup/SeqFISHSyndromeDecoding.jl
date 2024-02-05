@@ -134,12 +134,15 @@ function find_barcodes_mem_eff(pnts ::DataFrame, g :: DotAdjacencyGraph, cw_dict
         # remove dot from list of unprocessed final round dots
         deleteat!(unprocessed_last_round_dots, dot_ind)        
 
-        #free space  
+        #free space
         for round in 1:(g.n-1)
             #for inrange_dot in inrange(round_trees[round], [pnts.x[dot], pnts.y[dot]], g.lat_thresh)
-            for inrange_dot in inrng(round_trees[round], dot, g, tforms, round, false)
-                #println("round $round, inrange_dot $inrange_dot")
-                inrange_dot_ind = inrange_dot + g.cw_pos_bnds[round] - 1
+            for inrange_dot in inrng(round_trees[round], dot, g, tforms, round, true)
+                if typeof(g) <: DotAdjacencyGraphRegistered2D || typeof(g) <: DotAdjacencyGraphRegistered3D
+                    inrange_dot_ind = inrange_dot + g.cw_pos_bnds[round] - 1
+                else
+                    inrange_dot_ind = inrange_dot
+                end
                 unprocessed_inrange_dots[inrange_dot_ind] -= 1
                 if unprocessed_inrange_dots[inrange_dot_ind] == 0
                     syndromes[inrange_dot_ind] = []
@@ -147,7 +150,6 @@ function find_barcodes_mem_eff(pnts ::DataFrame, g :: DotAdjacencyGraph, cw_dict
                 end
             end
         end
-        
     end
     return [barcode_candidates, gene_nums]
 end
