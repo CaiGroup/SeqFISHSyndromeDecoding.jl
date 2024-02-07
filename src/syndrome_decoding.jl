@@ -101,16 +101,23 @@ function obj_function(cpath, pnts, cw_w, params, tforms :: Dict)
     dot_erasure_penalty = params.erasure_penalty
 
     cpath_pnts = pnts[cpath, :]
-    dists = []
+    lat_dists_sq = []
+    zdists_sq = []
     for i in 1:(nrow(cpath_pnts) - 1), j in (i+1):nrow(cpath_pnts)
         tform = get_tform(tforms, cpath_pnts.pos[i], cpath_pnts.coeff[i], cpath_pnts.pos[j], cpath_pnts.coeff[j])
         #tform = get_tform(tforms, cpath_pnts.round[i], cpath_pnts.coeff[i], cpath_pnts.round[j], cpath_pnts.coeff[j])
-        dist = mean((Array(cpath_pnts[j, [:x, :y, :z]]) .- (tform[:,1:3] * Array(cpath_pnts[i, [:x, :y, :z]]) .+ tform[:,4])).^2)
-        push!(dists, dist)
+        #dist = mean((Array(cpath_pnts[j, [:x, :y, :z]]) .- (tform[:,1:3] * Array(cpath_pnts[i, [:x, :y, :z]]) .+ tform[:,4])).^2)
+        lat_dist = Array(cpath_pnts[j, [:x, :y]]) .- Array(cpath_pnts[i, [:x, :y]])
+        z_dist = cpath_pnts.z[j] - cpath_pnts.z[i]
+        lat_dist[1] -= tform[1,4]
+        lat_dist[2] -= tform[2,4]
+        z_dist -= tform[3,4]
+        push!(lat_dists_sq, sum(lat_dist.^2))
+        push!(zdists_sq, z_dist)
     end
 
-    lat_var_cost = (mean(dists)) * lat_var_factor
-    z_var_cost = var(pnts.z[cpath]) * z_var_factor
+    lat_var_cost = mean(lat_dists_sq) * lat_var_factor
+    z_var_cost = mean(zdists_sq) * z_var_factor
     lw_var_cost = var(log2.(pnts.w[cpath])) * lw_var_factor
     s_var_cost = var(pnts.s[cpath]) * s_var_factor
 
@@ -291,7 +298,7 @@ function get_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: D
         cpath_df = DataFrame(cpath = code_paths, cost = costs, gene_number = gene_nums)
         sort!(cpath_df, :cost)
         cpath_df = remove_high_cost_cpaths(cpath_df, params.free_dot_cost, n, params.ndrops)
-        cpath_df = threshold_cpaths(cpath_df, clust_pnts, params.lat_thresh, params.z_thresh)
+        cpath_df = threshold_cpaths(cpath_df, clust_pnts, params.lat_thresh, params.z_thresh, tforms_dict)
         cpath_df[!,"x"] = mean.([clust_pnts.x[cpath] for cpath in cpath_df.cpath])
         cpath_df[!,"y"] = mean.([clust_pnts.y[cpath] for cpath in cpath_df.cpath])
         cpath_df[!,"z"] = mean.([clust_pnts.z[cpath] for cpath in cpath_df.cpath])
@@ -341,7 +348,7 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb_df :: DataFrame, H :: Ma
     end
     gene = cb_df[!, 1]
     gene_number = Array(1:length(gene))
-    decoded, discarded_cpaths = choose_optimal_codepaths(pnts, cb, H, params, cpath_df, optimizer, tforms=nothing)
+    decoded, discarded_cpaths = choose_optimal_codepaths(pnts, cb, H, params, cpath_df, optimizer, tforms=tforms)
     gene_df = DataFrame("gene_name" => gene, "gene_number" => gene_number)
     decoded_joined = rightjoin(gene_df, decoded, on=:gene_number)
     if ret_discarded
@@ -374,11 +381,10 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, 
     pnts[!,"decoded"] = fill(0, nrow(pnts))
     pnts[!, "mpath"] = [[] for i = 1:length(pnts.x)]
     add_code_cols!(pnts)
-
     cpath_df[!, "cost"] = cost.(cpath_df[!, "cpath"])
     sort!(cpath_df, :cost)
     cpath_df = remove_high_cost_cpaths(cpath_df, params.free_dot_cost, n, params.ndrops)
-    cpath_df = threshold_cpaths(cpath_df, pnts, params.lat_thresh, params.z_thresh)
+    cpath_df = threshold_cpaths(cpath_df, pnts, params.lat_thresh, params.z_thresh, tforms_dict)
 
     # build graph with by adding only edges in codepaths, and break into connected
     # components
@@ -610,18 +616,52 @@ function DotAdjacencyGraph(pnts :: DataFrame, lat_thresh :: Real, z_thresh :: Re
         else
             for searching_pseudocolor in 0:(q-1)
                 registered_pnts = copy(pnts[start_pnt:end_pnt, :])
+                transformed_coords = zeros(0,2)
                 for nbr_round in start_round:(round-1)
                     for nbr_round_pseudocolor in 0:(q-1)
-                        tform = get_tform(tforms, round, searching_pseudocolor, nbr_round, nbr_round_pseudocolor) #tforms[] #[neighbor_round, round, :, :]
+                        #tform = get_tform(tforms, round, searching_pseudocolor, nbr_round, nbr_round_pseudocolor) #tforms[] #[neighbor_round, round, :, :]
+                        
+                        tform = get_tform(tforms, nbr_round, nbr_round_pseudocolor, round, searching_pseudocolor)
                         rows_of_interest = registered_pnts.pos .== nbr_round .&& registered_pnts.coeff .== nbr_round_pseudocolor
-                        nbr_rnd_pc_pnts = registered_pnts[rows_of_interest, :]
-                        registered_pnts[rows_of_interest, [:x, :y, :z]] .= ((Array(nbr_rnd_pc_pnts[:, [:x, :y, :z]]) * tform[:, 1:3]) .+ Matrix(tform[:, 4]'))
+                        if sum(rows_of_interest) > 0 #&& sum(registered_pnts.pos .== round .&& registered_pnts.coeff .== searching_pseudocolor) >0
+                            #println("nbr_round $nbr_round, nbr_round_pseudocolor $nbr_round_pseudocolor, round $round, searching_pseudocolor $searching_pseudocolor")
+                            #println(registered_pnts[rows_of_interest, :]) 
+                            #println("x ",tform[1, 4], ", y", tform[2, 4])
+                            registered_pnts[rows_of_interest, "x"] .+= tform[1, 4]
+                            registered_pnts[rows_of_interest, "y"] .+= tform[2, 4]
+                            #println(println(registered_pnts[rows_of_interest, :]))
+                            #println()
+                        end
+                        #nbr_rnd_pc_pnts = registered_pnts[rows_of_interest, :]
+                        #registered_pnts[rows_of_interest, [:x, :y, :z]] .= ((Array(nbr_rnd_pc_pnts[:, [:x, :y, :z]]) * tform[:, 1:3]) .+ Matrix(tform[:, 4]'))
+                        #registered_pnts[rows_of_interest, [:x, :y, :z]] .= ((Array(nbr_rnd_pc_pnts[:, [:x, :y, :z]])) .+ Matrix(tform[:, 4]'))
+                        #println("x before")
+                        #println(registered_pnts[rows_of_interest, "x"])
+                        ##println("x ",tform[1, 4], ", y", tform[2, 4])
+                        ##registered_pnts[rows_of_interest, "x"] .+= tform[1, 4]
+                        ##registered_pnts[rows_of_interest, "y"] .+= tform[2, 4]
+                        #registered_pnts[rows_of_interest, "x"] .= tform[1, 4] .+ registered_pnts[rows_of_interest, "x"]
+                        #registered_pnts[rows_of_interest, "y"] .= tform[2, 4] .+ registered_pnts[rows_of_interest, "y"]
+                        #transformed_coords = vcat(transformed_coords, hcat(tform[1, 4] .+ registered_pnts[rows_of_interest, "x"],  tform[2, 4] .+ registered_pnts[rows_of_interest, "y"]))
+                        #println(registered_pnts[rows_of_interest, "x"]
                     end
                 end
+                #println(size(transformed_coords))
+                #println(size(registered_pnts[:,[:x, :y]]))
+                #println("same? ", all(isapprox.(Array(pnts[start_pnt:end_pnt, [:x, :y]]) .- transformed_coords, 0, atol=1e-5)))
+                #registered_pnts[:,[:x, :y]] .= transformed_coords
+                if nrow(registered_pnts) > 3
+                    
+                    #println(pnts[start_pnt:(start_pnt+3), [:x, :y]])
+                    #println(registered_pnts[1:3,[:x,:y]])
+                end
+                #println("same? ", all(isapprox.(Array(pnts[start_pnt:end_pnt, [:x, :y]]) .- transformed_coords, 0, atol=1e-5)))
+                #println("same? ", all(isapprox.(Array(pnts[start_pnt:end_pnt, [:x, :y]]) .- Array(registered_pnts[:, [:x, :y]]), 0, atol=1e-5)))
                 spc_ind = searching_pseudocolor == 0 ? q : searching_pseudocolor
                 if data_2d
                     #push!(trees, KDTree(registered_pnts'))
                     trees[round, spc_ind] = KDTree(Matrix(registered_pnts[:,[:x, :y]])')
+                    #trees[round, spc_ind] = KDTree(transformed_coords')
                 else
                     #push!(trees, MakeKDTree3D(registered_pnts, lat_thresh, z_thresh))
                     trees[round, spc_ind] = MakeKDTree3D(registered_pnts, lat_thresh, z_thresh)
@@ -656,9 +696,9 @@ function get_tform_dict(tforms :: DataFrame)
     return Dict([((rsrc=row.r_src, pcsrc=row.pc_src, rdst=row.r_dst, pcdst=row.pc_dst), row.tform) for row in eachrow(tforms)])
 end
 
-function get_tform(tforms :: Dict, searching_round, searching_pseudocolor, nbr_round, nbr_round_pseudocolor)
+function get_tform(tforms :: Dict, src_round, src_pseudocolor, dst_round, dst_pseudocolor)
     #return tforms[(tforms.r_src .== nbr_round) .&& (tforms.pc_src .== (nbr_round_pseudocolor .% q)) .&& (tforms.r_dst .== searching_round) .&& (tforms.pc_dst .== (searching_pseudocolor .% q)), "tform"][1]
-    return tforms[(rsrc=nbr_round, pcsrc = (nbr_round_pseudocolor .% q), rdst = searching_round, pcdst = (searching_pseudocolor .% q))]
+    return tforms[(rsrc=src_round, pcsrc = src_pseudocolor, rdst = dst_round, pcdst = dst_pseudocolor)]
 end
 
 abstract type DotAdjacencyGraphBlankRound <: abstractDotAdjacencyGraph end
@@ -1166,7 +1206,7 @@ threshold_cpaths(cpaths_df, pnts, lat_thresh, z_thresh)
 remove cpaths from the cpaths_df where the distance any pair of its dots exceeds lat_thresh on the imaging plane
 or z_thresh along the z axis
 """
-function threshold_cpaths(cpaths_df, pnts, lat_thresh, z_thresh)
+function threshold_cpaths(cpaths_df, pnts, lat_thresh, z_thresh, tforms :: Nothing)
     row = 1
     while row <= nrow(cpaths_df)
         xs = pnts.x[cpaths_df.cpath[row]]
@@ -1177,6 +1217,34 @@ function threshold_cpaths(cpaths_df, pnts, lat_thresh, z_thresh)
         for i = 1:(len_cp-1), j = (i+1):len_cp
             z_diff = abs(zs[i] - zs[j])
             lat_diff = sqrt((xs[i]-xs[j])^2 + (ys[i]-ys[j])^2)
+            if lat_diff > lat_thresh || z_diff > z_thresh
+                exceeds_threshold = true
+                break
+            end
+        end
+        if exceeds_threshold
+            deleteat!(cpaths_df, row)
+        else
+            row += 1
+        end
+    end
+    cpaths_df
+end
+
+function threshold_cpaths(cpaths_df, pnts, lat_thresh, z_thresh, tforms :: Dict)
+    row = 1
+    while row <= nrow(cpaths_df)
+        xs = pnts.x[cpaths_df.cpath[row]]
+        ys = pnts.y[cpaths_df.cpath[row]]
+        zs = pnts.z[cpaths_df.cpath[row]]
+        rounds = pnts.round[cpaths_df.cpath[row]]
+        pseudocolors = pnts.pseudocolor[cpaths_df.cpath[row]]
+        exceeds_threshold = false
+        len_cp = length(xs)
+        for i = 1:(len_cp-1), j = (i+1):len_cp
+            tform = get_tform(tforms, rounds[i], pseudocolors[i], rounds[j], pseudocolors[j])
+            z_diff = abs(zs[j] - zs[i] - tform[3,4])
+            lat_diff = sqrt((xs[j]-xs[i]-tform[1,4])^2 + (ys[j]-ys[i]-tform[2,4])^2)
             if lat_diff > lat_thresh || z_diff > z_thresh
                 exceeds_threshold = true
                 break
