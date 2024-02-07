@@ -166,6 +166,59 @@ println("full decode perfect")
     end
 end
 
+println("full decode perfect pairwise search radius")
+@testset "full decode perfect search pairwise radius" begin
+    for (i, cb) in enumerate(cbs[1:end-1]), ntargets in [1, 10, 30, 100, 200]
+        n = length(cb[1,:])
+        q = length(unique(cb))
+        #set_n(UInt8(n))
+        set_q(UInt8(q))
+        
+        H = pc_matrices[i]
+
+        lat_thresh = 0.1
+        z_thresh = 0.0
+        ndrops = 0
+        free_dot_energy = 1.0
+        mip_sa_thresh = 800000000000
+
+        
+
+        ndots = ntargets*sum(cb[1,:] .!= 0)
+        free_dot_cost = 1.0
+
+        c_final = 2
+        n_chains = 100
+        l_chain = 300
+        c₀ = free_dot_energy * 40
+        lat_var_factor = 8000.0
+        z_var_factor = 1.0
+        lw_var_factor = 0.0
+        s_var_factor = 0.0
+        erasure_penalty = 0.0
+        converge_thresh = 100 * ndots
+        skip_thresh = 20000000000000
+        skip_density_thresh = 20000000000009
+        params = DecodeParams()
+        set_lat_var_cost_coeff(params, lat_var_factor)
+        set_xy_search_radius(params, lat_thresh)
+        set_free_dot_cost(params, free_dot_cost)
+        set_z_var_cost_coeff(params, z_var_factor)
+        set_s_var_cost_coeff(params, s_var_factor)
+        set_lw_var_cost_coeff(params, lw_var_factor)
+        set_H(pc_matrices[i], params, cb)
+        set_zeros_probed(params, true)
+        set_skip_thresh(params, skip_thresh)
+        set_skip_density_thresh(params, skip_density_thresh)
+        set_H(pc_matrices[i], params, cb)
+        pnts, g = construct_test_dag(ntargets, 0, 0, 0, cb, ndrops)
+
+        pnts.z = zeros(nrow(pnts))
+        decode_syndromes!(pnts, cb, H, params)
+        @test pnts.species == [Int(p) for p in pnts.decoded]
+    end
+end
+
 """
 println("full decode drops")
 @testset "full decode drops" begin

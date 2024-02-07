@@ -1237,8 +1237,8 @@ function threshold_cpaths(cpaths_df, pnts, lat_thresh, z_thresh, tforms :: Dict)
         xs = pnts.x[cpaths_df.cpath[row]]
         ys = pnts.y[cpaths_df.cpath[row]]
         zs = pnts.z[cpaths_df.cpath[row]]
-        rounds = pnts.round[cpaths_df.cpath[row]]
-        pseudocolors = pnts.pseudocolor[cpaths_df.cpath[row]]
+        rounds = pnts.pos[cpaths_df.cpath[row]]
+        pseudocolors = pnts.coeff[cpaths_df.cpath[row]]
         exceeds_threshold = false
         len_cp = length(xs)
         for i = 1:(len_cp-1), j = (i+1):len_cp
