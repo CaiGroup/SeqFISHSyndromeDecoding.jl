@@ -105,15 +105,9 @@ function obj_function(cpath, pnts, cw_w, params, tforms :: Dict)
     zdists_sq = []
     for i in 1:(nrow(cpath_pnts) - 1), j in (i+1):nrow(cpath_pnts)
         tform = get_tform(tforms, cpath_pnts.pos[i], cpath_pnts.coeff[i], cpath_pnts.pos[j], cpath_pnts.coeff[j])
-        #tform = get_tform(tforms, cpath_pnts.round[i], cpath_pnts.coeff[i], cpath_pnts.round[j], cpath_pnts.coeff[j])
-        #dist = mean((Array(cpath_pnts[j, [:x, :y, :z]]) .- (tform[:,1:3] * Array(cpath_pnts[i, [:x, :y, :z]]) .+ tform[:,4])).^2)
-        lat_dist = Array(cpath_pnts[j, [:x, :y]]) .- Array(cpath_pnts[i, [:x, :y]])
-        z_dist = cpath_pnts.z[j] - cpath_pnts.z[i]
-        lat_dist[1] -= tform[1,4]
-        lat_dist[2] -= tform[2,4]
-        z_dist -= tform[3,4]
-        push!(lat_dists_sq, sum(lat_dist.^2))
-        push!(zdists_sq, z_dist)
+        dist = (Array(cpath_pnts[j, [:x, :y, :z]]) .- (tform[:,1:3] * Array(cpath_pnts[i, [:x, :y, :z]]) .+ tform[:,4])).^2
+        push!(lat_dists_sq, sum(dist[1:2]))
+        push!(zdists_sq, dist[3])
     end
 
     lat_var_cost = mean(lat_dists_sq) * lat_var_factor
@@ -616,47 +610,14 @@ function DotAdjacencyGraph(pnts :: DataFrame, lat_thresh :: Real, z_thresh :: Re
         else
             for searching_pseudocolor in 0:(q-1)
                 registered_pnts = copy(pnts[start_pnt:end_pnt, :])
-                transformed_coords = zeros(0,2)
                 for nbr_round in start_round:(round-1)
                     for nbr_round_pseudocolor in 0:(q-1)
-                        #tform = get_tform(tforms, round, searching_pseudocolor, nbr_round, nbr_round_pseudocolor) #tforms[] #[neighbor_round, round, :, :]
-                        
                         tform = get_tform(tforms, nbr_round, nbr_round_pseudocolor, round, searching_pseudocolor)
                         rows_of_interest = registered_pnts.pos .== nbr_round .&& registered_pnts.coeff .== nbr_round_pseudocolor
-                        if sum(rows_of_interest) > 0 #&& sum(registered_pnts.pos .== round .&& registered_pnts.coeff .== searching_pseudocolor) >0
-                            #println("nbr_round $nbr_round, nbr_round_pseudocolor $nbr_round_pseudocolor, round $round, searching_pseudocolor $searching_pseudocolor")
-                            #println(registered_pnts[rows_of_interest, :]) 
-                            #println("x ",tform[1, 4], ", y", tform[2, 4])
-                            registered_pnts[rows_of_interest, "x"] .+= tform[1, 4]
-                            registered_pnts[rows_of_interest, "y"] .+= tform[2, 4]
-                            #println(println(registered_pnts[rows_of_interest, :]))
-                            #println()
-                        end
-                        #nbr_rnd_pc_pnts = registered_pnts[rows_of_interest, :]
-                        #registered_pnts[rows_of_interest, [:x, :y, :z]] .= ((Array(nbr_rnd_pc_pnts[:, [:x, :y, :z]]) * tform[:, 1:3]) .+ Matrix(tform[:, 4]'))
-                        #registered_pnts[rows_of_interest, [:x, :y, :z]] .= ((Array(nbr_rnd_pc_pnts[:, [:x, :y, :z]])) .+ Matrix(tform[:, 4]'))
-                        #println("x before")
-                        #println(registered_pnts[rows_of_interest, "x"])
-                        ##println("x ",tform[1, 4], ", y", tform[2, 4])
-                        ##registered_pnts[rows_of_interest, "x"] .+= tform[1, 4]
-                        ##registered_pnts[rows_of_interest, "y"] .+= tform[2, 4]
-                        #registered_pnts[rows_of_interest, "x"] .= tform[1, 4] .+ registered_pnts[rows_of_interest, "x"]
-                        #registered_pnts[rows_of_interest, "y"] .= tform[2, 4] .+ registered_pnts[rows_of_interest, "y"]
-                        #transformed_coords = vcat(transformed_coords, hcat(tform[1, 4] .+ registered_pnts[rows_of_interest, "x"],  tform[2, 4] .+ registered_pnts[rows_of_interest, "y"]))
-                        #println(registered_pnts[rows_of_interest, "x"]
+                        nbr_rnd_pc_pnts = registered_pnts[rows_of_interest, :]
+                        registered_pnts[rows_of_interest, [:x, :y, :z]] .= ((Array(nbr_rnd_pc_pnts[:, [:x, :y, :z]]) * tform[:, 1:3]) .+ Matrix(tform[:, 4]'))
                     end
                 end
-                #println(size(transformed_coords))
-                #println(size(registered_pnts[:,[:x, :y]]))
-                #println("same? ", all(isapprox.(Array(pnts[start_pnt:end_pnt, [:x, :y]]) .- transformed_coords, 0, atol=1e-5)))
-                #registered_pnts[:,[:x, :y]] .= transformed_coords
-                if nrow(registered_pnts) > 3
-                    
-                    #println(pnts[start_pnt:(start_pnt+3), [:x, :y]])
-                    #println(registered_pnts[1:3,[:x,:y]])
-                end
-                #println("same? ", all(isapprox.(Array(pnts[start_pnt:end_pnt, [:x, :y]]) .- transformed_coords, 0, atol=1e-5)))
-                #println("same? ", all(isapprox.(Array(pnts[start_pnt:end_pnt, [:x, :y]]) .- Array(registered_pnts[:, [:x, :y]]), 0, atol=1e-5)))
                 spc_ind = searching_pseudocolor == 0 ? q : searching_pseudocolor
                 if data_2d
                     #push!(trees, KDTree(registered_pnts'))
