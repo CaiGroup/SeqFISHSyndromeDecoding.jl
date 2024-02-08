@@ -135,7 +135,6 @@ function find_barcodes_mem_eff(pnts ::DataFrame, g :: DotAdjacencyGraph, cw_dict
         # remove dot from list of unprocessed final round dots
         deleteat!(unprocessed_last_round_dots, dot_ind)        
 
-#= 
         #free space
         for round in 1:(g.n-1)
             #for inrange_dot in inrange(round_trees[round], [pnts.x[dot], pnts.y[dot]], g.lat_thresh)
@@ -152,7 +151,6 @@ function find_barcodes_mem_eff(pnts ::DataFrame, g :: DotAdjacencyGraph, cw_dict
                 end
             end
         end
-         =#
     end
     return [barcode_candidates, gene_nums]
 end

@@ -615,7 +615,7 @@ function DotAdjacencyGraph(pnts :: DataFrame, lat_thresh :: Real, z_thresh :: Re
                         tform = get_tform(tforms, nbr_round, nbr_round_pseudocolor, round, searching_pseudocolor)
                         rows_of_interest = registered_pnts.pos .== nbr_round .&& registered_pnts.coeff .== nbr_round_pseudocolor
                         nbr_rnd_pc_pnts = registered_pnts[rows_of_interest, :]
-                        registered_pnts[rows_of_interest, [:x, :y, :z]] .= ((Array(nbr_rnd_pc_pnts[:, [:x, :y, :z]]) * tform[:, 1:3]) .+ Matrix(tform[:, 4]'))
+                        registered_pnts[rows_of_interest, [:x, :y, :z]] .= (Array(tform[:, 1:3] * Array(nbr_rnd_pc_pnts[:, [:x, :y, :z]])') .+ tform[:, 4])'
                     end
                 end
                 spc_ind = searching_pseudocolor == 0 ? q : searching_pseudocolor
@@ -1198,14 +1198,16 @@ function threshold_cpaths(cpaths_df, pnts, lat_thresh, z_thresh, tforms :: Dict)
         xs = pnts.x[cpaths_df.cpath[row]]
         ys = pnts.y[cpaths_df.cpath[row]]
         zs = pnts.z[cpaths_df.cpath[row]]
+        coords = pnts[cpaths_df.cpath[row], [:x, :y, :z]]
         rounds = pnts.pos[cpaths_df.cpath[row]]
         pseudocolors = pnts.coeff[cpaths_df.cpath[row]]
         exceeds_threshold = false
         len_cp = length(xs)
         for i = 1:(len_cp-1), j = (i+1):len_cp
             tform = get_tform(tforms, rounds[i], pseudocolors[i], rounds[j], pseudocolors[j])
-            z_diff = abs(zs[j] - zs[i] - tform[3,4])
-            lat_diff = sqrt((xs[j]-xs[i]-tform[1,4])^2 + (ys[j]-ys[i]-tform[2,4])^2)
+            registered_coords =  tform[:, 1:3] * Array(coords[i, :]) + tform[:,4]
+            z_diff = abs(zs[j] - registered_coords[3])
+            lat_diff = sqrt((xs[j]-registered_coords[1])^2 + (ys[j]-registered_coords[2])^2)
             if lat_diff > lat_thresh || z_diff > z_thresh
                 exceeds_threshold = true
                 break
