@@ -353,7 +353,11 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb_df :: DataFrame, H :: Ma
 end
 
 function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: DecodeParams, cpath_df :: DataFrame, optimizer; tforms=nothing)
-
+    alphabet = sort(unique(cb))
+    q = UInt8(length(alphabet))
+    set_q(q)
+    set_H(H, params, cb)
+    sort_readouts!(pnts)
     n = length(cb[1,:])
     ndots = nrow(pnts)
     if params.zeros_probed
