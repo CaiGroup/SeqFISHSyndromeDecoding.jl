@@ -228,9 +228,9 @@ function get_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: D
     cb_dict = make_cw_dict(cb)
     alphabet = sort(unique(cb))
     q = UInt8(length(alphabet))
-    n = length(cb[1,:])
+    #n = length(cb[1,:])
     if params.zeros_probed
-        w = n
+        w = length(cb[1,:])
     else
         if typeof(cb[1,1]) <: AbstractString
             w = minimum(sum(cb .!= "0", dims=2))
@@ -291,7 +291,7 @@ function get_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: D
 
         cpath_df = DataFrame(cpath = code_paths, cost = costs, gene_number = gene_nums)
         sort!(cpath_df, :cost)
-        cpath_df = remove_high_cost_cpaths(cpath_df, params.free_dot_cost, n, params.ndrops)
+        cpath_df = remove_high_cost_cpaths(cpath_df, params.free_dot_cost, w, params.ndrops)
         cpath_df = threshold_cpaths(cpath_df, clust_pnts, params.lat_thresh, params.z_thresh, tforms_dict)
         cpath_df[!,"x"] = mean.([clust_pnts.x[cpath] for cpath in cpath_df.cpath])
         cpath_df[!,"y"] = mean.([clust_pnts.y[cpath] for cpath in cpath_df.cpath])
@@ -358,11 +358,11 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, 
     set_q(q)
     set_H(H, params, cb)
     sort_readouts!(pnts)
-    n = length(cb[1,:])
+    #n = length(cb[1,:])
     ndots = nrow(pnts)
     if params.zeros_probed
-        w = n
-        filter!(:cpath => cpath -> length(cpath) >= n - params.ndrops, cpath_df)
+        w = length(cb[1,:])
+        filter!(:cpath => cpath -> length(cpath) >= w - params.ndrops, cpath_df)
     else
         w = minimum(sum(cb .!= "0" .&& cb .!= 0, dims=2))
         filter!(:cpath => cpath -> length(cpath) >= w - params.ndrops, cpath_df)
@@ -381,7 +381,7 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, 
     add_code_cols!(pnts)
     cpath_df[!, "cost"] = cost.(cpath_df[!, "cpath"])
     sort!(cpath_df, :cost)
-    cpath_df = remove_high_cost_cpaths(cpath_df, params.free_dot_cost, n, params.ndrops)
+    cpath_df = remove_high_cost_cpaths(cpath_df, params.free_dot_cost, w, params.ndrops)
     cpath_df = threshold_cpaths(cpath_df, pnts, params.lat_thresh, params.z_thresh, tforms_dict)
 
     # build graph with by adding only edges in codepaths, and break into connected
