@@ -418,7 +418,7 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, 
 
             # get heuristic start point?
             if nrow(cc_cpath_df) < params.mip_sa_thresh
-                low_cost_state = MIP_solve(cc_cpath_df, cpath_nbrs, optimizer)
+                low_cost_state = MIP_solve(cc_cpath_df, cpath_nbrs, params.free_dot_cost, optimizer)
             else
                 low_cost_state = simulated_annealing(cc_cpath_df, cpath_nbrs, cpath_partial_conflicts, cpath_partial_conflict_transitions, params, ndots_cc)
             end

@@ -2,9 +2,10 @@ using JuMP
 using GLPK
 using Gurobi
 
-function MIP_solve(cpath_df :: DataFrame, cpath_nbr_cpath_indices :: Vector{Vector{Int}}, optimizer)
+function MIP_solve(cpath_df :: DataFrame, cpath_nbr_cpath_indices :: Vector{Vector{Int}}, free_dot_cost, optimizer)
 
-    costs = cpath_df.cost .- 20.0 #5.0 .* length.(cpath_df.cpath) #.- maximum(cpath_df.cost)
+    #costs = cpath_df.cost .- 20.0 #5.0 .* length.(cpath_df.cpath) #.- maximum(cpath_df.cost)
+    costs = cpath_df.cost .- free_dot_cost .* length.(cpath_df.cpath)
     n = length(costs)
 
     model = Model(optimizer)
