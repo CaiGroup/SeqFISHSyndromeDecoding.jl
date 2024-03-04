@@ -272,7 +272,7 @@ end
 
 println("full decode 2 drop RS")
 @testset "full decode 2 drop RS" begin
-    for (i, cb) in enumerate(cbs), ntargets in [1]#, 2, 10, 100]
+    for (i, cb) in enumerate(cbs), ntargets in [1, 2, 10, 100]
         H = pc_matrices[i]
         if size(H)[1] > 3
             ndrops = 2
