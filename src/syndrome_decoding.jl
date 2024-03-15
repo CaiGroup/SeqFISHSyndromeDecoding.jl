@@ -813,7 +813,7 @@ Define SimpleDiGraph neighbors function for DotAdjacencyGraph
 """
 
 function neighbors(g :: DotAdjacencyGraph3D, n)
-    nbrs = inrange(g.trees[g.pnts.pos[n]], [g.pnts.x[n], g.pnts.y[n], g.pnts.z[n]], g.lat_thresh, true)
+    nbrs = inrange(g.trees[g.pnts.pos[n]], [g.pnts.x[n], g.pnts.y[n], g.pnts.z[n]*g.lat_thresh/g.z_thresh], g.lat_thresh, true)
     pnts_prior_rnds = g.cw_pos_bnds[maximum([g.pnts.pos[n]-1-g.ndrops, 1])] - 1
     return nbrs .+ pnts_prior_rnds
 end
@@ -821,7 +821,7 @@ end
 function neighbors(g :: DotAdjacencyGraphPairwise3D, dot)
     round = g.pnts.round[dot]
     pseudocolor = g.pnts.pseudocolor[dot]
-    nbrs = inrange(g.trees[round, pseudocolor], [g.pnts.x[dot], g.pnts.y[dot], g.pnts.z[dot]], g.lat_thresh, true)
+    nbrs = inrange(g.trees[round, pseudocolor], [g.pnts.x[dot], g.pnts.y[dot], g.pnts.z[dot]*g.lat_thresh/g.z_thresh], g.lat_thresh, true)
     #nbrs = inrange(g.trees[g.pnts.pos[n]], [g.pnts.x[n], g.pnts.y[n]], g.lat_thresh, true)
     pnts_prior_rnds = g.cw_pos_bnds[maximum([round-1-g.ndrops, 1])] - 1
     return nbrs .+ pnts_prior_rnds

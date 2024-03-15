@@ -76,7 +76,7 @@ function find_blank_round_codewords(pnts ::DataFrame, g :: DotAdjacencyGraphBlan
         deleteat!(potential_barcode_final_dots, dot_ind)
 
         # delete pointers to allocated variables that are no longer needed
-        free_space!(pnts, g, unprocessed_inrange_pot_term_dots, round_trees, syndromes, syndrome_block_sizes, dot, tforms)
+        #free_space!(pnts, g, unprocessed_inrange_pot_term_dots, round_trees, syndromes, syndrome_block_sizes, dot, tforms)
     end
     return barcode_candidates, gene_nums
 end
