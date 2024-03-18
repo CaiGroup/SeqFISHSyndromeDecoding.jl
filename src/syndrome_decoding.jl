@@ -165,10 +165,12 @@ function check_inputs(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: De
 end
 
 function sort_readouts!(pnts :: DataFrame)
-    if "hyb" in names(pnts)
-        sort!(pnts, :hyb)
-    elseif "round" in names(pnts) && "pseudocolor" in names(pnts)
+    if "round" in names(pnts) && "pseudocolor" in names(pnts)
         sort!(pnts, [:round, :pseudocolor])
+    elseif "hyb" in names(pnts)
+        sort!(pnts, :hyb)
+    else
+        error("no way to sort points")
     end
 end
 
