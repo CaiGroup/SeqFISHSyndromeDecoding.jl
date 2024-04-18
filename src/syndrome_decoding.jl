@@ -47,7 +47,7 @@ and decoding result indicated as the row of the codebook matrix matched to.
 Split up points into weakly connected components, then finds possible codeword messages
 and runs simulated annealing to assign them. The pnts dataframe should have hybridization, x, y, and z columns
 """
-function decode_syndromes!(pnts :: DataFrame, cb, H :: Matrix, params :: DecodeParams; optimizer = GLPK.Optimizer, tforms = nothing, obj_fun = obj_function)
+function decode_syndromes!(pnts :: DataFrame, cb, H :: Matrix, params :: DecodeParams; optimizer = GLPK.Optimizer, tforms = nothing, obj_func = obj_function)
     #println("start syndrome decoding")
     if tforms == nothing # pnts preregistered
         cpath_df = get_codepaths(pnts, cb, H, params)
@@ -60,7 +60,7 @@ function decode_syndromes!(pnts :: DataFrame, cb, H :: Matrix, params :: DecodeP
         return
     end
 
-    return choose_optimal_codepaths(pnts, cb, H, params, cpath_df, optimizer, tforms=tforms, obj_fun=obj_function)
+    return choose_optimal_codepaths(pnts, cb, H, params, cpath_df, optimizer, tforms=tforms, obj_func=obj_function)
 end
 
 """
@@ -354,7 +354,7 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb_df :: DataFrame, H :: Ma
     end
 end
 
-function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: DecodeParams, cpath_df :: DataFrame, optimizer; tforms=nothing, obj_fun=obj_function)
+function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: DecodeParams, cpath_df :: DataFrame, optimizer; tforms=nothing, obj_func=obj_function)
     alphabet = sort(unique(cb))
     q = UInt8(length(alphabet))
     set_q(q)
@@ -376,11 +376,7 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, 
         tforms_dict = nothing
     end
 
-    try
-        cost(cpath) = obj_fun(cpath, pnts, w, params, tforms_dict)
-    catch
-        cost(cpath) = obj_fun(cpath, pnts, w, params)
-    end
+    cost(cpath) = obj_func(cpath, pnts, w, params, tforms_dict)
 
     pnts[!,"decoded"] = fill(0, nrow(pnts))
     pnts[!, "mpath"] = [[] for i = 1:length(pnts.x)]
