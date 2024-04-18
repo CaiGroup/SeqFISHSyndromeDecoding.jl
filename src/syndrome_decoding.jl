@@ -47,7 +47,7 @@ and decoding result indicated as the row of the codebook matrix matched to.
 Split up points into weakly connected components, then finds possible codeword messages
 and runs simulated annealing to assign them. The pnts dataframe should have hybridization, x, y, and z columns
 """
-function decode_syndromes!(pnts :: DataFrame, cb, H :: Matrix, params :: DecodeParams; optimizer = GLPK.Optimizer, tforms = nothing)
+function decode_syndromes!(pnts :: DataFrame, cb, H :: Matrix, params :: DecodeParams; optimizer = GLPK.Optimizer, tforms = nothing, obj_fun = obj_function)
     #println("start syndrome decoding")
     if tforms == nothing # pnts preregistered
         cpath_df = get_codepaths(pnts, cb, H, params)
@@ -60,7 +60,7 @@ function decode_syndromes!(pnts :: DataFrame, cb, H :: Matrix, params :: DecodeP
         return
     end
 
-    return choose_optimal_codepaths(pnts, cb, H, params, cpath_df, optimizer, tforms=tforms)
+    return choose_optimal_codepaths(pnts, cb, H, params, cpath_df, optimizer, tforms=tforms, obj_fun=obj_function)
 end
 
 """
@@ -336,7 +336,7 @@ Choose best codepaths from previouly found candidates that may have been found w
 to the passed parameters.
 
 """
-function choose_optimal_codepaths(pnts :: DataFrame, cb_df :: DataFrame, H :: Matrix, params :: DecodeParams, cpath_df :: DataFrame, optimizer; ret_discarded :: Bool=false, tforms=nothing)
+function choose_optimal_codepaths(pnts :: DataFrame, cb_df :: DataFrame, H :: Matrix, params :: DecodeParams, cpath_df :: DataFrame, optimizer; ret_discarded :: Bool=false, tforms=nothing, obj_func=obj_function)
     if any(typeof(cb_df[2:end, 2:end]) .<: AbstractString) #typeof(cb_df[2, 2]) <: AbstractString
         cb = Matrix(string.(cb_df[!, 2:end]))
     else
@@ -354,7 +354,7 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb_df :: DataFrame, H :: Ma
     end
 end
 
-function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: DecodeParams, cpath_df :: DataFrame, optimizer; tforms=nothing)
+function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: DecodeParams, cpath_df :: DataFrame, optimizer; tforms=nothing, obj_fun=obj_function)
     alphabet = sort(unique(cb))
     q = UInt8(length(alphabet))
     set_q(q)
@@ -376,7 +376,11 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, 
         tforms_dict = nothing
     end
 
-    cost(cpath) = obj_function(cpath, pnts, w, params, tforms_dict)
+    try
+        cost(cpath) = obj_fun(cpath, pnts, w, params, tforms_dict)
+    catch
+        cost(cpath) = obj_fun(cpath, pnts, w, params)
+    end
 
     pnts[!,"decoded"] = fill(0, nrow(pnts))
     pnts[!, "mpath"] = [[] for i = 1:length(pnts.x)]
@@ -448,7 +452,7 @@ end
 
 Generate KDTree to aid in building adjacency graphs.
 """
-make_KDTree2D(pnts :: DataFrame) = KDTree(Array([pnts.x pnts.y]'))
+make_KDTree2D(pnts :: DataFrame) = KDTree(Float64[pnts.x pnts.y]')
 
 function make_KDTree2D(pnts :: Matrix)
     unregistered_pnts = Array([pnts.x pnts.y])
@@ -463,13 +467,13 @@ Generate KDTree to aid in building adjacency graphs.
 """
 function make_KDTree3D(pnts :: DataFrame, lat_thresh, z_thresh)
     z_scaled = pnts.z .* lat_thresh ./ z_thresh
-    return KDTree(Array([pnts.x pnts.y z_scaled]'))
+    return KDTree(Array(Float64[pnts.x pnts.y z_scaled]'))
 end
 
 function make_KDTree3D(pnts :: Matrix, lat_thresh, z_thresh)
     z_scaled = pnts[:,3] .* lat_thresh ./ z_thresh
     pnts[:,3] .= z_scaled
-    return KDTree(Array(pnts'))
+    return KDTree(Float64.(Array(pnts')))
 end
 
 """
