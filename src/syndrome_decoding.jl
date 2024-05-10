@@ -205,7 +205,17 @@ function get_codepaths(pnts :: DataFrame, cb_df :: DataFrame, H :: Matrix, param
     else
         cb = Matrix(UInt8.(cb_df[!, 2:end]))
     end
-    get_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: DecodeParams, tforms)
+    cpaths = get_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: DecodeParams, tforms)
+    if typeof(cpaths) == DataFrame
+        gene = cb_df[!, 1]
+        gene_number = Array(1:length(gene))
+        gene_df = DataFrame("gene_name" => gene, "gene_number" => gene_number)
+        println(first(cpaths, 5))
+        decoded_joined = rightjoin(gene_df, cpaths, on=:gene_number)
+        return decoded_joined
+    else
+        return cpaths
+    end
 end
 
 """
@@ -342,15 +352,17 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb_df :: DataFrame, H :: Ma
     else
         cb = Matrix(UInt8.(cb_df[!, 2:end]))
     end
-    gene = cb_df[!, 1]
-    gene_number = Array(1:length(gene))
+    #gene = cb_df[!, 1]
+    #gene_number = Array(1:length(gene))
     decoded, discarded_cpaths = choose_optimal_codepaths(pnts, cb, H, params, cpath_df, optimizer, tforms=tforms)
-    gene_df = DataFrame("gene_name" => gene, "gene_number" => gene_number)
-    decoded_joined = rightjoin(gene_df, decoded, on=:gene_number)
+    #gene_df = DataFrame("gene_name" => gene, "gene_number" => gene_number)
+    #decoded_joined = rightjoin(gene_df, decoded, on=:gene_number)
     if ret_discarded
-        return decoded_joined, discarded_cpaths
+        #return decoded_joined, discarded_cpaths
+        return decoded, discarded_cpaths
     else
-        return decoded_joined
+        #return decoded_joined
+        return decoded
     end
 end
 

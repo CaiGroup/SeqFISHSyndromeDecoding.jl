@@ -28,7 +28,7 @@ using GLPK
     barcodes = decode_syndromes!(pnts, cb, H, params) #, GLPK.Optimizer)
 
     saved_results = DataFrame(CSV.File("../example_data/example_results.csv"))
-
+    sort!(barcodes, :gene_number)
     @test saved_results[:,[:gene_name, :gene_number, :cc, :cc_size]] == barcodes[:,[:gene_name, :gene_number, :cc, :cc_size]]
 
 end
