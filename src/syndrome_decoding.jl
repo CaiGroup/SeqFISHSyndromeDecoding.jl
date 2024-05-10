@@ -275,7 +275,7 @@ function get_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: D
 
     #break into clusters
     if nrow(pnts) > 3
-        pnts_mat = Array([pnts.x pnts.y pnts.z]')
+        pnts_mat = Float64.(Array([pnts.x pnts.y pnts.z]'))
         dbr = dbscan(pnts_mat, params.lat_thresh, min_neighbors=1, min_cluster_size=w-params.ndrops)
         if typeof(dbr) <: AbstractArray
             dbscan_clusters = [sort(vcat(dbc.core_indices,  dbc.boundary_indices)) for dbc in dbr]
