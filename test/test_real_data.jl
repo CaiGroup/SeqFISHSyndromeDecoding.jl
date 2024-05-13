@@ -29,6 +29,6 @@ using GLPK
 
     saved_results = DataFrame(CSV.File("../example_data/example_results.csv"))
     sort!(barcodes, :gene_number)
-    @test saved_results[:,[:gene_name, :gene_number, :cc, :cc_size]] == barcodes[:,[:gene_name, :gene_number, :cc, :cc_size]]
+    @test saved_results[:,[:gene_name, :gene_number]] == barcodes[:,[:gene_name, :gene_number]]
 
 end

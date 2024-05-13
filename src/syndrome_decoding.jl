@@ -327,20 +327,20 @@ function get_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: D
     min_y = minimum(pnts.y)
 
     tile_width = maximum([0.5, params.lat_thresh])
-    println("tile_width $tile_width")
+    #println("tile_width $tile_width")
 
     sort!(pnts, :x)
     tile_cpaths = []
     processed_tile_dots = []
-    println(min_x, " ", max_x, " ", min_y, " ", max_y)
+    #println(min_x, " ", max_x, " ", min_y, " ", max_y)
     if max_x -tile_width < min_x
         rngx = [min_x - eps()]
     else
         rngx = (min_x-eps()):tile_width:(max_x + eps())
     end
-    println("rngx $rngx")
+    #println("rngx $rngx")
     for xstart in rngx
-        println("xstart $xstart")
+        #println("xstart $xstart")
         ifirstx = findfirst(x -> x >= xstart, pnts.x)
         ilastx = findlast(x -> x <= xstart+2*tile_width, pnts.x)
         pnts_xstrip = pnts[ifirstx:ilastx,:]
@@ -350,21 +350,21 @@ function get_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: D
         else
             rngy = (min_y-eps()):tile_width:(max_y + eps())
         end
-        println("rngy $rngy")
+        #println("rngy $rngy")
         for ystart in rngy #(min_y-eps()):tile_width:(max_y + eps())
-            println("ystart $ystart")
+            #println("ystart $ystart")
             ifirsty = findfirst(x -> x >= ystart, pnts_xstrip.y)
             ilasty = findlast(x -> x <= ystart+2*tile_width, pnts_xstrip.y)
-            println("ifirsty $ifirsty, ilasty $ilasty")
+            #println("ifirsty $ifirsty, ilasty $ilasty")
             if ~isnothing(ifirsty) & ~isnothing(ilasty)
-                println("check diff: ", (ilasty - (ifirsty -1) > 3 - params.ndrops))
-                println("lhs: ", ilasty - (ifirsty -1))
-                println("rhs: ", 3 - params.ndrops)
+                #println("check diff: ", (ilasty - (ifirsty -1) > 3 - params.ndrops))
+                #println("lhs: ", ilasty - (ifirsty -1))
+                #println("rhs: ", 3 - params.ndrops)
                 if (ilasty - (ifirsty -1) > 3 - params.ndrops)
-                    println("xstart $xstart, ystart $ystart")
+                    #println("xstart $xstart, ystart $ystart")
                     tile_pnts = pnts_xstrip[ifirsty:ilasty, :] #filter(dot -> dot_in_tile(dot, xstart, ystart), candidate_dot_coords)
-                    println("tile dots: ", nrow(tile_pnts))
-                    println(tile_pnts)
+                    #println("tile dots: ", nrow(tile_pnts))
+                    #println(tile_pnts)
                     #codepaths = find_tile_cpaths(tile_dots)
                     sort_readouts!(tile_pnts)
                     add_code_cols!(tile_pnts)
@@ -431,11 +431,11 @@ function get_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: D
     
     
     cpath_df_tiled = unique(vcat(tile_cpaths...))
-    println("tiled")
-    println(cpath_df_tiled)
-    untiled = find_tile_cpaths(pnts)
-    println("untiled ")
-    println(untiled)
+    #println("tiled")
+    #println(cpath_df_tiled)
+    #untiled = find_tile_cpaths(pnts)
+    #println("untiled ")
+    #println(untiled)
     #println("pnts")
     #println(pnts)
 
@@ -532,19 +532,19 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, 
 
     cost(cpath) = obj_func(cpath, pnts, w, params, tforms_dict)
 
-    pnts[!,"decoded"] = fill(0, nrow(pnts))
-    pnts[!, "mpath"] = [[] for i = 1:length(pnts.x)]
-    println("pnts")
-    println(pnts)
+    #pnts[!,"decoded"] = fill(0, nrow(pnts))
+    #pnts[!, "mpath"] = [[] for i = 1:length(pnts.x)]
+    #println("pnts")
+    #println(pnts)
     add_code_cols!(pnts)
     cpath_df[!, "cost"] = cost.(cpath_df[!, "cpath"])
     sort!(cpath_df, :cost)
-    println("cpaths pre thresh")
-    println(cpath_df)
+    #println("cpaths pre thresh")
+    #println(cpath_df)
     cpath_df = remove_high_cost_cpaths(cpath_df, params.free_dot_cost, w, params.ndrops)
     cpath_df = threshold_cpaths(cpath_df, pnts, params.lat_thresh, params.z_thresh, tforms_dict)
-    println("cpaths post thresh")
-    println(cpath_df)
+    #println("cpaths post thresh")
+    #println(cpath_df)
     # build graph with by adding only edges in codepaths, and break into connected
     # components
     ccs = get_connected_components(cpath_df.cpath, nrow(pnts))
