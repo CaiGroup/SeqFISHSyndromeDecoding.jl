@@ -327,36 +327,71 @@ function get_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: D
     min_y = minimum(pnts.y)
 
     tile_width = maximum([0.5, params.lat_thresh])
-    #println("tile_width $tile_width")
+    println("tile_width $tile_width")
 
     sort!(pnts, :x)
     tile_cpaths = []
     processed_tile_dots = []
-    #println(min_x, " ", max_x, " ", min_y, " ", max_y)
-    for xstart in (min_x-eps()):tile_width:(max_x + eps())
-        #println("xstart $xstart")
+    println(min_x, " ", max_x, " ", min_y, " ", max_y)
+    if max_x -tile_width < min_x
+        rngx = [min_x - eps()]
+    else
+        rngx = (min_x-eps()):tile_width:(max_x + eps())
+    end
+    println("rngx $rngx")
+    for xstart in rngx
+        println("xstart $xstart")
         ifirstx = findfirst(x -> x >= xstart, pnts.x)
         ilastx = findlast(x -> x <= xstart+2*tile_width, pnts.x)
         pnts_xstrip = pnts[ifirstx:ilastx,:]
         sort!(pnts_xstrip, :y)
-        for ystart in (min_y-eps()):tile_width:(max_y + eps())
-            #println("ystart $ystart")
+        if max_y -tile_width < min_y
+            rngy = [min_y - eps()]
+        else
+            rngy = (min_y-eps()):tile_width:(max_y + eps())
+        end
+        println("rngy $rngy")
+        for ystart in rngy #(min_y-eps()):tile_width:(max_y + eps())
+            println("ystart $ystart")
             ifirsty = findfirst(x -> x >= ystart, pnts_xstrip.y)
             ilasty = findlast(x -> x <= ystart+2*tile_width, pnts_xstrip.y)
+            println("ifirsty $ifirsty, ilasty $ilasty")
             if ~isnothing(ifirsty) & ~isnothing(ilasty)
-                if (ilasty - ifirsty > 3)
-                    #println("xstart $xstart, ystart $ystart")
-                    tile_dots = pnts_xstrip[ifirsty:ilasty, :] #filter(dot -> dot_in_tile(dot, xstart, ystart), candidate_dot_coords)
-                    #println("tile dots: ", nrow(tile_dots))
-                    #println(tile_dots)
-                    codepaths = find_tile_cpaths(tile_dots)
-                    if typeof(codepaths) == DataFrame
+                println("check diff: ", (ilasty - (ifirsty -1) > 3 - params.ndrops))
+                println("lhs: ", ilasty - (ifirsty -1))
+                println("rhs: ", 3 - params.ndrops)
+                if (ilasty - (ifirsty -1) > 3 - params.ndrops)
+                    println("xstart $xstart, ystart $ystart")
+                    tile_pnts = pnts_xstrip[ifirsty:ilasty, :] #filter(dot -> dot_in_tile(dot, xstart, ystart), candidate_dot_coords)
+                    println("tile dots: ", nrow(tile_pnts))
+                    println(tile_pnts)
+                    #codepaths = find_tile_cpaths(tile_dots)
+                    sort_readouts!(tile_pnts)
+                    add_code_cols!(tile_pnts)
+                    g = DotAdjacencyGraph(tile_pnts, params, n, w, tforms_dict)
+                    #g = DotAdjacencyGraph(clust_pnts, params.lat_thresh, params.z_thresh, n, params.ndrops)
+
+                    cost(cpath) = obj_function(cpath, tile_pnts, w, params, tforms_dict)
+
+                    code_paths, gene_nums = syndrome_find_barcodes!(tile_pnts, g, cb, params.ndrops, w, tforms_dict)
+                    costs = cost.(code_paths)
+
+                    cpath_df = DataFrame(cpath = code_paths, cost = costs, gene_number = gene_nums)
+                    sort!(cpath_df, :cost)
+                    cpath_df = remove_high_cost_cpaths(cpath_df, params.free_dot_cost, w, params.ndrops)
+                    cpath_df = threshold_cpaths(cpath_df, tile_pnts, params.lat_thresh, params.z_thresh, tforms_dict)
+                    cpath_df[!,"x"] = mean.([tile_pnts.x[cpath] for cpath in cpath_df.cpath])
+                    cpath_df[!,"y"] = mean.([tile_pnts.y[cpath] for cpath in cpath_df.cpath])
+                    cpath_df[!,"z"] = mean.([tile_pnts.z[cpath] for cpath in cpath_df.cpath])
+                    #println(cpath_df)
+                    replace!.(i->tile_pnts[i, "dotID"], cpath_df.cpath)
+                    if typeof(cpath_df) == DataFrame
                         #println("n codepaths: ", nrow(codepaths))
                         #println(codepaths)
                         #codepaths[!,"cpath"] = map(c -> tile_dots[c,"dotID"], codepaths[!,"cpath"])
                         #println(codepaths)
-                        push!(tile_cpaths, codepaths)
-                        push!(processed_tile_dots, tile_dots)
+                        push!(tile_cpaths, cpath_df)
+                        push!(processed_tile_dots, tile_pnts)
                     end
                 end
             end
@@ -395,9 +430,9 @@ function get_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: D
     """
     
     
-    cpath_df = unique(vcat(tile_cpaths...))
+    cpath_df_tiled = unique(vcat(tile_cpaths...))
     println("tiled")
-    println(cpath_df)
+    println(cpath_df_tiled)
     untiled = find_tile_cpaths(pnts)
     println("untiled ")
     println(untiled)
@@ -418,7 +453,7 @@ function get_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: D
     println("pnts")
     println(pnts)
     """
-    return cpath_df
+    return cpath_df_tiled
 end
 
 
