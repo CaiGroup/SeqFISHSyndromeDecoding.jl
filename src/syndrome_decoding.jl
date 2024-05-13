@@ -166,9 +166,9 @@ end
 
 function sort_readouts!(pnts :: DataFrame)
     if "round" in names(pnts) && "pseudocolor" in names(pnts)
-        sort!(pnts, [:round, :pseudocolor])
+        sort!(pnts, [:round, :pseudocolor, :x, :y, :z])
     elseif "hyb" in names(pnts)
-        sort!(pnts, :hyb)
+        sort!(pnts, [:hyb, :x, :y, :z])
     else
         error("no way to sort points")
     end
@@ -273,6 +273,9 @@ function get_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: D
         get_decode_table()
     end
 
+    pnts[!, "dotID"] .= 1:nrow(pnts)
+
+    """
     #break into clusters
     if nrow(pnts) > 3
         pnts_mat = Float64.(Array([pnts.x pnts.y pnts.z]'))
@@ -288,31 +291,133 @@ function get_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: D
         dbscan_clusters = []
     end
 
-    find_cluster_cpaths = function(dbscan_cluster)
-        clust_pnts = pnts[dbscan_cluster, :]
+    
+    
+    """
+
+    function find_tile_cpaths(tile_pnts)
         #println("cluster size: ", nrow(clust_pnts))
-        sort_readouts!(clust_pnts)
-        add_code_cols!(clust_pnts)
-        g = DotAdjacencyGraph(clust_pnts, params, n, w, tforms_dict)
+        sort_readouts!(tile_pnts)
+        add_code_cols!(tile_pnts)
+        g = DotAdjacencyGraph(tile_pnts, params, n, w, tforms_dict)
         #g = DotAdjacencyGraph(clust_pnts, params.lat_thresh, params.z_thresh, n, params.ndrops)
 
-        cost(cpath) = obj_function(cpath, clust_pnts, w, params, tforms_dict)
+        cost(cpath) = obj_function(cpath, tile_pnts, w, params, tforms_dict)
 
-        code_paths, gene_nums = syndrome_find_barcodes!(clust_pnts, g, cb, params.ndrops, w, tforms_dict)
+        code_paths, gene_nums = syndrome_find_barcodes!(tile_pnts, g, cb, params.ndrops, w, tforms_dict)
         costs = cost.(code_paths)
 
         cpath_df = DataFrame(cpath = code_paths, cost = costs, gene_number = gene_nums)
         sort!(cpath_df, :cost)
         cpath_df = remove_high_cost_cpaths(cpath_df, params.free_dot_cost, w, params.ndrops)
-        cpath_df = threshold_cpaths(cpath_df, clust_pnts, params.lat_thresh, params.z_thresh, tforms_dict)
-        cpath_df[!,"x"] = mean.([clust_pnts.x[cpath] for cpath in cpath_df.cpath])
-        cpath_df[!,"y"] = mean.([clust_pnts.y[cpath] for cpath in cpath_df.cpath])
-        cpath_df[!,"z"] = mean.([clust_pnts.z[cpath] for cpath in cpath_df.cpath])
-        replace!.(i->dbscan_cluster[i], cpath_df.cpath)
+        cpath_df = threshold_cpaths(cpath_df, tile_pnts, params.lat_thresh, params.z_thresh, tforms_dict)
+        cpath_df[!,"x"] = mean.([tile_pnts.x[cpath] for cpath in cpath_df.cpath])
+        cpath_df[!,"y"] = mean.([tile_pnts.y[cpath] for cpath in cpath_df.cpath])
+        cpath_df[!,"z"] = mean.([tile_pnts.z[cpath] for cpath in cpath_df.cpath])
+        #println(cpath_df)
+        replace!.(i->tile_pnts[i, "dotID"], cpath_df.cpath)
 
         return cpath_df
     end
-    cpath_df = vcat(map(find_cluster_cpaths, dbscan_clusters)...)
+
+    max_x = maximum(pnts.x)
+    max_y = maximum(pnts.y)
+
+    min_x = minimum(pnts.x)
+    min_y = minimum(pnts.y)
+
+    tile_width = maximum([0.5, params.lat_thresh])
+    #println("tile_width $tile_width")
+
+    sort!(pnts, :x)
+    tile_cpaths = []
+    processed_tile_dots = []
+    #println(min_x, " ", max_x, " ", min_y, " ", max_y)
+    for xstart in (min_x-eps()):tile_width:(max_x + eps())
+        #println("xstart $xstart")
+        ifirstx = findfirst(x -> x >= xstart, pnts.x)
+        ilastx = findlast(x -> x <= xstart+2*tile_width, pnts.x)
+        pnts_xstrip = pnts[ifirstx:ilastx,:]
+        sort!(pnts_xstrip, :y)
+        for ystart in (min_y-eps()):tile_width:(max_y + eps())
+            #println("ystart $ystart")
+            ifirsty = findfirst(x -> x >= ystart, pnts_xstrip.y)
+            ilasty = findlast(x -> x <= ystart+2*tile_width, pnts_xstrip.y)
+            if ~isnothing(ifirsty) & ~isnothing(ilasty)
+                if (ilasty - ifirsty > 3)
+                    #println("xstart $xstart, ystart $ystart")
+                    tile_dots = pnts_xstrip[ifirsty:ilasty, :] #filter(dot -> dot_in_tile(dot, xstart, ystart), candidate_dot_coords)
+                    #println("tile dots: ", nrow(tile_dots))
+                    #println(tile_dots)
+                    codepaths = find_tile_cpaths(tile_dots)
+                    if typeof(codepaths) == DataFrame
+                        #println("n codepaths: ", nrow(codepaths))
+                        #println(codepaths)
+                        #codepaths[!,"cpath"] = map(c -> tile_dots[c,"dotID"], codepaths[!,"cpath"])
+                        #println(codepaths)
+                        push!(tile_cpaths, codepaths)
+                        push!(processed_tile_dots, tile_dots)
+                    end
+                end
+            end
+        end
+    end
+
+    """    
+    dts = vcat(processed_tile_dots...)
+    if typeof(dts) == Vector{DataFrameRow}
+        println("tyepof(dts) == Vector{DataFrameRow} ")
+        dts = DataFrame.(dts)
+        println("now ", typeof(dts))
+    end
+    if typeof(dts) == DataFrame
+        dts_grp = DataFrame.(collect(groupby(dts, :dotID)))
+        function filter_dts(dt)
+            println("dt")
+            println(dt)
+            g = maximum(dt.decoded)
+            if g != 0
+                return dt[dt.decoded .== g, :]
+            else
+                return dt[1,:]
+            end
+        end
+        dts_g = vcat(map(filter_dts, dts_grp)...)
+        if typeof(dts_g) == DataFrame
+            sort!(dts_g, :dotID)
+        else
+            println("typeof(dts_g): ", typeof(dts_g))
+            println(dts)
+            println(dts_g)
+        end
+        pnts[!, :decoded] = dts_g.decoded
+    end
+    """
+    
+    
+    cpath_df = unique(vcat(tile_cpaths...))
+    println("tiled")
+    println(cpath_df)
+    untiled = find_tile_cpaths(pnts)
+    println("untiled ")
+    println(untiled)
+    #println("pnts")
+    #println(pnts)
+
+    """
+    pnts[!,:decoded] = zeros(Int64, nrow(pnts))
+    #println(pnts)
+    for i in 1:nrow(cpath_df)
+        #println(cpath_df[i, :])
+        for dt in cpath_df.cpath[i]
+            #println("cpath_df[i, :gene_number]: ", cpath_df[i, :gene_number])
+            pnts[dt,:decoded] = cpath_df[i, :gene_number]
+            #println(pnts[dt, :])
+        end
+    end
+    println("pnts")
+    println(pnts)
+    """
     return cpath_df
 end
 
@@ -355,6 +460,8 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb_df :: DataFrame, H :: Ma
     #gene = cb_df[!, 1]
     #gene_number = Array(1:length(gene))
     decoded, discarded_cpaths = choose_optimal_codepaths(pnts, cb, H, params, cpath_df, optimizer, tforms=tforms)
+    println("decoded")
+    println(decoded)
     #gene_df = DataFrame("gene_name" => gene, "gene_number" => gene_number)
     #decoded_joined = rightjoin(gene_df, decoded, on=:gene_number)
     if ret_discarded
@@ -392,12 +499,17 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, 
 
     pnts[!,"decoded"] = fill(0, nrow(pnts))
     pnts[!, "mpath"] = [[] for i = 1:length(pnts.x)]
+    println("pnts")
+    println(pnts)
     add_code_cols!(pnts)
     cpath_df[!, "cost"] = cost.(cpath_df[!, "cpath"])
     sort!(cpath_df, :cost)
+    println("cpaths pre thresh")
+    println(cpath_df)
     cpath_df = remove_high_cost_cpaths(cpath_df, params.free_dot_cost, w, params.ndrops)
     cpath_df = threshold_cpaths(cpath_df, pnts, params.lat_thresh, params.z_thresh, tforms_dict)
-
+    println("cpaths post thresh")
+    println(cpath_df)
     # build graph with by adding only edges in codepaths, and break into connected
     # components
     ccs = get_connected_components(cpath_df.cpath, nrow(pnts))
@@ -449,7 +561,6 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, 
             end
         end
     end
-    #println("found $nmpaths mpaths")
     return mpaths, dense_cpaths
 end
 
