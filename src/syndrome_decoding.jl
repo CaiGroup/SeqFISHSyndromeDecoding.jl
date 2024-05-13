@@ -293,7 +293,7 @@ function get_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: D
 
     
     
-    """
+    
 
     function find_tile_cpaths(tile_pnts)
         #println("cluster size: ", nrow(clust_pnts))
@@ -319,6 +319,7 @@ function get_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: D
 
         return cpath_df
     end
+    """
 
     max_x = maximum(pnts.x)
     max_y = maximum(pnts.y)
@@ -350,21 +351,13 @@ function get_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: D
         else
             rngy = (min_y-eps()):tile_width/2:(max_y + eps())
         end
-        #println("rngy $rngy")
         for ystart in rngy #(min_y-eps()):tile_width:(max_y + eps())
-            #println("ystart $ystart")
             ifirsty = findfirst(x -> x >= ystart, pnts_xstrip.y)
             ilasty = findlast(x -> x <= ystart+1.5*tile_width, pnts_xstrip.y)
-            #println("ifirsty $ifirsty, ilasty $ilasty")
             if ~isnothing(ifirsty) & ~isnothing(ilasty)
-                #println("check diff: ", (ilasty - (ifirsty -1) > 3 - params.ndrops))
-                #println("lhs: ", ilasty - (ifirsty -1))
-                #println("rhs: ", 3 - params.ndrops)
                 if (ilasty - (ifirsty -1) > 3 - params.ndrops)
                     #println("xstart $xstart, ystart $ystart")
                     tile_pnts = pnts_xstrip[ifirsty:ilasty, :] #filter(dot -> dot_in_tile(dot, xstart, ystart), candidate_dot_coords)
-                    #println("tile dots: ", nrow(tile_pnts))
-                    #println(tile_pnts)
                     #codepaths = find_tile_cpaths(tile_dots)
                     sort_readouts!(tile_pnts)
                     add_code_cols!(tile_pnts)
@@ -386,12 +379,8 @@ function get_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: D
                     #println(cpath_df)
                     replace!.(i->tile_pnts[i, "dotID"], cpath_df.cpath)
                     if typeof(cpath_df) == DataFrame
-                        #println("n codepaths: ", nrow(codepaths))
-                        #println(codepaths)
                         #codepaths[!,"cpath"] = map(c -> tile_dots[c,"dotID"], codepaths[!,"cpath"])
-                        #println(codepaths)
                         push!(tile_cpaths, cpath_df)
-                        push!(processed_tile_dots, tile_pnts)
                     end
                 end
             end
@@ -431,13 +420,6 @@ function get_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: D
     
     
     cpath_df_tiled = unique(vcat(tile_cpaths...))
-    #println("tiled")
-    #println(cpath_df_tiled)
-    #untiled = find_tile_cpaths(pnts)
-    #println("untiled ")
-    #println(untiled)
-    #println("pnts")
-    #println(pnts)
 
     """
     pnts[!,:decoded] = zeros(Int64, nrow(pnts))
@@ -495,8 +477,6 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb_df :: DataFrame, H :: Ma
     #gene = cb_df[!, 1]
     #gene_number = Array(1:length(gene))
     decoded, discarded_cpaths = choose_optimal_codepaths(pnts, cb, H, params, cpath_df, optimizer, tforms=tforms)
-    #println("decoded")
-    #println(decoded)
     #gene_df = DataFrame("gene_name" => gene, "gene_number" => gene_number)
     #decoded_joined = rightjoin(gene_df, decoded, on=:gene_number)
     if ret_discarded
@@ -532,19 +512,12 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, 
 
     cost(cpath) = obj_func(cpath, pnts, w, params, tforms_dict)
 
-    #pnts[!,"decoded"] = fill(0, nrow(pnts))
-    #pnts[!, "mpath"] = [[] for i = 1:length(pnts.x)]
-    #println("pnts")
-    #println(pnts)
     add_code_cols!(pnts)
     cpath_df[!, "cost"] = cost.(cpath_df[!, "cpath"])
     sort!(cpath_df, :cost)
-    #println("cpaths pre thresh")
-    #println(cpath_df)
+
     cpath_df = remove_high_cost_cpaths(cpath_df, params.free_dot_cost, w, params.ndrops)
     cpath_df = threshold_cpaths(cpath_df, pnts, params.lat_thresh, params.z_thresh, tforms_dict)
-    #println("cpaths post thresh")
-    #println(cpath_df)
     # build graph with by adding only edges in codepaths, and break into connected
     # components
     ccs = get_connected_components(cpath_df.cpath, nrow(pnts))
