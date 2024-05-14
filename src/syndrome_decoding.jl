@@ -332,28 +332,28 @@ function get_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: D
 
     sort!(pnts, :x)
     tile_cpaths = []
-    processed_tile_dots = []
     #println(min_x, " ", max_x, " ", min_y, " ", max_y)
-    if max_x -tile_width/2 < min_x
+    if max_x -tile_width < min_x
         rngx = [min_x - eps()]
     else
-        rngx = (min_x-eps()):tile_width/2:(max_x + eps())
+        rngx = (min_x-eps()):tile_width:(max_x + eps())
     end
+    sizehint!(tile_cpaths, length(rngx))
     #println("rngx $rngx")
     for xstart in rngx
         #println("xstart $xstart")
         ifirstx = findfirst(x -> x >= xstart, pnts.x)
-        ilastx = findlast(x -> x <= xstart+1.5*tile_width, pnts.x)
+        ilastx = findlast(x -> x <= xstart+2*tile_width, pnts.x)
         pnts_xstrip = pnts[ifirstx:ilastx,:]
         sort!(pnts_xstrip, :y)
-        if max_y -tile_width/2 < min_y
+        if max_y -tile_width < min_y
             rngy = [min_y - eps()]
         else
-            rngy = (min_y-eps()):tile_width/2:(max_y + eps())
+            rngy = (min_y-eps()):tile_width:(max_y + eps())
         end
         for ystart in rngy #(min_y-eps()):tile_width:(max_y + eps())
             ifirsty = findfirst(x -> x >= ystart, pnts_xstrip.y)
-            ilasty = findlast(x -> x <= ystart+1.5*tile_width, pnts_xstrip.y)
+            ilasty = findlast(x -> x <= ystart+2*tile_width, pnts_xstrip.y)
             if ~isnothing(ifirsty) & ~isnothing(ilasty)
                 if (ilasty - (ifirsty -1) > 3 - params.ndrops)
                     #println("xstart $xstart, ystart $ystart")
