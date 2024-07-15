@@ -86,6 +86,8 @@ Arguments
 - `zp`: Whether or not zeros in codewords are probed in the experiment. Drops are not supported when false.
 """
 set_zeros_probed(prms :: DecodeParams, zp :: Integer) = (prms.zeros_probed = zp)
+set_zeros_probed(prms :: DecodeParams, zp :: Bool) = (prms.zeros_probed = zp)
+
 
 
 """

@@ -94,7 +94,9 @@ function test_reconstruct_decode_message(ntargets, cb)
     n, q, w = get_n_q_w(cb)
     cw_dict = make_cw_dict(cb)
     symb_type = typeof(cb[1,1])
-    add_code_cols!(encoded)
+    params = SeqFISHSyndromeDecoding.DecodeParams()
+    set_zeros_probed(params, n == w)
+    add_code_cols!(encoded, params)
     for i = 1:ntargets
         stop = w*i
         start = stop - w + 1
@@ -116,13 +118,15 @@ end
 
 function encoded_2_dag!(pnts, cb, lat_thresh, z_thresh, ndrops, tforms=nothing)
     n, q, w = get_n_q_w(cb)
+    params = SeqFISHSyndromeDecoding.DecodeParams()
+    set_zeros_probed(params, n == w)
 
     if ("round" in names(pnts)) && ("pseudocolor" in names(pnts))
         sort!(pnts, [:round, :pseudocolor])
     else
         sort!(pnts, :hyb)
     end
-    add_code_cols!(pnts)
+    add_code_cols!(pnts, params)
     if isnothing(tforms)
         tforms_dict = nothing
     else

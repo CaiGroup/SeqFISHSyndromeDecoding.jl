@@ -23,6 +23,7 @@ using GLPK
 
     set_xy_search_radius(params, sqrt(5.0*size(H)[2]/30.0)*3)
     set_z_search_radius(params, 0.0)
+    set_zeros_probed(params, true)
 
 
     barcodes = decode_syndromes!(pnts, cb, H, params) #, GLPK.Optimizer)

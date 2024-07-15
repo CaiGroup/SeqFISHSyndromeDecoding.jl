@@ -16,6 +16,9 @@ drop_rate = 0.1
 ndrops = 1
 free_dot_energy = 5.0
 
+params = SeqFISHSyndromeDecoding.DecodeParams
+set_zeros_probed(params, true)
+
 n, q, w = get_n_q_w(cb)
 SeqFISHPointDecoding.set_n(UInt8(n))
 SeqFISHPointDecoding.set_q(UInt8(q))
@@ -27,7 +30,7 @@ pnts = encode(true_locs, cb)
 drop_random_dots!(pnts, drop_rate)
 add_localization_errors!(pnts, rstdv)
 sort!(pnts, :hyb)
-add_code_cols!(pnts :: DataFrame)
+add_code_cols!(pnts :: DataFrame, params)
 g = DotAdjacencyGraph(pnts, thresh, 0.0, n)
 
 code_paths, values = syndrome_find_message_paths!(pnts, g, cb, 1)

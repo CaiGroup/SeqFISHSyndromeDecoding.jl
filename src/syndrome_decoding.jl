@@ -144,7 +144,7 @@ function check_inputs(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: De
         @assert "pseudocolor" in names(pnts)
     end
     if ~params.zeros_probed
-        @assert typeof(cb) == typeof(H)
+        #@assert typeof(cb) == typeof(H)
         if size(H)[1] < 2*params.ndrops
             error("Reed-Solomon Codes require 2 parity check symbols for every error corrected. Your code has ", size(H)[1], " parity check symbols, but you requested correction of up to ", params.ndrops, " errors.")
         end
@@ -360,7 +360,7 @@ function get_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: D
                     tile_pnts = pnts_xstrip[ifirsty:ilasty, :] #filter(dot -> dot_in_tile(dot, xstart, ystart), candidate_dot_coords)
                     #codepaths = find_tile_cpaths(tile_dots)
                     sort_readouts!(tile_pnts)
-                    add_code_cols!(tile_pnts)
+                    add_code_cols!(tile_pnts, params)
                     g = DotAdjacencyGraph(tile_pnts, params, n, w, tforms_dict)
                     #g = DotAdjacencyGraph(clust_pnts, params.lat_thresh, params.z_thresh, n, params.ndrops)
 
@@ -469,7 +469,7 @@ to the passed parameters.
 
 """
 function choose_optimal_codepaths(pnts :: DataFrame, cb_df :: DataFrame, H :: Matrix, params :: DecodeParams, cpath_df :: DataFrame, optimizer; ret_discarded :: Bool=false, tforms=nothing, obj_func=obj_function)
-    if any(typeof(cb_df[2:end, 2:end]) .<: AbstractString) #typeof(cb_df[2, 2]) <: AbstractString
+    if any(typeof.(H) .<: AbstractString) #any(typeof(cb_df[2:end, 2:end]) .<: AbstractString) #typeof(cb_df[2, 2]) <: AbstractString
         cb = Matrix(string.(cb_df[!, 2:end]))
     else
         cb = Matrix(UInt8.(cb_df[!, 2:end]))
@@ -512,7 +512,7 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, 
 
     cost(cpath) = obj_func(cpath, pnts, w, params, tforms_dict)
 
-    add_code_cols!(pnts)
+    add_code_cols!(pnts, params)
     cpath_df[!, "cost"] = cost.(cpath_df[!, "cpath"])
     sort!(cpath_df, :cost)
 
@@ -622,7 +622,7 @@ end
 Add columns giving the coefficient and position the dot encodes in a codeword
 and its associated syndrome component.
 """
-function add_code_cols!(pnts :: DataFrame)
+function add_code_cols!(pnts :: DataFrame, params)
     if "round" in names(pnts)
         pnts.pos = UInt8.(pnts.round)
     else
@@ -630,7 +630,7 @@ function add_code_cols!(pnts :: DataFrame)
     end
 
     if "pseudocolor" in names(pnts)
-        if q == 8 || q == 9
+        if (q == 8 || q == 9) & ~params.zeros_probed
             pnts.coeff = map(c -> pseudocolor_2_savestring[c], pnts.pseudocolor)
         else
             pnts.coeff = UInt8.(pnts.pseudocolor)
