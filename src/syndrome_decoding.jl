@@ -633,7 +633,7 @@ function add_code_cols!(pnts :: DataFrame, params)
         if (q == 8 || q == 9) & ~params.zeros_probed
             pnts.coeff = map(c -> pseudocolor_2_savestring[c], pnts.pseudocolor)
         else
-            pnts.coeff = UInt8.(pnts.pseudocolor)
+            pnts.coeff = UInt8.(pnts.pseudocolor .% q)
         end
     else
         pnts.coeff = get_coeff.(pnts.hyb, pnts.pos)
