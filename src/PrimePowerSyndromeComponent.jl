@@ -123,6 +123,17 @@ FF2_ext3_poly_form_dict = Dict([
         (Int8(6), BitArray([1,0,1]))
     ]
 )
+FF2_ext4_poly_form_dict = Dict([
+        (Int8(-1), BitArray([0,0,0,0])),
+        (Int8(0), BitArray([1,0,0,0])),
+        (Int8(1),BitArray([0,1,0,0])),
+        (Int8(2), BitArray([0,0,1,0])),
+        (Int8(3), BitArray([1,1,0,0])),
+        (Int8(4), BitArray([0,1,1,0])),
+        (Int8(5), BitArray([1,1,1,0])),
+        (Int8(6), BitArray([1,0,1,0]))
+    ]
+)
 
 FF3_ext2_poly_form_dict = Dict([
     (Int8(-1), BitArray([0,0,0,0])), # 0 + 0*α
