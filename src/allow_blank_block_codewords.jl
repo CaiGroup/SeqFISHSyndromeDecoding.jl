@@ -1,28 +1,28 @@
-inrng(tree, dot, g :: DotAdjacencyGraphBlankRound3D) = inrange(tree, [g.pnts.x[dot], g.pnts.y[dot], g.pnts.z[dot]], g.lat_thresh)
-inrng(tree, dot, g :: DotAdjacencyGraphBlankRound2D) = inrange(tree, [g.pnts.x[dot], g.pnts.y[dot]], g.lat_thresh)
+inrng(tree, dot, g :: DotAdjacencyGraphBlankBlock3D) = inrange(tree, [g.pnts.x[dot], g.pnts.y[dot], g.pnts.z[dot]], g.lat_thresh)
+inrng(tree, dot, g :: DotAdjacencyGraphBlankBlock2D) = inrange(tree, [g.pnts.x[dot], g.pnts.y[dot]], g.lat_thresh)
 
-function inrng(tree, dot, g :: DotAdjacencyGraphBlankRound2D, tforms, round_search)
+function inrng(tree, dot, g :: DotAdjacencyGraphBlankBlock2D, tforms, block_search)
     if tforms == nothing
         return inrange(tree, [g.pnts.x[dot], g.pnts.y[dot]], g.lat_thresh, true)
     else
-        tform = tforms[g.pnts.round[dot], round_search]
+        tform = tforms[g.pnts.block[dot], block_search]
         registered = Array(g.pnts[dot, [:x, :y]]) * tform[1:2, 1:2] .+ tform[1:2, 4]
         return inrange(tree, registered, g.lat_thresh, true)
     end
 end
 
-function inrng(tree, dot, g :: DotAdjacencyGraphBlankRound3D, tforms, round_search)
+function inrng(tree, dot, g :: DotAdjacencyGraphBlankBlock3D, tforms, block_search)
     if tforms == nothing
         return inrange(tree, [g.pnts.x[dot], g.pnts.y[dot], g.pnts.z[dot]], g.lat_thresh, true)
     else
-        tform = tforms[g.pnts.round[dot], round_search]
+        tform = tforms[g.pnts.block[dot], block_search]
         registered = Array(g.pnts[dot, [:x, :y, :z]]) * tform[:, 1:3] .+ tform[:, 4]
         return inrange(tree, registered, g.lat_thresh, true)
     end
 end
 
 """
-    find_blank_round_codewords(pnts ::DataFrame, g :: DotAdjacencyGraphBlankRound, cw_dict, w)
+    find_blank_block_codewords(pnts ::DataFrame, g :: DotAdjacencyGraphBlankBlock, cw_dict, w)
 
 To conserve memory when summing the parity check equation to identify codepath or paths correctable to codepaths, we want to have as 
 few intermediate sums allocated at any time as is necessary. We accomplish this by keeping lists of the dots that may be the terminal
@@ -31,38 +31,38 @@ potentially terminal dot that has the fewest inrange potentially terminal dots t
 After all potentially terminal dots within the search radius of a dot have had their codepaths identified, the dots intermediate sums are
 no longer needed and are cleared.
 """
-function find_blank_round_codewords(pnts ::DataFrame, g :: DotAdjacencyGraphBlankRound, cw_dict, w, tforms)
+function find_blank_block_codewords(pnts ::DataFrame, g :: DotAdjacencyGraphBlankBlock, cw_dict, w, tforms)
     # initialize array for syndrome partial sums
     syndromes = fill(Vector{Vector{SyndromeComponent}}(), nrow(pnts)) #Vector{Vector{SyndromeComponent}}()
     syndrome_block_sizes = fill(Vector{Vector{Int64}}(), nrow(pnts))
     barcode_candidates = []
     gene_nums = []
 
-    # get list of dots in rounds that could be the last of a codepath/barcode
+    # get list of dots in blocks that could be the last of a codepath/barcode
     if g.first_potential_barcode_final_dot == nothing
         return barcode_candidates, gene_nums
     end
     potential_barcode_final_dot_range = g.first_potential_barcode_final_dot:nrow(pnts)
     potential_barcode_final_dots = collect(potential_barcode_final_dot_range)
 
-    if typeof(g) ==  DotAdjacencyGraphBlankRound2D
+    if typeof(g) ==  DotAdjacencyGraphBlankBlock2D
         make_KDTree = make_KDTree2D
     else
         make_KDTree(df) = make_KDTree3D(df, g.lat_thresh, g.z_thresh)
     end
     
-    # make KDTree to search dots in each barcoding round
-    round_trees = []
+    # make KDTree to search dots in each barcoding block
+    block_trees = []
     for r in 1:g.n
-        if ismissing(g.cw_round_ranges[r])
-            push!(round_trees, make_KDTree(pnts[1:0, :]))
+        if ismissing(g.cw_block_ranges[r])
+            push!(block_trees, make_KDTree(pnts[1:0, :]))
         else
-            push!(round_trees, make_KDTree(pnts[g.cw_round_ranges[r], :]))
+            push!(block_trees, make_KDTree(pnts[g.cw_block_ranges[r], :]))
         end
     end
     pot_final_dot_tree = make_KDTree(pnts[potential_barcode_final_dot_range,:])
 
-    unprocessed_inrange_pot_term_dots, potential_barcode_final_dots_n_uncomputed_neighbors = count_inrange_dots(pnts, g, round_trees, w, tforms)
+    unprocessed_inrange_pot_term_dots, potential_barcode_final_dots_n_uncomputed_neighbors = count_inrange_dots(pnts, g, block_trees, w, tforms)
 
     while length(potential_barcode_final_dots) > 0
         dot_ind = argmin(potential_barcode_final_dots_n_uncomputed_neighbors[potential_barcode_final_dots .- (g.first_potential_barcode_final_dot-1)])
@@ -72,17 +72,17 @@ function find_blank_round_codewords(pnts ::DataFrame, g :: DotAdjacencyGraphBlan
         #update uncomputed neighbor counts for dots that may be the last in a barcode
         potential_barcode_final_dots_n_uncomputed_neighbors[inrng(pot_final_dot_tree, dot, g)] .-= 1
 
-        # remove dot from list of unprocessed final round dots
+        # remove dot from list of unprocessed final block dots
         deleteat!(potential_barcode_final_dots, dot_ind)
 
         # delete pointers to allocated variables that are no longer needed
-        #free_space!(pnts, g, unprocessed_inrange_pot_term_dots, round_trees, syndromes, syndrome_block_sizes, dot, tforms)
+        #free_space!(pnts, g, unprocessed_inrange_pot_term_dots, block_trees, syndromes, syndrome_block_sizes, dot, tforms)
     end
     return barcode_candidates, gene_nums
 end
 
 
-function count_inrange_dots(pnts, g, round_trees, w, tforms)
+function count_inrange_dots(pnts, g, block_trees, w, tforms)
     # for each dot, count how many dots that could be the terminal dot of a codepath including it are in range
     # and how many dots that could be the final dot are in range of each other
 
@@ -100,14 +100,14 @@ function count_inrange_dots(pnts, g, round_trees, w, tforms)
             unprocessed_inrange_pot_term_dots[dot] += 1 # this dot is a potential codepath terminus of its own
             for ri in (w-g.ndrops):r # dots in ri < (w-g.ndrops) cannot produce decodable paths when directly connected to the dot of concern
                 # 
-                ri_inrange = length(inrng(round_trees[ri], dot, g, tforms, ri))
+                ri_inrange = length(inrng(block_trees[ri], dot, g, tforms, ri))
                 potential_barcode_final_dots_n_uncomputed_neighbors[dot-g.first_potential_barcode_final_dot+1] += ri_inrange
             end
         end
 
         ri = maximum([w - g.ndrops, r+1])
         while ri <= g.n
-            ri_inrange = length(inrng(round_trees[ri], dot, g, tforms, ri))
+            ri_inrange = length(inrng(block_trees[ri], dot, g, tforms, ri))
             unprocessed_inrange_pot_term_dots[dot] += ri_inrange
             if r >= w -g.ndrops
                 potential_barcode_final_dots_n_uncomputed_neighbors[dot-g.first_potential_barcode_final_dot+1] += ri_inrange
@@ -118,11 +118,11 @@ function count_inrange_dots(pnts, g, round_trees, w, tforms)
     return unprocessed_inrange_pot_term_dots, potential_barcode_final_dots_n_uncomputed_neighbors
 end
 
-function free_space!(pnts, g, unprocessed_inrange_pot_term_dots, round_trees, syndromes, syndrome_block_sizes, dot, tforms)
+function free_space!(pnts, g, unprocessed_inrange_pot_term_dots, block_trees, syndromes, syndrome_block_sizes, dot, tforms)
 
-    for round in 1:(pnts.pos[dot]-1)
-        for inrange_dot in  inrng(round_trees[round], dot, g, tforms, round)
-            inrange_dot_ind = inrange_dot + g.cw_round_ranges[round][1] - 1
+    for block in 1:(pnts.pos[dot]-1)
+        for inrange_dot in  inrng(block_trees[block], dot, g, tforms, block)
+            inrange_dot_ind = inrange_dot + g.cw_block_ranges[block][1] - 1
             unprocessed_inrange_pot_term_dots[inrange_dot_ind] -= 1
             if unprocessed_inrange_pot_term_dots[inrange_dot_ind] == 0
                 syndromes[inrange_dot_ind] = []
@@ -135,12 +135,12 @@ end
 """
     find_barcode_candidates()
 
-Each candidate barcode will be represented by "codepath" through the DAG of length at least w-ndrops. The pseudocolors/rounds in codepaths of length
+Each candidate barcode will be represented by "codepath" through the DAG of length at least w-ndrops. The pseudocolors/blocks in codepaths of length
 w will satisfy the parity check equations. codepaths of length less than w will not satisfy the parity check equations, but missing symbol/dot may 
 be found that match them to a closest codeword.
 """
 function find_barcode_candidates!(
-    g :: DotAdjacencyGraphBlankRound,
+    g :: DotAdjacencyGraphBlankBlock,
     pnts :: DataFrame,
     cw_dict :: Dict,
     w,
@@ -157,12 +157,12 @@ function find_barcode_candidates!(
         return
     # elif not allocated
     else
-        # if all in range final round dots processed
+        # if all in range final block dots processed
         if unprocessed_inrange_pot_term_dots[dot] == 0
             return 
         #elseif dot unprocessed
         else
-            # get round
+            # get block
             r = pnts.pos[dot]
             #init nsynd counter
             nsyndc = fill(0, w)
@@ -223,7 +223,7 @@ end
 function trace_barcode!(is, pnts, g, dot, cw_dict, w, syndromes, syndrome_block_sizes, barcode_candidates, gene_nums)
     (i, s) = is
     if iszero(s)
-        barcode_candidate = recursive_get_synd_neighbors_blank_rounds(pnts, g, dot, i, 1, w, syndromes, syndrome_block_sizes, 0)
+        barcode_candidate = recursive_get_synd_neighbors_blank_blocks(pnts, g, dot, i, 1, w, syndromes, syndrome_block_sizes, 0)
         if ismissing(barcode_candidate)
             return
         end
@@ -232,7 +232,7 @@ function trace_barcode!(is, pnts, g, dot, cw_dict, w, syndromes, syndrome_block_
         else
             cw = zeros(UInt8, g.n)
         end
-        cw[pnts.round[barcode_candidate]] .= pnts.coeff[barcode_candidate]
+        cw[pnts.block[barcode_candidate]] .= pnts.coeff[barcode_candidate]
         if cw in keys(cw_dict)
             push!(barcode_candidates, barcode_candidate)
             push!(gene_nums, cw_dict[cw])
@@ -244,16 +244,16 @@ end
 function trace_barcode_w_drops!(is, pnts, g, dot, cw_dict, w, syndromes, syndrome_block_sizes, barcode_candidates, gene_nums, drops)
     (i, s) = is
     
-    barcode_candidate = recursive_get_synd_neighbors_blank_rounds(pnts, g, dot, i, 1, w, syndromes, syndrome_block_sizes, drops)
+    barcode_candidate = recursive_get_synd_neighbors_blank_blocks(pnts, g, dot, i, 1, w, syndromes, syndrome_block_sizes, drops)
     if ismissing(barcode_candidate)
         return
     end
     if typeof(pnts.coeff[1]) <: AbstractString
         message = fill("0", g.n)
-        message[pnts.round[barcode_candidate]] .= string.(pnts.coeff[barcode_candidate])
+        message[pnts.block[barcode_candidate]] .= string.(pnts.coeff[barcode_candidate])
     else
         message = zeros(UInt8, g.n)
-        message[pnts.round[barcode_candidate]] .= pnts.coeff[barcode_candidate]
+        message[pnts.block[barcode_candidate]] .= pnts.coeff[barcode_candidate]
     end
     r = find(BKTree_cb, message, drops)
     if length(r) == 1
@@ -279,7 +279,7 @@ function get_RS_error(H, S, ndrops)
 end
 
 
-function recursive_get_synd_neighbors_blank_rounds(pnts, g, dot, synd_ind, recursion_depth, w, syndromes, syndrome_block_sizes, ndrops)
+function recursive_get_synd_neighbors_blank_blocks(pnts, g, dot, synd_ind, recursion_depth, w, syndromes, syndrome_block_sizes, ndrops)
     # if this is the last dot in the message, return number of dot in an array
     if recursion_depth == w - ndrops
         cpath = Int[dot]
@@ -288,7 +288,7 @@ function recursive_get_synd_neighbors_blank_rounds(pnts, g, dot, synd_ind, recur
     end
 
     #otherwise, get neighbor of the dot that produced the zero syndrome
-    neighbor, neighbor_synd_ind = get_synd_neighbors_blank_round(g, dot, synd_ind, syndrome_block_sizes, recursion_depth, w, ndrops)
+    neighbor, neighbor_synd_ind = get_synd_neighbors_blank_block(g, dot, synd_ind, syndrome_block_sizes, recursion_depth, w, ndrops)
 
     # if neighbor has been cleared, return missing
     if length(syndromes[neighbor]) == 0
@@ -296,7 +296,7 @@ function recursive_get_synd_neighbors_blank_rounds(pnts, g, dot, synd_ind, recur
     end
 
     # Add result to recursively defined array, and return
-    res = recursive_get_synd_neighbors_blank_rounds(pnts, g, neighbor, neighbor_synd_ind, recursion_depth+1, w, syndromes, syndrome_block_sizes, ndrops)
+    res = recursive_get_synd_neighbors_blank_blocks(pnts, g, neighbor, neighbor_synd_ind, recursion_depth+1, w, syndromes, syndrome_block_sizes, ndrops)
     if ismissing(res)
         return missing
     else
@@ -307,7 +307,7 @@ end
 """
 Helper Function used to trace back groups of dots that produce zero syndrome, and therefore are codewords
 """
-function get_synd_neighbors_blank_round(g, dot, synd_ind, syndrome_block_sizes, recursion_depth, w, ndrops)
+function get_synd_neighbors_blank_block(g, dot, synd_ind, syndrome_block_sizes, recursion_depth, w, ndrops)
     # keep track of number of syndromes from the dot that have been searched through
     cum_n_syndromes = 0
 

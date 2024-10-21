@@ -1,5 +1,5 @@
 using SeqFISHSyndromeDecoding
-using SeqFISHSyndromeDecoding: DotAdjacencyGraph, DotAdjacencyGraphBlankRound,
+using SeqFISHSyndromeDecoding: DotAdjacencyGraph, DotAdjacencyGraphBlankBlock,
 make_cw_dict, get_cw_pos_inds, add_code_cols!, compute_syndromes, neighbors, get_number_of_dots
 
 using DelimitedFiles
@@ -121,8 +121,8 @@ function encoded_2_dag!(pnts, cb, lat_thresh, z_thresh, ndrops, tforms=nothing)
     params = SeqFISHSyndromeDecoding.DecodeParams()
     set_zeros_probed(params, n == w)
 
-    if ("round" in names(pnts)) && ("pseudocolor" in names(pnts))
-        sort!(pnts, [:round, :pseudocolor])
+    if ("block" in names(pnts)) && ("pseudocolor" in names(pnts))
+        sort!(pnts, [:block, :pseudocolor])
     else
         sort!(pnts, :hyb)
     end
@@ -133,7 +133,7 @@ function encoded_2_dag!(pnts, cb, lat_thresh, z_thresh, ndrops, tforms=nothing)
         tforms_dict = SeqFISHSyndromeDecoding.get_tform_dict(tforms)
     end
     if n > w
-        DotAdjacencyGraphBlankRound(pnts, lat_thresh, z_thresh, n, ndrops, w, tforms_dict)
+        DotAdjacencyGraphBlankBlock(pnts, lat_thresh, z_thresh, n, ndrops, w, tforms_dict)
     else
         return DotAdjacencyGraph(pnts, lat_thresh, z_thresh, n, ndrops, tforms=tforms_dict)
     end

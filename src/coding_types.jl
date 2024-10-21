@@ -182,7 +182,7 @@ end
 Checks to see if a message path with a drop can be decoded.
 Attempts to fill in the drop with syndrome decoding and decoding table.
 
-If the drop is correctable, returns the pseudocolor/coeff of the dropped encoding round
+If the drop is correctable, returns the pseudocolor/coeff of the dropped encoding block
 
 otherwise, returns false
 """

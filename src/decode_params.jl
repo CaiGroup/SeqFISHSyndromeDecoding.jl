@@ -56,7 +56,7 @@ end
 
 Arguments
 - `prms`: DecodeParams Object
-- `r`: The lateral KDTree Search radius in pixels for aligned dots in previous barcoding rounds.
+- `r`: The lateral KDTree Search radius in pixels for aligned dots in previous barcoding blocks.
 """
 set_xy_search_radius(prms :: DecodeParams, r :: Real) = (prms.lat_thresh = Float64(r))
 
@@ -65,7 +65,7 @@ set_xy_search_radius(prms :: DecodeParams, r :: Real) = (prms.lat_thresh = Float
 
 Arguments
 - `prms`: DecodeParams Object
-- `r`: The z KDTree Search radius in slices for aligned dots in previous barcoding rounds.
+- `r`: The z KDTree Search radius in slices for aligned dots in previous barcoding blocks.
 """
 set_z_search_radius(prms :: DecodeParams, r :: Real) = (prms.z_thresh = Float64(r))
 

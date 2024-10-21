@@ -1,67 +1,67 @@
-make_round_trees(pnts, g :: DotAdjacencyGraphRegistered2D) = [make_KDTree2D(pnts[get_cw_pos_inds(g, r), :]) for r in 1:g.n] 
+make_block_trees(pnts, g :: DotAdjacencyGraphRegistered2D) = [make_KDTree2D(pnts[get_cw_pos_inds(g, r), :]) for r in 1:g.n] 
 
-make_round_trees(pnts, g :: DotAdjacencyGraphRegistered3D) = [make_KDTree3D(pnts[get_cw_pos_inds(g, r), :], g.lat_thresh, g.z_thresh) for r in 1:g.n]
+make_block_trees(pnts, g :: DotAdjacencyGraphRegistered3D) = [make_KDTree3D(pnts[get_cw_pos_inds(g, r), :], g.lat_thresh, g.z_thresh) for r in 1:g.n]
 
-function make_round_trees(pnts, g :: DotAdjacencyGraphPairwise2D)
-    round_trees = []
-    for round in 1:g.n
-        round_pseudocolor_trees = []
+function make_block_trees(pnts, g :: DotAdjacencyGraphPairwise2D)
+    block_trees = []
+    for block in 1:g.n
+        block_pseudocolor_trees = []
         for pseudocolor in 1:q # q is global
-            if sum(pnts.pos .== round .&& pnts.coeff .== (pseudocolor .% q)) != 0
+            if sum(pnts.pos .== block .&& pnts.coeff .== (pseudocolor .% q)) != 0
             end
-            push!(round_pseudocolor_trees, make_KDTree2D(pnts[pnts.pos .== round .&& pnts.coeff .== (pseudocolor .% q), :]))
+            push!(block_pseudocolor_trees, make_KDTree2D(pnts[pnts.pos .== block .&& pnts.coeff .== (pseudocolor .% q), :]))
         end
-        push!(round_trees, round_pseudocolor_trees)
+        push!(block_trees, block_pseudocolor_trees)
     end
-    return round_trees
+    return block_trees
 end
 
-function make_round_trees(pnts, g :: DotAdjacencyGraphPairwise3D)
-    round_trees = []
-    for round in 1:g.n
-        round_pseudocolor_trees = []
+function make_block_trees(pnts, g :: DotAdjacencyGraphPairwise3D)
+    block_trees = []
+    for block in 1:g.n
+        block_pseudocolor_trees = []
         for pseudocolor in 1:q # q is global
-            push!(round_pseudocolor_trees, make_KDTree3D(pnts[pnts.pos .== round .&& pnts.coeff .== pseudocolor, :]))
+            push!(block_pseudocolor_trees, make_KDTree3D(pnts[pnts.pos .== block .&& pnts.coeff .== pseudocolor, :]))
         end
-        push!(round_trees, round_pseudocolor_trees)
+        push!(block_trees, block_pseudocolor_trees)
     end
-    return round_trees
+    return block_trees
 end
 
-inrng(tree, dot, g :: DotAdjacencyGraphRegistered2D, tforms :: Nothing, round, adjust=true) = inrange(tree, [g.pnts.x[dot], g.pnts.y[dot]], g.lat_thresh, true)
-inrng(tree, dot, g :: DotAdjacencyGraphRegistered3D, tforms :: Nothing, round, adjust=true) = inrange(tree, [g.pnts.x[dot], g.pnts.y[dot], g.pnts.z[dot]], g.lat_thresh, true)
+inrng(tree, dot, g :: DotAdjacencyGraphRegistered2D, tforms :: Nothing, block, adjust=true) = inrange(tree, [g.pnts.x[dot], g.pnts.y[dot]], g.lat_thresh, true)
+inrng(tree, dot, g :: DotAdjacencyGraphRegistered3D, tforms :: Nothing, block, adjust=true) = inrange(tree, [g.pnts.x[dot], g.pnts.y[dot], g.pnts.z[dot]], g.lat_thresh, true)
 
 """
-function inrng(tree, dot, g :: DotAdjacencyGraphRegistered2D, tforms, round_search)
-    tform = tforms[g.pnts.round[dot], round_search]
+function inrng(tree, dot, g :: DotAdjacencyGraphRegistered2D, tforms, block_search)
+    tform = tforms[g.pnts.block[dot], block_search]
     registered = Array(g.pnts[dot, [:x, :y]]) * tform[1:2, 1:2] .+ tform[1:2, 4]
     return inrange(tree, registered, g.lat_thresh, true)
 end
 
-function inrng(tree, dot, g :: DotAdjacencyGraphRegistered3D, tforms, round_search)
-    tform = tforms[g.pnts.round[dot], round_search]
+function inrng(tree, dot, g :: DotAdjacencyGraphRegistered3D, tforms, block_search)
+    tform = tforms[g.pnts.block[dot], block_search]
     registered = Array(g.pnts[dot, [:x, :y, :z]]) * tform[:, 1:3] .+ tform[:, 4]
     return inrange(tree, registered, g.lat_thresh, true)
 end
 """
 
-function inrng(round_trees, dot, g :: DotAdjacencyGraphPairwise2D, tforms :: Dict, nbr_round, adjust=true)
+function inrng(block_trees, dot, g :: DotAdjacencyGraphPairwise2D, tforms :: Dict, nbr_block, adjust=true)
     inrange_dots = []
-    searching_round = g.pnts.pos[dot]
+    searching_block = g.pnts.pos[dot]
     searching_pseudocolor = g.pnts.coeff[dot]
     search_pc_ind = searching_pseudocolor == 0 ? q : searching_pseudocolor
-    for nbr_round_pseudocolor in 1:q #0:(q-1)
-        nbr_rnd_pc_ind = nbr_round_pseudocolor == 0 ? q : nbr_round_pseudocolor
-        tform = get_tform(tforms, searching_round, searching_pseudocolor, nbr_round, nbr_rnd_pc_ind % q)
+    for nbr_block_pseudocolor in 1:q #0:(q-1)
+        nbr_rnd_pc_ind = nbr_block_pseudocolor == 0 ? q : nbr_block_pseudocolor
+        tform = get_tform(tforms, searching_block, searching_pseudocolor, nbr_block, nbr_rnd_pc_ind % q)
         registered_dot_coordinates = Array(tform[1:2, 1:2] * Array(g.pnts[dot, [:x, :y]])) .+ tform[1:2, 4]
         
-        round_pseudocolor_dots = inrange(round_trees[nbr_rnd_pc_ind], registered_dot_coordinates, g.lat_thresh, true)
-        if length(round_pseudocolor_dots) > 0
+        block_pseudocolor_dots = inrange(block_trees[nbr_rnd_pc_ind], registered_dot_coordinates, g.lat_thresh, true)
+        if length(block_pseudocolor_dots) > 0
             if adjust
-                round_pseudocolor_dots .+= g.round_pc_block_starts[nbr_round, nbr_round_pseudocolor]
+                block_pseudocolor_dots .+= g.block_pc_block_starts[nbr_block, nbr_block_pseudocolor]
             end
         end
-        inrange_dots = vcat(inrange_dots, round_pseudocolor_dots)
+        inrange_dots = vcat(inrange_dots, block_pseudocolor_dots)
     end
     return inrange_dots
 end
@@ -71,49 +71,49 @@ function find_barcodes_mem_eff(pnts ::DataFrame, g :: DotAdjacencyGraph, cw_dict
     syndromes = fill(Vector{SyndromeComponent}(), nrow(pnts))
     syndrome_block_sizes = fill(Vector{Int64}(), nrow(pnts))
     sizehint!(syndromes, nv(g.g))
-    final_round_dots = get_cw_pos_inds(g, g.n)
+    final_block_dots = get_cw_pos_inds(g, g.n)
 
     unprocessed_inrange_dots = fill(0, nv(g.g))
 
-    round_trees = make_round_trees(pnts, g)
+    block_trees = make_block_trees(pnts, g)
 
-    last_round_tree = round_trees[end]
+    last_block_tree = block_trees[end]
 
-    # Count how many dots in other rounds are in range of each dot in the last round
-    for dot in final_round_dots
-        for round in 1:(g.n-1)
-            unprocessed_inrange_dots[dot] += length(inrng(round_trees[round], dot, g, tforms, round))
-            #unprocessed_inrange_dots[dot] += length(inrange(round_trees[round], [pnts.x[dot], pnts.y[dot]], g.lat_thresh))
+    # Count how many dots in other blocks are in range of each dot in the last block
+    for dot in final_block_dots
+        for block in 1:(g.n-1)
+            unprocessed_inrange_dots[dot] += length(inrng(block_trees[block], dot, g, tforms, block))
+            #unprocessed_inrange_dots[dot] += length(inrange(block_trees[block], [pnts.x[dot], pnts.y[dot]], g.lat_thresh))
         end 
     end
 
-    # Count how many dots in the last round are within the search radius of each dot in previous round
+    # Count how many dots in the last block are within the search radius of each dot in previous block
     for dot in 1:(g.cw_pos_bnds[g.n]-1)
-        inrange_last_round_dots = inrng(last_round_tree, dot, g, tforms, g.n)
-        #println("dot: $dot; inrange_last_round_dots: $inrange_last_round_dots")
+        inrange_last_block_dots = inrng(last_block_tree, dot, g, tforms, g.n)
+        #println("dot: $dot; inrange_last_block_dots: $inrange_last_block_dots")
 
-        #inrange_last_round_dots = inrange(last_round_tree, [pnts.x[dot], pnts.y[dot]], g.lat_thresh, true)
-        unprocessed_inrange_dots[dot] = length(inrange_last_round_dots)
+        #inrange_last_block_dots = inrange(last_block_tree, [pnts.x[dot], pnts.y[dot]], g.lat_thresh, true)
+        unprocessed_inrange_dots[dot] = length(inrange_last_block_dots)
     end
     #println("unprocessed_inrange_dots: $unprocessed_inrange_dots")
-    # Count how many dots in the last round are in range of each other
-    final_round_dot_n_uncomputed_neighbors = [length(inrng(last_round_tree, dot, g, tforms, g.n)) - 1 for dot in final_round_dots]
-    #final_round_dot_n_uncomputed_neighbors = [length(inrange(last_round_tree, [pnts.x[dot], pnts.y[dot]], g.lat_thresh)) - 1 for dot in final_round_dots]
-    #println("final_round_dot_n_uncomputed_neighbors")
-    #println(final_round_dot_n_uncomputed_neighbors)
+    # Count how many dots in the last block are in range of each other
+    final_block_dot_n_uncomputed_neighbors = [length(inrng(last_block_tree, dot, g, tforms, g.n)) - 1 for dot in final_block_dots]
+    #final_block_dot_n_uncomputed_neighbors = [length(inrange(last_block_tree, [pnts.x[dot], pnts.y[dot]], g.lat_thresh)) - 1 for dot in final_block_dots]
+    #println("final_block_dot_n_uncomputed_neighbors")
+    #println(final_block_dot_n_uncomputed_neighbors)
 
-    unprocessed_last_round_dots = collect(get_cw_pos_inds(g,g.n))
+    unprocessed_last_block_dots = collect(get_cw_pos_inds(g,g.n))
     barcode_candidates = []
     gene_nums = []
-    # while there are dots in the last round that have not had their candidate barcodes searched for
-    while length(unprocessed_last_round_dots) > 0
-        # find the final round dot that has the fewest number of other uncomputed final round dots in
+    # while there are dots in the last block that have not had their candidate barcodes searched for
+    while length(unprocessed_last_block_dots) > 0
+        # find the final block dot that has the fewest number of other uncomputed final block dots in
         # its range
-        dot_ind = argmin(final_round_dot_n_uncomputed_neighbors[unprocessed_last_round_dots .- (g.cw_pos_bnds[g.n]-1)])
-        dot = unprocessed_last_round_dots[dot_ind] 
+        dot_ind = argmin(final_block_dot_n_uncomputed_neighbors[unprocessed_last_block_dots .- (g.cw_pos_bnds[g.n]-1)])
+        dot = unprocessed_last_block_dots[dot_ind] 
 
         # Compute syndromes for and find barcode candidates including that dot
-        dot_barcode_candidates, dot_gene_nums = find_final_round_dot_barcode_candidates!(
+        dot_barcode_candidates, dot_gene_nums = find_final_block_dot_barcode_candidates!(
             g :: DotAdjacencyGraph,
             pnts :: DataFrame,
             cw_dict :: Dict,
@@ -126,22 +126,22 @@ function find_barcodes_mem_eff(pnts ::DataFrame, g :: DotAdjacencyGraph, cw_dict
         append!(barcode_candidates, dot_barcode_candidates)
         append!(gene_nums, dot_gene_nums)
     
-        #final_round_dot_n_uncomputed_neighbors[inrange(last_round_tree, [pnts.x[dot], pnts.y[dot]], g.lat_thresh)] .-= 1
-        #println("inrng(last_round_tree, dot, g, tforms, g.n): ", inrng(last_round_tree, dot, g, tforms, g.n))
-        #println("final_round_dot_n_uncomputed_neighbors")
-        #println(final_round_dot_n_uncomputed_neighbors)
-        final_round_dot_n_uncomputed_neighbors[inrng(last_round_tree, dot, g, tforms, g.n, false)] .-= 1
+        #final_block_dot_n_uncomputed_neighbors[inrange(last_block_tree, [pnts.x[dot], pnts.y[dot]], g.lat_thresh)] .-= 1
+        #println("inrng(last_block_tree, dot, g, tforms, g.n): ", inrng(last_block_tree, dot, g, tforms, g.n))
+        #println("final_block_dot_n_uncomputed_neighbors")
+        #println(final_block_dot_n_uncomputed_neighbors)
+        final_block_dot_n_uncomputed_neighbors[inrng(last_block_tree, dot, g, tforms, g.n, false)] .-= 1
 
-        # remove dot from list of unprocessed final round dots
-        deleteat!(unprocessed_last_round_dots, dot_ind)        
+        # remove dot from list of unprocessed final block dots
+        deleteat!(unprocessed_last_block_dots, dot_ind)        
 
         #free space
         #=
-        for round in 1:(g.n-1)
-            #for inrange_dot in inrange(round_trees[round], [pnts.x[dot], pnts.y[dot]], g.lat_thresh)
-            for inrange_dot in inrng(round_trees[round], dot, g, tforms, round, true)
+        for block in 1:(g.n-1)
+            #for inrange_dot in inrange(block_trees[block], [pnts.x[dot], pnts.y[dot]], g.lat_thresh)
+            for inrange_dot in inrng(block_trees[block], dot, g, tforms, block, true)
                 if typeof(g) <: DotAdjacencyGraphRegistered2D || typeof(g) <: DotAdjacencyGraphRegistered3D
-                    inrange_dot_ind = inrange_dot + g.cw_pos_bnds[round] - 1
+                    inrange_dot_ind = inrange_dot + g.cw_pos_bnds[block] - 1
                 else
                     inrange_dot_ind = inrange_dot
                 end
@@ -159,9 +159,9 @@ end
 
 
 """
-    find_final_round_dot_barcode_candidates()
+    find_final_block_dot_barcode_candidates()
 """
-function find_final_round_dot_barcode_candidates!(
+function find_final_block_dot_barcode_candidates!(
     g :: DotAdjacencyGraph,
     pnts :: DataFrame,
     cw_dict :: Dict,
@@ -210,10 +210,10 @@ function recursive_syndrome_computation!(
         return
     # elif not allocated
     else
-        # if all in range final round dots processed
+        # if all in range final block dots processed
         if unprocessed_inrange_dots[dot] == 0
             return 
-        #elseif dot in first round
+        #elseif dot in first block
         elseif dot < g.cw_pos_bnds[2]
             #allocate and return
             @inbounds syndromes[dot] = [pnts.sc[dot]]

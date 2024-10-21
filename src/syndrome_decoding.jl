@@ -27,11 +27,11 @@ Arguments
 	- `s` : the sigma width parameter of the psfs
     - `w` : the weight (or brightness) of the psfs
     Additionally, there the data frame must either have columns
-    - `round` : the barcoding round in which the psf was found
-    - `pseudocolor` : the pseudocolor of the barcoding round in which the psf was found
-    or the round and pseudocolor can be computed from the hybridization
+    - `block` : the barcoding block in which the psf was found
+    - `pseudocolor` : the pseudocolor of the barcoding block in which the psf was found
+    or the block and pseudocolor can be computed from the hybridization
     - `hyb` : the hybridization in which the dot was found
-    where round = ceil(hyb / q), pseudocolor = (hyb - (round - 1) * q) % q, and q is the number of pseudocolors.
+    where block = ceil(hyb / q), pseudocolor = (hyb - (block - 1) * q) % q, and q is the number of pseudocolors.
 
 - `cb` : The codebook.
 - `H` : The parity check Matrix
@@ -42,7 +42,7 @@ A list of supported solvers is available [here](https://jump.dev/JuMP.jl/stable/
 
 Takes a DataFrame of aligned points with hyb, x, y, z, w, and s columns;
 codebook matix; parity check matrix (H); and DecodeParams stucture with decoding parameters set.
-Adds columns to input pnts matrix indicating the encoding round, syndrome component value,
+Adds columns to input pnts matrix indicating the encoding block, syndrome component value,
 and decoding result indicated as the row of the codebook matrix matched to.
 Split up points into weakly connected components, then finds possible codeword messages
 and runs simulated annealing to assign them. The pnts dataframe should have hybridization, x, y, and z columns
@@ -127,9 +127,9 @@ function check_inputs(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: De
     alphabet = sort(unique(cb))
     q = UInt8(length(alphabet))
     n = length(cb[1,:])
-    if ~params.zeros_probed && ~("round" in names(pnts)) && ~("pseudocolor" in names(pnts))
+    if ~params.zeros_probed && ~("block" in names(pnts)) && ~("pseudocolor" in names(pnts))
         println("names(pnts): ", names(pnts))
-        error("'round' and 'pseudocolor' columns must be included to decode experiments where zeros are not probed.")
+        error("'block' and 'pseudocolor' columns must be included to decode experiments where zeros are not probed.")
     end
     @assert alphabet[1] == 0x00 || alphabet[1] == "0"
     if ~(typeof(alphabet[1]) <: AbstractString)
@@ -140,7 +140,7 @@ function check_inputs(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: De
         @assert maximum(pnts[!,"hyb"]) <= q*n
         @assert minimum(pnts[!,"hyb"]) > 0
     else
-        @assert "round" in names(pnts)
+        @assert "block" in names(pnts)
         @assert "pseudocolor" in names(pnts)
     end
     if ~params.zeros_probed
@@ -149,8 +149,8 @@ function check_inputs(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: De
             error("Reed-Solomon Codes require 2 parity check symbols for every error corrected. Your code has ", size(H)[1], " parity check symbols, but you requested correction of up to ", params.ndrops, " errors.")
         end
     end
-    if "round" in names(pnts)
-        @assert maximum(pnts.round) <= n
+    if "block" in names(pnts)
+        @assert maximum(pnts.block) <= n
     end
     if "pseudocolor" in names(pnts)
         if params.zeros_probed
@@ -165,8 +165,8 @@ function check_inputs(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: De
 end
 
 function sort_readouts!(pnts :: DataFrame)
-    if "round" in names(pnts) && "pseudocolor" in names(pnts)
-        sort!(pnts, [:round, :pseudocolor, :x, :y, :z])
+    if "block" in names(pnts) && "pseudocolor" in names(pnts)
+        sort!(pnts, [:block, :pseudocolor, :x, :y, :z])
     elseif "hyb" in names(pnts)
         sort!(pnts, [:hyb, :x, :y, :z])
     else
@@ -185,11 +185,11 @@ Arguments
 	- `s` : the sigma width parameter of the psfs
     - `w` : the weight (or brightness) of the psfs
     Additionally, there the data frame must either have columns
-    - `round` : the barcoding round in which the psf was found
-    - `pseudocolor` : the pseudocolor of the barcoding round in which the psf was found
-    or the round and pseudocolor can be computed from the hybridization
+    - `block` : the barcoding block in which the psf was found
+    - `pseudocolor` : the pseudocolor of the barcoding block in which the psf was found
+    or the block and pseudocolor can be computed from the hybridization
     - `hyb` : the hybridization in which the dot was found
-    where round = ceil(hyb / q), pseudocolor = (hyb - (round - 1) * q) % q, and q is the number of pseudocolors.
+    where block = ceil(hyb / q), pseudocolor = (hyb - (block - 1) * q) % q, and q is the number of pseudocolors.
 
 - `cb` : The codebook.
 - `H` : The parity check Matrix
@@ -451,11 +451,11 @@ Arguments
 	- `s` : the sigma width parameter of the psfs
     - `w` : the weight (or brightness) of the psfs
     Additionally, there the data frame must either have columns
-    - `round` : the barcoding round in which the psf was found
-    - `pseudocolor` : the pseudocolor of the barcoding round in which the psf was found
-    or the round and pseudocolor can be computed from the hybridization
+    - `block` : the barcoding block in which the psf was found
+    - `pseudocolor` : the pseudocolor of the barcoding block in which the psf was found
+    or the block and pseudocolor can be computed from the hybridization
     - `hyb` : the hybridization in which the dot was found
-    where round = ceil(hyb / q), pseudocolor = (hyb - (round - 1) * q) % q, and q is the number of pseudocolors.
+    where block = ceil(hyb / q), pseudocolor = (hyb - (block - 1) * q) % q, and q is the number of pseudocolors.
 
 - `cb` : The codebook.
 - `H` : The parity check Matrix
@@ -623,8 +623,8 @@ Add columns giving the coefficient and position the dot encodes in a codeword
 and its associated syndrome component.
 """
 function add_code_cols!(pnts :: DataFrame, params)
-    if "round" in names(pnts)
-        pnts.pos = UInt8.(pnts.round)
+    if "block" in names(pnts)
+        pnts.pos = UInt8.(pnts.block)
     else
         pnts.pos = get_pos.(pnts.hyb)
     end
@@ -678,7 +678,7 @@ struct DotAdjacencyGraphPairwise2D <: DotAdjacencyGraph2D
     lat_thresh :: Float64
     pnts :: DataFrame
     ndrops :: Int64
-    round_pc_block_starts :: Matrix
+    block_pc_block_starts :: Matrix
 end
 
 struct DotAdjacencyGraphRegistered3D <: DotAdjacencyGraph3D
@@ -701,14 +701,14 @@ struct DotAdjacencyGraphPairwise3D <: DotAdjacencyGraph3D
     z_thresh :: Float64
     pnts :: DataFrame
     ndrops :: Int64
-    round_pc_block_starts :: Matrix
+    block_pc_block_starts :: Matrix
 end
 
 function DotAdjacencyGraph(pnts :: DataFrame, params :: DecodeParams, n, w, tforms=nothing)
     if params.zeros_probed
         return DotAdjacencyGraph(pnts, params.lat_thresh, params.z_thresh, n, params.ndrops, tforms=tforms)
     else
-        return DotAdjacencyGraphBlankRound(pnts, params.lat_thresh, params.z_thresh, n, params.ndrops, w, tforms)
+        return DotAdjacencyGraphBlankBlock(pnts, params.lat_thresh, params.z_thresh, n, params.ndrops, w, tforms)
     end
 end
 
@@ -731,13 +731,13 @@ function DotAdjacencyGraph(pnts :: DataFrame, lat_thresh :: Real, z_thresh :: Re
         trees = []
     else
         trees = Matrix{KDTree}(undef, n, q)
-        round_pseudocolor_start_positions = Matrix{Union{Int64, Nothing}}(undef, n, q)
+        block_pseudocolor_start_positions = Matrix{Union{Int64, Nothing}}(undef, n, q)
     end
 
-    for round in 1:n
-        start_round = maximum([round-1-ndrops, 1])
-        start_pnt = cw_pos_bnds[start_round]
-        end_pnt = (cw_pos_bnds[round]-1)
+    for block in 1:n
+        start_block = maximum([block-1-ndrops, 1])
+        start_pnt = cw_pos_bnds[start_block]
+        end_pnt = (cw_pos_bnds[block]-1)
         if isnothing(tforms) 
             if data_2d
                 push!(trees, make_KDTree2D(pnts[start_pnt:end_pnt, :]))
@@ -747,10 +747,10 @@ function DotAdjacencyGraph(pnts :: DataFrame, lat_thresh :: Real, z_thresh :: Re
         else
             for searching_pseudocolor in 0:(q-1)
                 registered_pnts = copy(pnts[start_pnt:end_pnt, :])
-                for nbr_round in start_round:(round-1)
-                    for nbr_round_pseudocolor in 0:(q-1)
-                        tform = get_tform(tforms, nbr_round, nbr_round_pseudocolor, round, searching_pseudocolor)
-                        rows_of_interest = registered_pnts.pos .== nbr_round .&& registered_pnts.coeff .== nbr_round_pseudocolor
+                for nbr_block in start_block:(block-1)
+                    for nbr_block_pseudocolor in 0:(q-1)
+                        tform = get_tform(tforms, nbr_block, nbr_block_pseudocolor, block, searching_pseudocolor)
+                        rows_of_interest = registered_pnts.pos .== nbr_block .&& registered_pnts.coeff .== nbr_block_pseudocolor
                         nbr_rnd_pc_pnts = registered_pnts[rows_of_interest, :]
                         registered_pnts[rows_of_interest, [:x, :y, :z]] .= (Array(tform[:, 1:3] * Array(nbr_rnd_pc_pnts[:, [:x, :y, :z]])') .+ tform[:, 4])'
                     end
@@ -758,18 +758,18 @@ function DotAdjacencyGraph(pnts :: DataFrame, lat_thresh :: Real, z_thresh :: Re
                 spc_ind = searching_pseudocolor == 0 ? q : searching_pseudocolor
                 if data_2d
                     #push!(trees, KDTree(registered_pnts'))
-                    trees[round, spc_ind] = KDTree(Matrix(registered_pnts[:,[:x, :y]])')
-                    #trees[round, spc_ind] = KDTree(transformed_coords')
+                    trees[block, spc_ind] = KDTree(Matrix(registered_pnts[:,[:x, :y]])')
+                    #trees[block, spc_ind] = KDTree(transformed_coords')
                 else
                     #push!(trees, MakeKDTree3D(registered_pnts, lat_thresh, z_thresh))
-                    trees[round, spc_ind] = MakeKDTree3D(registered_pnts, lat_thresh, z_thresh)
+                    trees[block, spc_ind] = MakeKDTree3D(registered_pnts, lat_thresh, z_thresh)
                 end
-                #round_pseudocolor_start_positions[round, spc_ind] = start_pnt - 1 #findfirst(d -> d.pos==round && d.coeff ==searching_pseudocolor, eachrow(pnts))
+                #block_pseudocolor_start_positions[block, spc_ind] = start_pnt - 1 #findfirst(d -> d.pos==block && d.coeff ==searching_pseudocolor, eachrow(pnts))
 
-                #get the adjustment factor (global start index minus 1) for dots in each pseudocolor-round.
-                round_pseudocolor_start_positions[round, spc_ind] = findfirst(d -> d.pos==round && d.coeff ==searching_pseudocolor, eachrow(pnts))
-                if ~isnothing(round_pseudocolor_start_positions[round, spc_ind])
-                    round_pseudocolor_start_positions[round, spc_ind] -= 1
+                #get the adjustment factor (global start index minus 1) for dots in each pseudocolor-block.
+                block_pseudocolor_start_positions[block, spc_ind] = findfirst(d -> d.pos==block && d.coeff ==searching_pseudocolor, eachrow(pnts))
+                if ~isnothing(block_pseudocolor_start_positions[block, spc_ind])
+                    block_pseudocolor_start_positions[block, spc_ind] -= 1
                 end
             end
         end
@@ -783,9 +783,9 @@ function DotAdjacencyGraph(pnts :: DataFrame, lat_thresh :: Real, z_thresh :: Re
         end
     else
         if data_2d
-            return DotAdjacencyGraphPairwise2D(g, cw_pos_bnds, n, trees, lat_thresh, pnts, ndrops, round_pseudocolor_start_positions)
+            return DotAdjacencyGraphPairwise2D(g, cw_pos_bnds, n, trees, lat_thresh, pnts, ndrops, block_pseudocolor_start_positions)
         else
-            return DotAdjacencyGraphPairwise3D(g, cw_pos_bnds, n, trees, lat_thresh, z_thresh, pnts, ndrops, round_pseudocolor_start_positions)
+            return DotAdjacencyGraphPairwise3D(g, cw_pos_bnds, n, trees, lat_thresh, z_thresh, pnts, ndrops, block_pseudocolor_start_positions)
         end
     end
 end
@@ -794,17 +794,17 @@ function get_tform_dict(tforms :: DataFrame)
     return Dict([((rsrc=row.r_src, pcsrc=row.pc_src, rdst=row.r_dst, pcdst=row.pc_dst), row.tform) for row in eachrow(tforms)])
 end
 
-function get_tform(tforms :: Dict, src_round, src_pseudocolor, dst_round, dst_pseudocolor)
-    #return tforms[(tforms.r_src .== nbr_round) .&& (tforms.pc_src .== (nbr_round_pseudocolor .% q)) .&& (tforms.r_dst .== searching_round) .&& (tforms.pc_dst .== (searching_pseudocolor .% q)), "tform"][1]
-    return tforms[(rsrc=src_round, pcsrc = src_pseudocolor, rdst = dst_round, pcdst = dst_pseudocolor)]
+function get_tform(tforms :: Dict, src_block, src_pseudocolor, dst_block, dst_pseudocolor)
+    #return tforms[(tforms.r_src .== nbr_block) .&& (tforms.pc_src .== (nbr_block_pseudocolor .% q)) .&& (tforms.r_dst .== searching_block) .&& (tforms.pc_dst .== (searching_pseudocolor .% q)), "tform"][1]
+    return tforms[(rsrc=src_block, pcsrc = src_pseudocolor, rdst = dst_block, pcdst = dst_pseudocolor)]
 end
 
-abstract type DotAdjacencyGraphBlankRound <: abstractDotAdjacencyGraph end
+abstract type DotAdjacencyGraphBlankBlock <: abstractDotAdjacencyGraph end
 
 
-struct DotAdjacencyGraphBlankRound2D <: DotAdjacencyGraphBlankRound
+struct DotAdjacencyGraphBlankBlock2D <: DotAdjacencyGraphBlankBlock
     g :: SimpleDiGraph
-    cw_round_ranges
+    cw_block_ranges
     n :: Int8
     trees :: Vector{KDTree}
     lat_thresh :: Float64
@@ -814,9 +814,9 @@ struct DotAdjacencyGraphBlankRound2D <: DotAdjacencyGraphBlankRound
     first_potential_barcode_final_dot
 end
 
-struct DotAdjacencyGraphBlankRound3D <: DotAdjacencyGraphBlankRound
+struct DotAdjacencyGraphBlankBlock3D <: DotAdjacencyGraphBlankBlock
     g :: SimpleDiGraph
-    cw_round_ranges
+    cw_block_ranges
     n :: Int8
     trees :: Vector{KDTree}
     lat_thresh :: Float64
@@ -827,7 +827,7 @@ struct DotAdjacencyGraphBlankRound3D <: DotAdjacencyGraphBlankRound
     first_potential_barcode_final_dot
 end
 
-function DotAdjacencyGraphBlankRound(pnts :: DataFrame, lat_thresh :: Real, z_thresh :: Real, n, ndrops, w, tforms=nothing)
+function DotAdjacencyGraphBlankBlock(pnts :: DataFrame, lat_thresh :: Real, z_thresh :: Real, n, ndrops, w, tforms=nothing)
 
     g = SimpleDiGraph(nrow(pnts))
     data_2d = length(unique(pnts.z)) == 1
@@ -838,51 +838,51 @@ function DotAdjacencyGraphBlankRound(pnts :: DataFrame, lat_thresh :: Real, z_th
     end
 
     # Find the indices of dots representing each place, cᵢ, in a codeword start.
-    cw_round_ranges = get_cw_round_ranges(pnts, n)
+    cw_block_ranges = get_cw_block_ranges(pnts, n)
 
-    #make KDTrees to search for dots that may be neigbors to dots each barcoding round that 
+    #make KDTrees to search for dots that may be neigbors to dots each barcoding block that 
     trees = []
 
-    # Dots in any previous round may be neighbors with dots in rounds up to the n-w+1st round in paths that may represent a decodable barcode
-    for round in 1:(n-w+1) 
-        if ismissing(cw_round_ranges[round]) # if there are no dots in the barcoding round
+    # Dots in any previous block may be neighbors with dots in blocks up to the n-w+1st block in paths that may represent a decodable barcode
+    for block in 1:(n-w+1) 
+        if ismissing(cw_block_ranges[block]) # if there are no dots in the barcoding block
             push!(trees, make_KDTree(pnts[1:0, :])) #make empty KBTree
         else
-            # make KDTree that searches dots in all previous rounds
-            end_pnt = (cw_round_ranges[round][1]-1)
+            # make KDTree that searches dots in all previous blocks
+            end_pnt = (cw_block_ranges[block][1]-1)
             push!(trees, make_KDTree(pnts[1:end_pnt, :])) 
         end
     end
 
-    # dots in the n-w+2st or greater barcoding round cannot form paths in the DAG representing valid barcodes with early dots 
+    # dots in the n-w+2st or greater barcoding block cannot form paths in the DAG representing valid barcodes with early dots 
     # since no path containing directed edges will be long enough (paths must have length of at least w-ndrops to be decodable)
-    for (i, round) in enumerate((n-w+2):n) 
-        if ismissing(cw_round_ranges[round]) # if no dots in round
+    for (i, block) in enumerate((n-w+2):n) 
+        if ismissing(cw_block_ranges[block]) # if no dots in block
             push!(trees, make_KDTree(pnts[1:0, :])) # make empty KDTree
         else
-            # make KDTree searching previous rounds starting at maximum([w-(n-round)-1-ndrops,1]), which may
-            # be included in paths of decodable length when directed edges connect dots in both rounds
-            start_pnt = find_previous_round_start(cw_round_ranges, maximum([w-(n-round)-1-ndrops,1]))
-            end_pnt = (cw_round_ranges[round][1]-1)
+            # make KDTree searching previous blocks starting at maximum([w-(n-block)-1-ndrops,1]), which may
+            # be included in paths of decodable length when directed edges connect dots in both blocks
+            start_pnt = find_previous_block_start(cw_block_ranges, maximum([w-(n-block)-1-ndrops,1]))
+            end_pnt = (cw_block_ranges[block][1]-1)
             push!(trees, make_KDTree(pnts[start_pnt:end_pnt, :]))
         end
     end
 
-    # note: row indices of dots in the pnts DataFrame are sorted by barcoding round
-    # find the index of the first dot that may be the dot of highest barcoding round in a decodable path through the DAG.
-    # all dots of higher index also may be the dot of highest barcoding round in a decodable path through the DAG.
-    first_potential_barcode_final_dot=find_previous_round_start(cw_round_ranges,w-ndrops)
+    # note: row indices of dots in the pnts DataFrame are sorted by barcoding block
+    # find the index of the first dot that may be the dot of highest barcoding block in a decodable path through the DAG.
+    # all dots of higher index also may be the dot of highest barcoding block in a decodable path through the DAG.
+    first_potential_barcode_final_dot=find_previous_block_start(cw_block_ranges,w-ndrops)
     if data_2d
-        DotAdjacencyGraphBlankRound2D(g, cw_round_ranges, n, trees, lat_thresh, pnts, ndrops, w, first_potential_barcode_final_dot)
+        DotAdjacencyGraphBlankBlock2D(g, cw_block_ranges, n, trees, lat_thresh, pnts, ndrops, w, first_potential_barcode_final_dot)
     else
-        DotAdjacencyGraphBlankRound3D(g, cw_round_ranges, n, trees, lat_thresh, z_thresh, pnts, ndrops, w, first_potential_barcode_final_dot)
+        DotAdjacencyGraphBlankBlock3D(g, cw_block_ranges, n, trees, lat_thresh, z_thresh, pnts, ndrops, w, first_potential_barcode_final_dot)
     end
 
 end
 
-function find_previous_round_start(cw_round_ranges, r0)
-    for r in r0:length(cw_round_ranges)
-        start = cw_round_ranges[r]
+function find_previous_block_start(cw_block_ranges, r0)
+    for r in r0:length(cw_block_ranges)
+        start = cw_block_ranges[r]
         ismissing(start) ? r += 1 : return start[1]
     end
 end
@@ -904,18 +904,18 @@ end
 
 """
 """
-function get_cw_round_ranges(pnts, n)
-    cw_round_ranges = []
-    sizehint!(cw_round_ranges, n)
+function get_cw_block_ranges(pnts, n)
+    cw_block_ranges = []
+    sizehint!(cw_block_ranges, n)
 
     for cᵢ = 1:n
-        if findfirst(x -> x==cᵢ, pnts.round) == nothing
-            push!(cw_round_ranges, missing)
+        if findfirst(x -> x==cᵢ, pnts.block) == nothing
+            push!(cw_block_ranges, missing)
         else
-            push!(cw_round_ranges, findfirst(x -> x==cᵢ, pnts.round):findlast(x -> x==cᵢ, pnts.round))
+            push!(cw_block_ranges, findfirst(x -> x==cᵢ, pnts.block):findlast(x -> x==cᵢ, pnts.block))
         end
     end
-    return cw_round_ranges
+    return cw_block_ranges
 end
 
 """
@@ -931,11 +931,11 @@ function neighbors(g :: DotAdjacencyGraphRegistered2D, n)
 end
 
 function neighbors(g :: DotAdjacencyGraphPairwise2D, dot)
-    round = g.pnts.pos[dot]
+    block = g.pnts.pos[dot]
     pseudocolor = g.pnts.coeff[dot] == 0 ? q : g.pnts.coeff[dot]
-    nbrs = inrange(g.trees[round, pseudocolor], [g.pnts.x[dot], g.pnts.y[dot]], g.lat_thresh, true)
+    nbrs = inrange(g.trees[block, pseudocolor], [g.pnts.x[dot], g.pnts.y[dot]], g.lat_thresh, true)
     #nbrs = inrange(g.trees[g.pnts.pos[n]], [g.pnts.x[n], g.pnts.y[n]], g.lat_thresh, true)
-    pnts_prior_rnds = g.cw_pos_bnds[maximum([round-1-g.ndrops, 1])] - 1
+    pnts_prior_rnds = g.cw_pos_bnds[maximum([block-1-g.ndrops, 1])] - 1
     return nbrs .+ pnts_prior_rnds
 end
 
@@ -952,37 +952,37 @@ function neighbors(g :: DotAdjacencyGraph3D, n)
 end
 
 function neighbors(g :: DotAdjacencyGraphPairwise3D, dot)
-    round = g.pnts.round[dot]
+    block = g.pnts.block[dot]
     pseudocolor = g.pnts.pseudocolor[dot]
-    nbrs = inrange(g.trees[round, pseudocolor], [g.pnts.x[dot], g.pnts.y[dot], g.pnts.z[dot]*g.lat_thresh/g.z_thresh], g.lat_thresh, true)
+    nbrs = inrange(g.trees[block, pseudocolor], [g.pnts.x[dot], g.pnts.y[dot], g.pnts.z[dot]*g.lat_thresh/g.z_thresh], g.lat_thresh, true)
     #nbrs = inrange(g.trees[g.pnts.pos[n]], [g.pnts.x[n], g.pnts.y[n]], g.lat_thresh, true)
-    pnts_prior_rnds = g.cw_pos_bnds[maximum([round-1-g.ndrops, 1])] - 1
+    pnts_prior_rnds = g.cw_pos_bnds[maximum([block-1-g.ndrops, 1])] - 1
     return nbrs .+ pnts_prior_rnds
 end
 
 """
-    neighbors(g :: DotAdjacencyGraphBlankRound2D, n)
+    neighbors(g :: DotAdjacencyGraphBlankBlock2D, n)
 
 Define SimpleDiGraph neighbors function for DotAdjacencyGraph
 """
-function neighbors(g :: DotAdjacencyGraphBlankRound2D, dot)
+function neighbors(g :: DotAdjacencyGraphBlankBlock2D, dot)
     nbrs = inrange(g.trees[g.pnts.pos[dot]], [g.pnts.x[dot], g.pnts.y[dot]], g.lat_thresh, true)
-    return nbr_index_round_to_global!(nbrs, g, dot)
+    return nbr_index_block_to_global!(nbrs, g, dot)
 end
 
 """
-    neighbors(g :: DotAdjacencyGraphBlankRound, n)
+    neighbors(g :: DotAdjacencyGraphBlankBlock, n)
 
 Define SimpleDiGraph neighbors function for DotAdjacencyGraph
 """
-function neighbors(g :: DotAdjacencyGraphBlankRound3D, dot)
+function neighbors(g :: DotAdjacencyGraphBlankBlock3D, dot)
     nbrs = inrange(g.trees[g.pnts.pos[dot]], [g.pnts.x[dot], g.pnts.y[dot], g.pnts.z[dot]], g.lat_thresh, true)
-    return nbr_index_round_to_global!(nbrs, g, dot)
+    return nbr_index_block_to_global!(nbrs, g, dot)
 end
 
-function nbr_index_round_to_global!(nbrs, g, dot)
+function nbr_index_block_to_global!(nbrs, g, dot)
     if g.pnts.pos[dot] >  g.n - g.w + 2 + g.ndrops
-        pnts_prior_rnds = find_previous_round_start(g.cw_round_ranges, g.w - g.ndrops - (g.n - g.pnts.round[dot]+1))
+        pnts_prior_rnds = find_previous_block_start(g.cw_block_ranges, g.w - g.ndrops - (g.n - g.pnts.block[dot]+1))
         nbrs .+= pnts_prior_rnds - 1
     end
     return nbrs
@@ -1001,8 +1001,8 @@ end
 """
 function syndrome_find_barcodes!(pnts ::DataFrame, g :: abstractDotAdjacencyGraph, cb ::Matrix, ndrops, w, tforms=nothing)
     cw_dict = make_cw_dict(cb)
-    if typeof(g) <: DotAdjacencyGraphBlankRound
-        cpaths, decode_cands = find_blank_round_codewords(pnts ::DataFrame, g :: DotAdjacencyGraphBlankRound, cw_dict, w, tforms)
+    if typeof(g) <: DotAdjacencyGraphBlankBlock
+        cpaths, decode_cands = find_blank_block_codewords(pnts ::DataFrame, g :: DotAdjacencyGraphBlankBlock, cw_dict, w, tforms)
     elseif ndrops == 0
         cpaths, decode_cands = find_barcodes_mem_eff(pnts, g, cw_dict, tforms)
     else
@@ -1074,8 +1074,8 @@ function find_nsnds(g :: DotAdjacencyGraph)
     nsnds = fill(0,n_pnts)
     nsnds[1:(g.cw_pos_bnds[2+g.ndrops]-1)] .= 1
 
-    for bc_round in 0x02:g.n
-        for pnt in g.cw_pos_bnds[bc_round]:(g.cw_pos_bnds[bc_round+0x01]-1)
+    for bc_block in 0x02:g.n
+        for pnt in g.cw_pos_bnds[bc_block]:(g.cw_pos_bnds[bc_block+0x01]-1)
             nbrs = neighbors(g, pnt)
             for nbr in nbrs
                 nsnds[pnt] += nsnds[nbr]
@@ -1141,8 +1141,8 @@ function find_code_paths!(
 
     for dot_ind in 1:nrow(pnts)
         #for (synd_ind, path_length) in enumerate(syndrome_path_lengths[dot_ind])
-        for (synd_ind, path_barcoding_rounds) in enumerate(syndrome_coeff_positions[dot_ind])
-            if path_barcoding_rounds == full_bin_pos_indicator && iszero(syndromes[dot_ind][synd_ind])
+        for (synd_ind, path_barcoding_blocks) in enumerate(syndrome_coeff_positions[dot_ind])
+            if path_barcoding_blocks == full_bin_pos_indicator && iszero(syndromes[dot_ind][synd_ind])
                 code_path = recursive_get_synd_neighbors(pnts, g, dot_ind, synd_ind, syndromes)
                 @assert length(code_path) == (length(g.cw_pos_bnds) -1)
                 message = pnts.coeff[code_path]
@@ -1151,14 +1151,14 @@ function find_code_paths!(
                     push!(decode_cands, cw_dict[message])
                 end
             else
-                ndots = get_number_of_dots(path_barcoding_rounds, cw_n_symbols)
+                ndots = get_number_of_dots(path_barcoding_blocks, cw_n_symbols)
                 if ndots >= cw_n_symbols - ndrops && ndots < cw_n_symbols
                     s = syndromes[dot_ind][synd_ind]
                     #dot_pos_sum = syndrome_coeff_positions[dot_ind][synd_ind]
 
                     # use bitwise masking to get the position of the missing dot
                     # positions are bitwise "one-hot" encoded from sums of powers of 2
-                    drop_pos_pow = path_barcoding_rounds ⊻ full_bin_pos_indicator
+                    drop_pos_pow = path_barcoding_blocks ⊻ full_bin_pos_indicator
                     if drop_pos_pow > 32
                         println("dot_pos_sum: $dot_pos_sum")
                     end
@@ -1188,11 +1188,11 @@ end
 """
 Helper function to get number of dots in path using bitwise operations
 """
-function get_number_of_dots(pos_indicator, n_barcoding_rounds)
+function get_number_of_dots(pos_indicator, n_barcoding_blocks)
     ndots = 0
-    for r in 1:n_barcoding_rounds
-        bc_round_has_dot = (((2^(r-1)) & pos_indicator) > 0)
-        ndots += bc_round_has_dot
+    for r in 1:n_barcoding_blocks
+        bc_block_has_dot = (((2^(r-1)) & pos_indicator) > 0)
+        ndots += bc_block_has_dot
     end
     return ndots
 end
@@ -1336,12 +1336,12 @@ function threshold_cpaths(cpaths_df, pnts, lat_thresh, z_thresh, tforms :: Dict)
         ys = pnts.y[cpaths_df.cpath[row]]
         zs = pnts.z[cpaths_df.cpath[row]]
         coords = pnts[cpaths_df.cpath[row], [:x, :y, :z]]
-        rounds = pnts.pos[cpaths_df.cpath[row]]
+        blocks = pnts.pos[cpaths_df.cpath[row]]
         pseudocolors = pnts.coeff[cpaths_df.cpath[row]]
         exceeds_threshold = false
         len_cp = length(xs)
         for i = 1:(len_cp-1), j = (i+1):len_cp
-            tform = get_tform(tforms, rounds[i], pseudocolors[i], rounds[j], pseudocolors[j])
+            tform = get_tform(tforms, blocks[i], pseudocolors[i], blocks[j], pseudocolors[j])
             registered_coords =  tform[:, 1:3] * Array(coords[i, :]) + tform[:,4]
             z_diff = abs(zs[j] - registered_coords[3])
             lat_diff = sqrt((xs[j]-registered_coords[1])^2 + (ys[j]-registered_coords[2])^2)

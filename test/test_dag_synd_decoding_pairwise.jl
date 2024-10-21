@@ -20,9 +20,9 @@ pc_matrices = [[1 1 -1 -1;]]
 
 src_hyb = []
 dst_hyb = []
-src_round = []
+src_block = []
 src_pc = []
-dst_round = []
+dst_block = []
 dst_pc = []
 trans_only_tforms = []
 
@@ -36,11 +36,11 @@ for i in 1:80, j in 1:80
     push!(dst_hyb, j)
     push!(src_pc, i % 20)
     push!(dst_pc, j % 20)
-    push!(src_round, ceil(i / 20))
-    push!(dst_round, ceil(j / 20))
+    push!(src_block, ceil(i / 20))
+    push!(dst_block, ceil(j / 20))
 end
 
-tforms = DataFrame("r_src" => src_round, "pc_src" => src_pc, "r_dst" => dst_round, "pc_dst" => dst_pc, "tform" => trans_only_tforms)
+tforms = DataFrame("r_src" => src_block, "pc_src" => src_pc, "r_dst" => dst_block, "pc_dst" => dst_pc, "tform" => trans_only_tforms)
 
 
 @testset "all tests" for ii = 1:1

@@ -459,7 +459,7 @@ println("full decode perfect RS barcode pairs w same coords")
         pnts = vcat(pnts1, pnts2)
         #println("pnts:")
         #println(pnts)
-        sort!(pnts, [:round, :pseudocolor])
+        sort!(pnts, [:block, :pseudocolor])
 
         ndots = ntargets*sum(RS_q11_k7_w4cb[1,:] .!= 0)
         free_dot_cost = 1.0

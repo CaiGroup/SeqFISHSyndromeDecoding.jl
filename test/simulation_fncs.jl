@@ -76,37 +76,37 @@ function encode(true_locs :: DataFrame, cb)
     y = Float64[]
     #hyb = Int8[]
     hyb = UInt8[]
-    rounds = UInt8[]
+    blocks = UInt8[]
     pseudocolors = []
     for i = 1:npts
         target = true_locs[i, :]
         codeword = cb[target.species,:]
-        for round = 0x01:n
-            if codeword[round] != 0 && codeword[round] != "0" && n > wt
+        for block = 0x01:n
+            if codeword[block] != 0 && codeword[block] != "0" && n > wt
                 push!(species, target.species)
                 push!(x, target.x)
                 push!(y, target.y)
-                push!(rounds, round)
-                if typeof(codeword[round]) == String
-                    push!(pseudocolors, savestring_2_pseudocolor[codeword[round]])
+                push!(blocks, block)
+                if typeof(codeword[block]) == String
+                    push!(pseudocolors, savestring_2_pseudocolor[codeword[block]])
                 else    
-                    push!(pseudocolors, codeword[round])
+                    push!(pseudocolors, codeword[block])
                 end
                 #push!(hyb, UInt8(dot_hyb))
             elseif n == wt
                 push!(species, target.species)
                 push!(x, target.x)
                 push!(y, target.y)
-                dot_hyb = q*(round-1)+codeword[round]
+                dot_hyb = q*(block-1)+codeword[block]
                 #codeword[pos] == 0x00 ? dot_hyb += 0x10 : nothing
-                codeword[round] == 0x00 ? dot_hyb += UInt8(q) : nothing
+                codeword[block] == 0x00 ? dot_hyb += UInt8(q) : nothing
                 push!(hyb, dot_hyb)
                 #push!(hyb, UInt8(dot_hyb))
             end
         end
     end
     if n > wt
-        pnts = DataFrame(dot_ID=dot,round=rounds,pseudocolor=pseudocolors,species=species,x=x,y=y)
+        pnts = DataFrame(dot_ID=dot,block=blocks,pseudocolor=pseudocolors,species=species,x=x,y=y)
     else
         pnts = DataFrame(dot_ID=dot,hyb=hyb,species=species,x=x,y=y)
     end
@@ -140,7 +140,7 @@ function draw_off_target_hyb_dots!(true_locs :: DataFrame, off_target_rate)
     @assert off_target_rate ≥ 0
     n_objects = length(true_locs)
 
-    objects = rand(1:n_objects, round(off_target_rate*n_objects))
+    objects = rand(1:n_objects, block(off_target_rate*n_objects))
     hybs = rand(1:80, length(off_target_objects))
     x = true_locs.x[off_target_objects]
     y = true_locs.y[off_target_objects]
