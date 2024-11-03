@@ -1,4 +1,4 @@
-gene_name,Round1,Round2,Round3,Round4,Round5,Round6,Round7
+gene,block1,block2,block3,block4,block5,block6,block7
 1,1,0,α³,α²,1,α⁵,α³
 2,α,α⁵,0,α,1,α⁵,α³
 3,0,α²,α,α⁴,1,α⁵,α³

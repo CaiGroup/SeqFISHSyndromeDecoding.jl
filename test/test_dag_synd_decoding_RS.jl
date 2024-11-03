@@ -29,13 +29,13 @@ RS_q9_n8_k5_H = readdlm("codes/RS_q9_n8_k5_H.csv", ',', String)
 RS_q9_n8_k5_w4cb = readdlm("codes/RS_q9_n8_k5_w4cb.csv", ',', String)
 
 RS_q11_n12_k9_H = readdlm("codes/RS_q11_n12_k9_H.csv", ',', UInt8)
-RS_q11_n12_k9_w4cb = UInt8.(Matrix(select(DataFrame(CSV.File("codes/RS_q11_n12_k9_w4cb.csv")), Not(:gene_name))))
+RS_q11_n12_k9_w4cb = UInt8.(Matrix(select(DataFrame(CSV.File("codes/RS_q11_n12_k9_w4cb.csv")), Not(:gene))))
 
-q9_n10_k7_w4_ncws1000_v1 = String.(Matrix(select(DataFrame(CSV.File("codes/q9_n10_k7_w4_ncws1000_v1.csv")), Not(:gene_name))))
+q9_n10_k7_w4_ncws1000_v1 = String.(Matrix(select(DataFrame(CSV.File("codes/q9_n10_k7_w4_ncws1000_v1.csv")), Not(:gene))))
 RS_q9_n10_k7_H = readdlm("codes/RS_q9_n10_k7_H.csv", ',', String)
 
 RS_q13_n12_k8_H = readdlm("codes/RS_q13_n12_k8_H.csv", ',', UInt8)
-RS_q13_n12_k8_w5cb = UInt8.(Matrix(select(DataFrame(CSV.File("codes/RS_q13_n12_k8_w5cb.csv")), Not(:gene_name))))
+RS_q13_n12_k8_w5cb = UInt8.(Matrix(select(DataFrame(CSV.File("codes/RS_q13_n12_k8_w5cb.csv")), Not(:gene))))
 
 #cbs = [RS_q7_k4_w4cb, RS_q11_k7_w4cb, RS_q11_k7_w5cb, RS_q11_k8_w4cb, hamming_merfish_cb, RS_q8_n7_k4_w4cb, RS_q9_n8_k5_w4cb, RS_q11_n12_k9_w4cb]
 #pc_matrices = [RS_q7_k4_H, RS_q11_k7_H, RS_q11_k7_H, RS_q11_k8_H, hamming_merfish_H, RS_q8_n7_k4_H, RS_q9_n8_k5_H, RS_q11_n12_k9_H]
