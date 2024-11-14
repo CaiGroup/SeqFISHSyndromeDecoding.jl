@@ -1,7 +1,5 @@
 export set_xy_search_radius, set_z_search_radius, set_n_allowed_drops, set_lat_var_cost_coeff,
-set_z_var_cost_coeff, set_lw_var_cost_coeff, set_s_var_cost_coeff, set_zeros_probed,
-set_mip_sa_thresh, set_free_dot_cost, set_n_chains, set_l_chains, set_cooling_factor,
-set_cooling_timescale, set_erasure_penalty, set_converge_multiplier, set_skip_thresh, set_skip_density_thresh
+set_z_var_cost_coeff, set_lw_var_cost_coeff, set_s_var_cost_coeff, set_zeros_probed, set_free_dot_cost, set_erasure_penalty, set_skip_thresh, set_skip_density_thresh
 
 mutable struct DecodeParams
     lat_thresh :: Float64
@@ -12,14 +10,8 @@ mutable struct DecodeParams
     s_var_factor :: Float64
     ndrops :: Int64
     zeros_probed :: Bool
-    mip_sa_thresh :: Float64
     free_dot_cost :: Float64
-    n_chains :: Int64
-    l_chain :: Int64
-    cooling_factor :: Float64
-    cooling_timescale :: Float64
     erasure_penalty :: Float64
-    converge_multiplier :: Int64
     skip_thresh :: Int64
     skip_density_thresh :: Float64
 end
@@ -33,18 +25,9 @@ by the user. If they are not, the decoding functions will throw an error.
 """
 function DecodeParams()
     prms = DecodeParams(fill(0.0, 18)...)
-    c_final = 1
-    # set simmulated annealing parameters default values
     set_zeros_probed(prms, true)
-    set_mip_sa_thresh(prms, Inf)
     set_free_dot_cost(prms, 1.0)
-    set_n_chains(prms, 100)
-    set_l_chains(prms, 300)
-    set_cooling_factor(prms, 200.0)
-    ct = (prms.cooling_factor/c_final -1)/log(prms.n_chains)
-    set_cooling_timescale(prms, ct :: Real)
     set_erasure_penalty(prms, 1.0)
-    set_converge_multiplier(prms, 10000)
     set_skip_thresh(prms, 2000)
     set_skip_density_thresh(prms, 50)
     return prms
@@ -87,7 +70,6 @@ Arguments
 """
 set_zeros_probed(prms :: DecodeParams, zp :: Integer) = (prms.zeros_probed = zp)
 set_zeros_probed(prms :: DecodeParams, zp :: Bool) = (prms.zeros_probed = zp)
-
 
 
 """
@@ -147,14 +129,6 @@ Arguments
 """
 set_free_dot_cost(prms :: DecodeParams, fdc :: Real) = (prms.free_dot_cost = Float64(fdc))
 
-"""
-    set_mip_sa_thresh(prms :: DecodeParams, mst :: Real)
-
-Arguments
-- `prms`: DecodeParams Object
-- `mst`: Connected networks of more barcode candidates than this threshold will use simulated annealing to approximate the optimal barcodes.
-"""
-set_mip_sa_thresh(prms :: DecodeParams, mst :: Real) = (prms.mip_sa_thresh = mst)
 
 """
     set_skip_thresh(prms :: DecodeParams, st :: Integer)
@@ -173,44 +147,3 @@ Arguments:
 - `sdt`: conflicting networks of barcode candidates that have a higher ratio of candidate barcodes to area of their bounding box in pixels than this threshold will be discarded.
 """
 set_skip_density_thresh(prms :: DecodeParams, sdt :: Real) = (prms.skip_density_thresh = Float64(sdt))
-
-
-# Simulated Annealing Parameters
-
-"""
-    set_n_chains(prms :: DecodeParams, nc :: Integer)
-
-Sets the number of markov chains used int the simulated annealing algorithm. Each
-Markov chain operates at the same "temperature" or control parameter
-"""
-set_n_chains(prms :: DecodeParams, nc :: Integer) = (prms.n_chains = nc)
-
-"""
-    set_l_chains(prms :: DecodeParams, lc :: Integer)
-
-Sets the number of estimated Metropolis steps that the rejectionless markov chains take.
-"""
-set_l_chains(prms :: DecodeParams, lc :: Integer) = (prms.l_chain = lc)
-
-"""
-    set_cooling_factor(prms :: DecodeParams, cf :: Real)
-
-Sets the start "temperature" or control parameter of the simulated annealing system
-"""
-set_cooling_factor(prms :: DecodeParams, cf :: Real) = (prms.cooling_factor = Float64(cf))
-
-"""
-    set_cooling_timescale(prms :: DecodeParams, ct :: Real)
-    
-Sets the decay rate of the simulated annealing temperature between markov chains
-"""
-set_cooling_timescale(prms :: DecodeParams, ct :: Real) = (prms.cooling_timescale = Float64(ct))
-
-
-"""
-    set_converge_multiplier(prms :: DecodeParams, ct :: Integer)
-
-If the rejectionless simulated annealing algorithm favors the current state by
-more than probablity (ct/(ct+1)) over all transitioning to any other state, converge
-"""
-set_converge_multiplier(prms :: DecodeParams, ct :: Integer) = (prms.converge_multiplier = ct)
