@@ -12,7 +12,7 @@ mutable struct DecodeParams
     s_var_factor :: Float64
     ndrops :: Int64
     zeros_probed :: Bool
-    mip_sa_thresh :: Int64
+    mip_sa_thresh :: Float64
     free_dot_cost :: Float64
     n_chains :: Int64
     l_chain :: Int64
@@ -36,7 +36,7 @@ function DecodeParams()
     c_final = 1
     # set simmulated annealing parameters default values
     set_zeros_probed(prms, true)
-    set_mip_sa_thresh(prms, 80)
+    set_mip_sa_thresh(prms, Inf)
     set_free_dot_cost(prms, 1.0)
     set_n_chains(prms, 100)
     set_l_chains(prms, 300)
@@ -154,7 +154,7 @@ Arguments
 - `prms`: DecodeParams Object
 - `mst`: Connected networks of more barcode candidates than this threshold will use simulated annealing to approximate the optimal barcodes.
 """
-set_mip_sa_thresh(prms :: DecodeParams, mst :: Integer) = (prms.mip_sa_thresh = mst)
+set_mip_sa_thresh(prms :: DecodeParams, mst :: Real) = (prms.mip_sa_thresh = mst)
 
 """
     set_skip_thresh(prms :: DecodeParams, st :: Integer)
