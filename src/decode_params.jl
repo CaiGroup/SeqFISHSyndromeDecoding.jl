@@ -24,7 +24,7 @@ Constructor for DecodeParams object that sets default values for every parameter
 by the user. If they are not, the decoding functions will throw an error.
 """
 function DecodeParams()
-    prms = DecodeParams(fill(0.0, 18)...)
+    prms = DecodeParams(fill(0.0, 12)...)
     set_zeros_probed(prms, true)
     set_free_dot_cost(prms, 1.0)
     set_erasure_penalty(prms, 1.0)

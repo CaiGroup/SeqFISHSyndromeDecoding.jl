@@ -114,26 +114,20 @@ println("full decode perfect")
         converge_thresh = 100 * ndots
         skip_thresh = 2000
         skip_density_thresh = 2000
-        params = DecodeParams(
-            lat_thresh,
-            z_thresh,
-            lat_var_factor,
-            z_var_factor,
-            lw_var_factor,
-            s_var_factor,
-            ndrops,
-            true,
-            mip_sa_thresh,
-            free_dot_energy,
-            n_chains,
-            l_chain,
-            c₀,
-            (c₀/c_final-1)/log(n_chains),
-            erasure_penalty,
-            converge_thresh,
-            skip_thresh,
-            skip_density_thresh
-        )
+        params = DecodeParams()
+        set_xy_search_radius(params, lat_thresh)
+        set_z_search_radius(params, z_thresh)
+        set_lat_var_cost_coeff(params, lat_var_factor)
+        set_z_var_cost_coeff(params, z_var_factor)
+        set_lw_var_cost_coeff(params, lw_var_factor)
+        set_s_var_cost_coeff(params, s_var_factor)
+        set_n_allowed_drops(params, ndrops)
+        set_zeros_probed(params, true)
+        set_free_dot_cost(params, free_dot_energy)
+        set_erasure_penalty(params, erasure_penalty)
+        set_skip_thresh(params, skip_thresh)
+        set_skip_density_thresh(params, skip_density_thresh)
+
         decode_syndromes!(pnts, cb, H, params)
         @test pnts.species == [Int(p) for p in pnts.decoded]
     end
@@ -225,26 +219,19 @@ println("full decode drops")
         converge_thresh = 100 * ndots
         skip_thresh = 2000
         skip_density_thresh=2000
-        params = DecodeParams(
-            lat_thresh,
-            z_thresh,
-            lat_var_factor,
-            z_var_factor,
-            lw_var_factor,
-            s_var_factor,
-            ndrops,
-            true,
-            mip_sa_thresh,
-            free_dot_energy,
-            n_chains,
-            l_chain,
-            c₀,
-            (c₀/c_final-1)/log(n_chains),
-            erasure_penalty,
-            converge_thresh,
-            skip_thresh,
-            skip_density_thresh
-        )
+        params = DecodeParams()
+        set_lat_var_cost_coeff(params, lat_var_factor)
+        set_xy_search_radius(params, lat_thresh)
+        set_free_dot_cost(params, free_dot_cost)
+        set_z_var_cost_coeff(params, z_var_factor)
+        set_s_var_cost_coeff(params, s_var_factor)
+        set_lw_var_cost_coeff(params, lw_var_factor)
+        set_H(pc_matrices[i], params, cb)
+        set_n_allowed_drops(params,1)
+        set_zeros_probed(params, true)
+        set_skip_thresh(params, skip_thresh)
+        set_skip_density_thresh(params, skip_density_thresh)
+
         decode_syndromes!(encoded, cb, H, params)
         @test encoded.species == encoded.decoded
         

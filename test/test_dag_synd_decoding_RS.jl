@@ -235,26 +235,20 @@ println("full decode 1 drop RS")
             converge_thresh = 100 * ndots
             skip_thresh = 200000000
             skip_density_thresh=200000000000
-            params = DecodeParams(
-                lat_thresh,
-                z_thresh,
-                lat_var_factor,
-                z_var_factor,
-                lw_var_factor,
-                s_var_factor,
-                ndrops,
-                false,
-                mip_sa_thresh,
-                free_dot_energy,
-                n_chains,
-                l_chain,
-                c₀,
-                (c₀/c_final-1)/log(n_chains),
-                erasure_penalty,
-                converge_thresh,
-                skip_thresh,
-                skip_density_thresh
-            )
+
+            
+            params = DecodeParams()
+            set_lat_var_cost_coeff(params, lat_var_factor)
+            set_xy_search_radius(params, lat_thresh)
+            set_free_dot_cost(params, free_dot_cost)
+            set_z_var_cost_coeff(params, z_var_factor)
+            set_s_var_cost_coeff(params, s_var_factor)
+            set_lw_var_cost_coeff(params, lw_var_factor)
+            set_H(pc_matrices[i], params, cb)
+            set_skip_density_thresh(params, skip_density_thresh)
+            set_H(pc_matrices[i], params, cb)
+            set_n_allowed_drops(params, ndrops)
+
             set_zeros_probed(params, false)
             set_skip_thresh(params, skip_thresh)
             decode_syndromes!(encoded, cb, H, params)
@@ -306,26 +300,20 @@ println("full decode 2 drop RS")
             converge_thresh = 100 * ndots
             skip_thresh = 200000000
             skip_density_thresh=200000000000
-            params = DecodeParams(
-                lat_thresh,
-                z_thresh,
-                lat_var_factor,
-                z_var_factor,
-                lw_var_factor,
-                s_var_factor,
-                ndrops,
-                false,
-                mip_sa_thresh,
-                free_dot_cost,
-                n_chains,
-                l_chain,
-                c₀,
-                (c₀/c_final-1)/log(n_chains),
-                erasure_penalty,
-                converge_thresh,
-                skip_thresh,
-                skip_density_thresh
-            )
+
+
+            params = DecodeParams()
+            set_lat_var_cost_coeff(params, lat_var_factor)
+            set_xy_search_radius(params, lat_thresh)
+            set_free_dot_cost(params, free_dot_cost)
+            set_z_var_cost_coeff(params, z_var_factor)
+            set_s_var_cost_coeff(params, s_var_factor)
+            set_lw_var_cost_coeff(params, lw_var_factor)
+            set_H(pc_matrices[i], params, cb)
+            set_skip_density_thresh(params, skip_density_thresh)
+            set_H(pc_matrices[i], params, cb)
+            set_n_allowed_drops(params, ndrops)
+
             set_zeros_probed(params, false)
             set_skip_thresh(params, skip_thresh)
             decode_syndromes!(encoded, cb, H, params)
@@ -428,83 +416,4 @@ println("full decode drop RS search radius")
             end      
         end
     end
-end
-"""
-println("full decode perfect RS barcode pairs w same coords")
-@testset "full decode perfect RS barcode pairs w same coords" begin
-    for ntargets in [1, 10, 100, 1000]
-        n = length(RS_q11_k7_w4cb[1,:])
-        q = length(unique(RS_q11_k7_w4cb))
-        set_n(UInt8(n))
-        set_q(UInt8(q))
-        set_H(RS_q11_k7_H)
-        H = RS_q11_k7_H
-
-        lat_thresh = 0.0
-        z_thresh = 0.0
-        ndrops = 0
-        free_dot_energy = 1.0
-        mip_sa_thresh = 800000000
-
-        pnts1, g = construct_test_dag(ntargets, 0, 0, 0, RS_q11_k7_w4cb, ndrops)
-        pnts2, g2 = construct_test_dag(ntargets, 0, 0, 0, RS_q11_k7_w4cb, ndrops)
-        pnts1.z = zeros(nrow(pnts1))
-        pnts2.z = zeros(nrow(pnts2))
-
-        sort!(pnts1, :dot_ID)
-        sort!(pnts2, :dot_ID)
-
-        pnts2.x .= pnts1.x
-        pnts2.y .= pnts1.y
-        pnts = vcat(pnts1, pnts2)
-        #println("pnts:")
-        #println(pnts)
-        sort!(pnts, [:block, :pseudocolor])
-
-        ndots = ntargets*sum(RS_q11_k7_w4cb[1,:] .!= 0)
-        free_dot_cost = 1.0
-
-        c_final = 2
-        n_chains = 100
-        l_chain = 300
-        c₀ = free_dot_energy * 40
-        lat_var_factor = 8000.0
-        z_var_factor = 1.0
-        lw_var_factor = 0.0
-        s_var_factor = 0.0
-        erasure_penalty = 0.0
-        converge_thresh = 100 * ndots
-        skip_thresh = 2000
-        skip_density_thresh = 2000
-        params = DecodeParams(
-            lat_thresh,
-            z_thresh,
-            lat_var_factor,
-            z_var_factor,
-            lw_var_factor,
-            s_var_factor,
-            ndrops,
-            false,
-            mip_sa_thresh,
-            free_dot_energy,
-            n_chains,
-            l_chain,
-            c₀,
-            (c₀/c_final-1)/log(n_chains),
-            erasure_penalty,
-            converge_thresh,
-            skip_thresh,
-            skip_density_thresh
-        )
-        decode_syndromes!(pnts, RS_q11_k7_w4cb, H, params)
-        println(sum(sort(pnts.decoded) .!= sort(pnts.decoded)))
-        #println(hcat(dcd, sort(pnts.species))')
-        sort!(pnts, [:x, :species, :decoded])
-        println(pnts[!, [:x, :species, :decoded]])
-        @test(all(sort(pnts.species) .== sort(pnts.decoded)))
-       #@test all(sort(pnts.species) .== dcd)
-    end
-end
-"""
-
 end
