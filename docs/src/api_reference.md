@@ -30,21 +30,9 @@ The rest of the parameters are given a default value by the [`DecodeParams`](@re
 ```@docs
 set_erasure_penalty
 set_free_dot_cost
-set_mip_sa_thresh
 set_skip_thresh
 set_skip_density_thresh
 ```
-
-#### Simulated Annealing Parameters:
-
-```@docs
-set_n_chains
-set_l_chains
-set_cooling_factor
-set_cooling_timescale
-set_converge_multiplier
-```
-
 
 ## Running Decoding
 
