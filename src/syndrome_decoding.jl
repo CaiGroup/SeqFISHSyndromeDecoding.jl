@@ -504,11 +504,18 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, 
         filter!(:cpath => cpath -> length(cpath) >= w - params.ndrops, cpath_df)
     end
 
+<<<<<<< HEAD
     if typeof(tforms) == DataFrame
         tforms_dict = get_tform_dict(tforms)
     else
         tforms_dict = nothing
     end
+=======
+    sort_readouts!(pnts)
+    cost(cpath) = obj_function(cpath, pnts, w, params)
+    pnts[!,"decoded"] = fill(0, nrow(pnts))
+    pnts[!, "mpath"] = [[] for i = 1:length(pnts.x)]
+>>>>>>> f08a6d146aee620de408263edd7620ee578a77be
 
     cost(cpath) = obj_func(cpath, pnts, w, params, tforms_dict)
 
