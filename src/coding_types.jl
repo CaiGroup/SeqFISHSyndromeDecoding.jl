@@ -8,6 +8,7 @@ using BKTrees
 Abstract type of a residue ring where elements are integers [0, n-1] and
 the addition and multiplication operations are modulo n.
 """
+
 struct ℤnRingElem
     v :: UInt8
 end
@@ -186,6 +187,7 @@ If the drop is correctable, returns the pseudocolor/coeff of the dropped encodin
 
 otherwise, returns false
 """
+
 function check_mpath_decodable(drop_pos :: UInt8, s :: SyndromeComponentℤnRing)
     if iszero(s)
         return (decodable = true, coeff = 0x00)

@@ -5,6 +5,7 @@ using DataStructures
 
 Do a binary search for a bin in a binary index (fenwick) tree.
 """
+
 function search(ft :: FenwickTree, val)
     @assert typeof(val) == eltype(ft)
 

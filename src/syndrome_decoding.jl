@@ -123,6 +123,7 @@ end
 
 """
 """
+
 function check_inputs(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: DecodeParams)
     alphabet = sort(unique(cb))
     q = UInt8(length(alphabet))
@@ -504,18 +505,11 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, 
         filter!(:cpath => cpath -> length(cpath) >= w - params.ndrops, cpath_df)
     end
 
-<<<<<<< HEAD
     if typeof(tforms) == DataFrame
         tforms_dict = get_tform_dict(tforms)
     else
         tforms_dict = nothing
     end
-=======
-    sort_readouts!(pnts)
-    cost(cpath) = obj_function(cpath, pnts, w, params)
-    pnts[!,"decoded"] = fill(0, nrow(pnts))
-    pnts[!, "mpath"] = [[] for i = 1:length(pnts.x)]
->>>>>>> f08a6d146aee620de408263edd7620ee578a77be
 
     cost(cpath) = obj_func(cpath, pnts, w, params, tforms_dict)
 
@@ -582,6 +576,7 @@ end
 
 Generate KDTree to aid in building adjacency graphs.
 """
+
 make_KDTree2D(pnts :: DataFrame) = KDTree(Float64[pnts.x pnts.y]')
 
 function make_KDTree2D(pnts :: Matrix)
@@ -595,6 +590,7 @@ end
 
 Generate KDTree to aid in building adjacency graphs.
 """
+
 function make_KDTree3D(pnts :: DataFrame, lat_thresh, z_thresh)
     z_scaled = pnts.z .* lat_thresh ./ z_thresh
     return KDTree(Array(Float64[pnts.x pnts.y z_scaled]'))
@@ -611,6 +607,7 @@ end
 
 Generate dictionary of target sequences corresponding to each codeword.
 """
+
 function make_cw_dict(cb)
     cw_dict = Dict()
     for i in 1:size(cb)[1]
@@ -625,6 +622,7 @@ end
 Add columns giving the coefficient and position the dot encodes in a codeword
 and its associated syndrome component.
 """
+
 function add_code_cols!(pnts :: DataFrame, params)
     if "block" in names(pnts)
         pnts.pos = UInt8.(pnts.block)
@@ -663,6 +661,7 @@ abstract type DotAdjacencyGraph3D <: DotAdjacencyGraph end
 
 Structure for storing the dot adjacency graph with some parameters
 """
+
 struct DotAdjacencyGraphRegistered2D <: DotAdjacencyGraph2D
     g :: SimpleDiGraph
     cw_pos_bnds :: Array{Int64}
@@ -724,6 +723,7 @@ end
 Construct a dot adjacency graph where dots close to each other have directed
 edges pointing towards the dot representing an earlier symbor
 """
+
 function DotAdjacencyGraph(pnts :: DataFrame, lat_thresh :: Real, z_thresh :: Real, n, ndrops; tforms=nothing)
     g = SimpleDiGraph(nrow(pnts))
 
@@ -892,6 +892,7 @@ end
 
 """
 """
+
 function get_cw_pos_bounds(pnts, n)
     cw_pos_bnds = [1]
     for cᵢ = 1:(n-1)
@@ -907,6 +908,7 @@ end
 
 """
 """
+
 function get_cw_block_ranges(pnts, n)
     cw_block_ranges = []
     sizehint!(cw_block_ranges, n)
@@ -968,6 +970,7 @@ end
 
 Define SimpleDiGraph neighbors function for DotAdjacencyGraph
 """
+
 function neighbors(g :: DotAdjacencyGraphBlankBlock2D, dot)
     nbrs = inrange(g.trees[g.pnts.pos[dot]], [g.pnts.x[dot], g.pnts.y[dot]], g.lat_thresh, true)
     return nbr_index_block_to_global!(nbrs, g, dot)
@@ -978,6 +981,7 @@ end
 
 Define SimpleDiGraph neighbors function for DotAdjacencyGraph
 """
+
 function neighbors(g :: DotAdjacencyGraphBlankBlock3D, dot)
     nbrs = inrange(g.trees[g.pnts.pos[dot]], [g.pnts.x[dot], g.pnts.y[dot], g.pnts.z[dot]], g.lat_thresh, true)
     return nbr_index_block_to_global!(nbrs, g, dot)
@@ -996,12 +1000,14 @@ end
 
 Helper function to get the dots in the graph that represent a symbol in a given position of the codeword.
 """
+
 function get_cw_pos_inds(g :: DotAdjacencyGraph, pos :: Integer)
     return g.cw_pos_bnds[pos]:(g.cw_pos_bnds[pos+1]-1)
 end
 
 """
 """
+
 function syndrome_find_barcodes!(pnts ::DataFrame, g :: abstractDotAdjacencyGraph, cb ::Matrix, ndrops, w, tforms=nothing)
     cw_dict = make_cw_dict(cb)
     if typeof(g) <: DotAdjacencyGraphBlankBlock
@@ -1018,6 +1024,7 @@ end
 Computes syndrome of every path in the message graph, determines which ones represent valid
 barcodes, and returns dataframe of message path candidates.
 """
+
 function syndrome_find_barcodes!(pnts ::DataFrame,
                                       g :: DotAdjacencyGraph,
                                       ndrops :: Int,
@@ -1042,6 +1049,7 @@ end
 
 Calculate the syndromes for paths in the message dag
 """
+
 function compute_syndromes(pnts :: DataFrame, g :: DotAdjacencyGraph)
     syndromes, syndrome_coeff_positions = init_syndromes(pnts, g)
 
@@ -1070,6 +1078,7 @@ end
 Counts the number of paths in the dot adjacency graph that run through each dot to
 determine the size of syndrome component arrays to preallocate.
 """
+
 function find_nsnds(g :: DotAdjacencyGraph)
     n = g.n
     n_pnts = nrow(g.pnts)
@@ -1093,6 +1102,7 @@ init_syndromes(pnts :: DataFrame, g :: DotAdjacencyGraph)
 
 Pre-allocates arrays of syndrome partial sums.
 """
+
 function init_syndromes(pnts :: DataFrame, g :: DotAdjacencyGraph)
 
     # initialize each syndrome partial sum with the contribution from each dot
@@ -1122,6 +1132,7 @@ Uses syndrome decoding to identify codepaths in the message dag: both perfect an
 correctable. Adds columns to the pnts DataFrame listing each dot's perfect
 codepaths and correctable codepaths.
 """
+
 function find_code_paths!(
                          g :: DotAdjacencyGraph,
                          pnts :: DataFrame,
@@ -1191,6 +1202,7 @@ end
 """
 Helper function to get number of dots in path using bitwise operations
 """
+
 function get_number_of_dots(pos_indicator, n_barcoding_blocks)
     ndots = 0
     for r in 1:n_barcoding_blocks
@@ -1203,6 +1215,7 @@ end
 """
 Helper Function used to trace back groups of dots that produce zero syndrome, and therefore are codewords
 """
+
 function recursive_get_synd_neighbors(
     pnts :: DataFrame,
      g :: DotAdjacencyGraph,
@@ -1229,6 +1242,7 @@ end
 """
 Helper Function used to trace back groups of dots that produce zero syndrome, and therefore are codewords
 """
+
 function get_synd_neighbor(
     g :: DotAdjacencyGraph,
     dot :: Int,
@@ -1271,6 +1285,7 @@ remove_high_cost_cpaths(cpath_df :: DataFrame, free_dot_cost, n :: Int, ndrops :
 remove candidate codepaths that have a higher cost than the free dot cost of their component
 dots.
 """
+
 function remove_high_cost_cpaths(cpath_df :: DataFrame, free_dot_cost, n :: Int, ndrops :: Int)
     ncpath_b4 = nrow(cpath_df)
     cutoff = searchsorted(cpath_df.cost, n*free_dot_cost).stop
@@ -1307,6 +1322,7 @@ threshold_cpaths(cpaths_df, pnts, lat_thresh, z_thresh)
 remove cpaths from the cpaths_df where the distance any pair of its dots exceeds lat_thresh on the imaging plane
 or z_thresh along the z axis
 """
+
 function threshold_cpaths(cpaths_df, pnts, lat_thresh, z_thresh, tforms :: Nothing)
     row = 1
     while row <= nrow(cpaths_df)
@@ -1368,6 +1384,7 @@ get_connected_components(cpaths, ndots)
 Finds connected components of candidate codepaths that are connected by their
 conflicting dots.
 """
+
 function get_connected_components(cpaths, ndots)
     g = SimpleGraph(ndots)
     for cpath in cpaths
@@ -1410,6 +1427,7 @@ cpath_nbr_cpath_indices is a vector of vectors. The nested vectors contains the 
 of cpaths from the input cpaths_df that conflict with the cpath that has the
 same index in cpaths_df as the nested vector in cpath_nbr_cpath_indices
 """
+
 function get_cpath_conflict_graph_remove_redundant_cpaths!(cpaths_df, ndots, n)
     cpaths = cpaths_df.cpath
     costs = cpaths_df.cost

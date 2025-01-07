@@ -31,6 +31,7 @@ potentially terminal dot that has the fewest inrange potentially terminal dots t
 After all potentially terminal dots within the search radius of a dot have had their codepaths identified, the dots intermediate sums are
 no longer needed and are cleared.
 """
+
 function find_blank_block_codewords(pnts ::DataFrame, g :: DotAdjacencyGraphBlankBlock, cw_dict, w, tforms)
     # initialize array for syndrome partial sums
     syndromes = fill(Vector{Vector{SyndromeComponent}}(), nrow(pnts)) #Vector{Vector{SyndromeComponent}}()
@@ -139,6 +140,7 @@ Each candidate barcode will be represented by "codepath" through the DAG of leng
 w will satisfy the parity check equations. codepaths of length less than w will not satisfy the parity check equations, but missing symbol/dot may 
 be found that match them to a closest codeword.
 """
+
 function find_barcode_candidates!(
     g :: DotAdjacencyGraphBlankBlock,
     pnts :: DataFrame,
@@ -307,6 +309,7 @@ end
 """
 Helper Function used to trace back groups of dots that produce zero syndrome, and therefore are codewords
 """
+
 function get_synd_neighbors_blank_block(g, dot, synd_ind, syndrome_block_sizes, recursion_depth, w, ndrops)
     # keep track of number of syndromes from the dot that have been searched through
     cum_n_syndromes = 0

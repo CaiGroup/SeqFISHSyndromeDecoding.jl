@@ -161,6 +161,7 @@ end
 """
     find_final_block_dot_barcode_candidates()
 """
+
 function find_final_block_dot_barcode_candidates!(
     g :: DotAdjacencyGraph,
     pnts :: DataFrame,
@@ -196,6 +197,7 @@ end
 """
     recursive_syndrome_computation()
 """
+
 function recursive_syndrome_computation!(
     pnts :: DataFrame,
     g :: DotAdjacencyGraph,
@@ -280,6 +282,7 @@ end
 """
 Helper Function used to trace back groups of dots that produce zero syndrome, and therefore are codewords
 """
+
 function get_synd_neighbors_mem_eff(
     g :: DotAdjacencyGraph,
     dot :: Int,
