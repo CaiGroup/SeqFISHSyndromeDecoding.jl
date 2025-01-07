@@ -28,6 +28,7 @@ set_s_var_cost_coeff
 The rest of the parameters are given a default value by the [`DecodeParams`](@ref) Constructor, but may be set using the following methods:
 
 ```@docs
+set_zeros_probed
 set_erasure_penalty
 set_free_dot_cost
 set_skip_thresh
