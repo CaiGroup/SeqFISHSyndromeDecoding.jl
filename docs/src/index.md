@@ -4,11 +4,7 @@
 ## Introduction
 This package provides functions to decode seqFISH points using [syndrome decoding](https://en.wikipedia.org/wiki/Decoding_methods#Syndrome_decoding).
 
-In addition to the dynamic programming and integer programming algorithms described in our preprint, this package implements a simulated annealing solver
-to resolve conflicting barcode candidates following [*Simulated Annealing: Theory and Applications, 1987*](https://books.google.com/books/about/Simulated_Annealing_Theory_and_Applicati.html?id=-IgUab6Dp_IC) by P.J. van Laarhoven, E.H. Aarts. For
-the work described in our manuscript, we opted to use a commercial solver for all optimizations since it is faster. We still include our simulated annealing
-solution here since it may be useful to some users. 
-
+The main functions are [`get_codepaths`](@ref) which uses dynamic programming to find barcode candidates and [`choose_optimal_codepaths`](@ref) which runs an integer programming optimization to choose the best non-conflicting candidates. These functions break the algorithm into two steps because we recommend that users try multiple values for the integer programming objective function parameters, as different values of the parameters will work best for different datasets.
 
 ## Contents
 ```@contents
