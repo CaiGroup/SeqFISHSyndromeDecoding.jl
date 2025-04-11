@@ -1,4 +1,4 @@
-gene_name,Round1,Round2,Round3,Round4
+gene,block1,block2,block3,block4
 Atp6v0e2,17,16,13,0
 Pclo,14,14,4,4
 Higd1a,0,1,1,0

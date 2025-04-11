@@ -22,7 +22,7 @@ println(first(cb, 5))
 ```
 ```
 5×5 DataFrame
- Row │ gene_name  Round1  Round2  Round3  Round4 
+ Row │ gene  block1  block2  block3  block4 
      │ String31   Int64   Int64   Int64   Int64  
 ─────┼───────────────────────────────────────────
    1 │ Atp6v0e2       17      16      13       0
@@ -116,7 +116,7 @@ first(barcodes, 5)
 ```
 ```
 5×9 DataFrame
- Row │ gene_name  gene_number  cpath                      cost      x        y        z    cc     cc_size 
+ Row │ gene  gene_number  cpath                      cost      x        y        z    cc     cc_size 
      │ String31?  Int64        Array…                     Float64   Any      Any      Any  Int64  Int64   
 ─────┼────────────────────────────────────────────────────────────────────────────────────────────────────
    1 │ Higd1a               3  [4000, 4203, 8632, 16480]  1.06754   990.275  1517.47  0.0   1406        1
@@ -184,7 +184,7 @@ println(first(stricter_barcodes, 5))
 ```
 ```
 5×9 DataFrame
- Row │ gene_name  gene_number  cpath                      cost      x        y        z    cc     cc_size 
+ Row │ gene  gene_number  cpath                      cost      x        y        z    cc     cc_size 
      │ String31?  Int64        Array…                     Float64   Any      Any      Any  Int64  Int64   
 ─────┼────────────────────────────────────────────────────────────────────────────────────────────────────
    1 │ Higd1a               3  [4000, 4203, 8632, 16480]  1.60131   990.275  1517.47  0.0   1091        1
@@ -199,27 +199,27 @@ We can compare the decoding results using the two different sets of parameters.
 
 
 ```julia
-println("Number of gene encoding barcodes: ", sum(barcodes.gene_name .!= "negative_control"))
-estimated_false_positive_rate = sum(barcodes.gene_name .== "negative_control")*sum(cb.gene_name .!= "negative_control")/sum(cb.gene_name .== "negative_control")/sum(barcodes.gene_name .!= "negative_control")
-println("Estimated False Positive rate: ", estimated_false_positive_rate)
+println("Number of gene encoding barcodes: ", sum(barcodes.gene .!= "negative_control"))
+estimated_false_discovery_rate = sum(barcodes.gene .== "negative_control")*sum(cb.gene .!= "negative_control")/sum(cb.gene .== "negative_control")/sum(barcodes.gene .!= "negative_control")
+println("Estimated False Discovery rate: ", estimated_false_discovery_rate)
 ```
 
     Number of gene encoding barcodes: 1474
-    Estimated False Positive rate: 0.024709855479406056
+    Estimated False Discovery rate: 0.024709855479406056
 
 
 
 ```julia
-println("Number of gene encoding barcodes: ", sum(stricter_barcodes.gene_name .!= "negative_control"))
-estimated_false_positive_rate = sum(stricter_barcodes.gene_name .== "negative_control")*sum(cb.gene_name .!= "negative_control")/sum(cb.gene_name .== "negative_control")/sum(stricter_barcodes.gene_name .!= "negative_control")
-println("Estimated False Positive rate: ", estimated_false_positive_rate)
+println("Number of gene encoding barcodes: ", sum(stricter_barcodes.gene .!= "negative_control"))
+estimated_false_discovery_rate = sum(stricter_barcodes.gene .== "negative_control")*sum(cb.gene .!= "negative_control")/sum(cb.gene .== "negative_control")/sum(stricter_barcodes.gene .!= "negative_control")
+println("Estimated False Discovery rate: ", estimated_false_discovery_rate)
 ```
 
     Number of gene encoding barcodes: 1118
-    Estimated False Positive rate: 0.015330875292705262
+    Estimated False Discovery rate: 0.015330875292705262
 
 
-The less strict parameter set decodes about 40% more gene encoding barcodes at a cost of having twice the estimated false positive rate. Since the estimated false positive rate is still small, it is probably an acceptable trade off.
+The less strict parameter set decodes about 40% more gene encoding barcodes at a cost of having twice the estimated false discovery rate. Since the estimated false discovery rate is still small, it is probably an acceptable trade off.
 
 To save your results, use the [`CSV.write`](https://csv.juliadata.org/stable/writing.html) command.
 

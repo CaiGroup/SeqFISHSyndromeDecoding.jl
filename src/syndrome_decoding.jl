@@ -19,12 +19,12 @@ using GLPK
         optimizer = GLPK.Optimizer
     )
 
-Arguments
+# Arguments
 - `pnts`: DataFrame of seqFISH psfs. Must include columns:
-	- `x` : x spatial coordinate of psfs
-	- `y` : y spatial coordinate of psfs
+    - `x` : x spatial coordinate of psfs
+    - `y` : y spatial coordinate of psfs
     - `z` : z spatial coordinate of psfs
-	- `s` : the sigma width parameter of the psfs
+    - `s` : the sigma width parameter of the psfs
     - `w` : the weight (or brightness) of the psfs
     Additionally, there the data frame must either have columns
     - `block` : the barcoding block in which the psf was found
@@ -178,12 +178,12 @@ end
 """
     get_codepaths(pnts :: DataFrame, cb_df :: DataFrame, H :: Matrix, params :: DecodeParams)
 
-Arguments
+# Arguments
 - `pnts`: DataFrame of seqFISH psfs. Must include columns:
-	- `x` : x spatial coordinate of psfs
-	- `y` : y spatial coordinate of psfs
+    - `x` : x spatial coordinate of psfs
+    - `y` : y spatial coordinate of psfs
     - `z` : z spatial coordinate of psfs
-	- `s` : the sigma width parameter of the psfs
+    - `s` : the sigma width parameter of the psfs
     - `w` : the weight (or brightness) of the psfs
     Additionally, there the data frame must either have columns
     - `block` : the barcoding block in which the psf was found
@@ -225,12 +225,12 @@ end
 Computes codepaths with syndrome decoding, removes codepaths that exceed the cost
 of not decoding their component dots, and returns DataFrame of candidate codepaths.
 
-Arguments
+# Arguments
 - `pnts`: DataFrame of seqFISH psfs. Must include columns:
-	- `x` : x spatial coordinate of psfs
-	- `y` : y spatial coordinate of psfs
+    - `x` : x spatial coordinate of psfs
+    - `y` : y spatial coordinate of psfs
     - `z` : z spatial coordinate of psfs
-	- `s` : the sigma width parameter of the psfs
+    - `s` : the sigma width parameter of the psfs
     - `w` : the weight (or brightness) of the psfs
 - `cb` : The codebook.
 - `H` : The parity check Matrix
@@ -444,12 +444,12 @@ end
 """
     choose_optimal_codepaths(pnts :: DataFrame, cb_df :: DataFrame, H :: Matrix, params :: DecodeParams, cpath_df :: DataFrame, optimzer, ret_discarded :: Bool=false)
 
-Arguments
+# Arguments
 - `pnts`: DataFrame of seqFISH psfs. Must include columns:
-	- `x` : x spatial coordinate of psfs
-	- `y` : y spatial coordinate of psfs
+    - `x` : x spatial coordinate of psfs
+    - `y` : y spatial coordinate of psfs
     - `z` : z spatial coordinate of psfs
-	- `s` : the sigma width parameter of the psfs
+    - `s` : the sigma width parameter of the psfs
     - `w` : the weight (or brightness) of the psfs
     Additionally, there the data frame must either have columns
     - `block` : the barcoding block in which the psf was found
@@ -457,7 +457,6 @@ Arguments
     or the block and pseudocolor can be computed from the hybridization
     - `hyb` : the hybridization in which the dot was found
     where block = ceil(hyb / q), pseudocolor = (hyb - (block - 1) * q) % q, and q is the number of pseudocolors.
-
 - `cb` : The codebook.
 - `H` : The parity check Matrix
 - `params` : DecodeParams object holding the parameters for decoding
@@ -465,9 +464,11 @@ Arguments
 - `optimizer` : solver for integer linear programming optimizations. A list of supported solvers is available [here](https://jump.dev/JuMP.jl/stable/installation/#Supported-solvers)
 - `ret_discarded` : if true, return data frame of candidate codepaths that were discarded for being in too large/too dense of a conflict network
 
+# Returns
+- DataFrame of decoded barcodes
+- If `ret_discarded` == True, returns second DataFrame of the codepaths discarded to density filters
 Choose best codepaths from previouly found candidates that may have been found with less strict parameters. Reevaluates the costs for each candidate and trims according
 to the passed parameters.
-
 """
 function choose_optimal_codepaths(pnts :: DataFrame, cb_df :: DataFrame, H :: Matrix, params :: DecodeParams, cpath_df :: DataFrame, optimizer; ret_discarded :: Bool=false, tforms=nothing, obj_func=obj_function)
     if any(typeof.(H) .<: AbstractString) #any(typeof(cb_df[2:end, 2:end]) .<: AbstractString) #typeof(cb_df[2, 2]) <: AbstractString
