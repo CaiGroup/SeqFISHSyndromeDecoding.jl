@@ -6,6 +6,7 @@ _PAGES = [
     "index.md",
     "installation.md",
     "example_decode.md",
+    "example_decode_RS.md",
     "api_reference.md"
 ]
 

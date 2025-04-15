@@ -1,5 +1,5 @@
 
-# Decoding Example
+# Decoding Example: SeqFISH+
 
 *note: this example was generated using data and a jupyter notebook that are freely available at the [SeqFISHSyndromeDecoding github repository](https://github.com/CaiGroup/SeqFISHSyndromeDecoding)*
 
