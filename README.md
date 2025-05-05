@@ -8,6 +8,8 @@ then type:
 
 <pre> <code> add . </code> </pre>
 
-// <pre> <code> add "https://github.com/CaiGroup/SeqFISHSyndromeDecoding" </code> </pre>
+and press enter. Alternatively, type:
+
+<pre> <code> add "https://github.com/CaiGroup/SeqFISHSyndromeDecoding" </code> </pre>
 
 and press enter. Exit the Julia package manager by pressing the delete key
