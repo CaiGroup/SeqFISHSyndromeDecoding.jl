@@ -12,4 +12,4 @@ and press enter. Alternatively, type:
 Pkg.add("https://github.com/CaiGroup/SeqFISHSyndromeDecoding")
 ```
 
-and press enter. Exit the Julia package manager by pressing the delete key
+and press enter.
