@@ -9,9 +9,9 @@ Pkg.add(".")
 
 Alternativesly, open the Julia package manager by typing:
 
-'''
+```
 ]
-'''
+```
 
 then type:
 
