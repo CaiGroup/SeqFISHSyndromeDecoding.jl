@@ -1,8 +1,7 @@
 
 # Decoding Example: SeqFISH+
 
-*note: this example was generated using data and a jupyter notebook that are freely available at the [SeqFISHSyndromeDecoding github repository](https://github.com/CaiGroup/SeqFISHSyndromeDecoding)*
-
+*note: this example was generated using data and a jupyter notebook that are freely available at the [SeqFISHSyndromeDecoding github repository](https://github.com/CaiGroup/SeqFISHSyndromeDecoding) and can be run on [google colab](https://colab.research.google.com/github/CaiGroup/SeqFISHSyndromeDecoding.jl/blob/master/example_notebook/colab/example_decode_colab.jl.ipynb)*
 
 ```julia
 using DataFrames
