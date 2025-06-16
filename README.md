@@ -9,15 +9,15 @@ Pkg.add(".")
 
 Alternativesly, open the Julia package manager by typing:
 
-'''
+```
 ]
-'''
+```
 
 then type:
 
 <pre> <code> add . </code> </pre>
 
-and press enter. Exit the Julia package manager by pressing the delete key.
+and press enter. Exit the Julia package manager by pressing the backspace key.
 
 A third installation is to type from a regular julia session:
 ```
