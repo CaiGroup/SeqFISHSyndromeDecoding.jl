@@ -35,4 +35,4 @@ Pkg.add("https://github.com/CaiGroup/SeqFISHSyndromeDecoding")
 
 # Example notebooks
 
-Example notebooks for decoding data from the original [RNA SeqFISH+ paper](https://colab.research.google.com/github/CaiGroup/SeqFISHSyndromeDecoding.jl/blob/master/example_notebook/colab/example_decode_colab.jl.ipynb)) and for decoding [Reed-Solomon encoded data](https://colab.research.google.com/github/CaiGroup/SeqFISHSyndromeDecoding.jl/blob/master/example_notebook/colab/example_decode_RS_colab.jl.ipynb)
+Example notebooks for decoding data from the original [RNA SeqFISH+ paper](https://colab.research.google.com/github/CaiGroup/SeqFISHSyndromeDecoding.jl/blob/master/example_notebook/colab/example_decode_colab.jl.ipynb) and for decoding [Reed-Solomon encoded data](https://colab.research.google.com/github/CaiGroup/SeqFISHSyndromeDecoding.jl/blob/master/example_notebook/colab/example_decode_RS_colab.jl.ipynb)
