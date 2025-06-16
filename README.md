@@ -2,7 +2,7 @@
 
 # SeqFISHSyndromeDecoding
 
-This julia package implements the decoding method described in our preprint, "[Untangling overlapping barcodes in spatial genomics data](https://doi.org/10.1101/2025.06.10.658913)."
+This julia package implements the decoding method described in our preprint, "[Untangling overlapping barcodes in spatial genomics data](https://doi.org/10.1101/2025.06.10.658913)." The main repository for the preprint is available [here](https://github.com/CaiGroup/UntanglingBarcodes).
 
 ## Documentation
 Documenatation is available [here](https://caigroup.github.io/SeqFISHSyndromeDecoding.jl/)
