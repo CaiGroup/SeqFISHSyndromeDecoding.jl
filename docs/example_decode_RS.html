@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Decoding Example: Reed-Solomon Codes · SeqFISHSyndromeDecoding</title><meta name="title" content="Decoding Example: Reed-Solomon Codes · SeqFISHSyndromeDecoding"/><meta property="og:title" content="Decoding Example: Reed-Solomon Codes · SeqFISHSyndromeDecoding"/><meta property="twitter:title" content="Decoding Example: Reed-Solomon Codes · SeqFISHSyndromeDecoding"/><meta name="description" content="Documentation for SeqFISHSyndromeDecoding."/><meta property="og:description" content="Documentation for SeqFISHSyndromeDecoding."/><meta property="twitter:description" content="Documentation for SeqFISHSyndromeDecoding."/><script data-outdated-warner src="assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="assets/documenter.js"></script><script src="search_index.js"></script><script src="siteinfo.js"></script><script src="../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="index.html">SeqFISHSyndromeDecoding</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="index.html">SeqFISHSyndromeDecoding.jl</a></li><li><a class="tocitem" href="installation.html">Installation</a></li><li><a class="tocitem" href="example_decode.html">Decoding Example: SeqFISH+</a></li><li class="is-active"><a class="tocitem" href="example_decode_RS.html">Decoding Example: Reed-Solomon Codes</a></li><li><a class="tocitem" href="api_reference.html">API Reference</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href="example_decode_RS.html">Decoding Example: Reed-Solomon Codes</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href="example_decode_RS.html">Decoding Example: Reed-Solomon Codes</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/CaiGroup/SeqFISHSyndromeDecoding" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/CaiGroup/SeqFISHSyndromeDecoding/blob/master/docs/src/example_decode_RS.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Decoding-Example:-Reed-Solomon-Codes"><a class="docs-heading-anchor" href="#Decoding-Example:-Reed-Solomon-Codes">Decoding Example: Reed-Solomon Codes</a><a id="Decoding-Example:-Reed-Solomon-Codes-1"></a><a class="docs-heading-anchor-permalink" href="#Decoding-Example:-Reed-Solomon-Codes" title="Permalink"></a></h1><p><em>note: this example was generated using data and a jupyter notebook that are freely available at the <a href="https://github.com/CaiGroup/SeqFISHSyndromeDecoding">SeqFISHSyndromeDecoding github repository</a></em></p><pre><code class="language-julia hljs">using Pkg
+Pkg.activate(&quot;.&quot;)
+Pkg.instantiate()
+using DataFrames
+using CSV
+using SeqFISHSyndromeDecoding
+using GLPK
+using DelimitedFiles</code></pre><p>This notebook shows demonstrates how to use SeqFISHSyndromeDecoding.jl. The smallest cell with the fewest dots in our Reed-Solomon encoded experiment, chosen for computational convienience. We also reduce computation time by using the highest lateral position variance reported in our manuscript with half the search radius used in the manuscript computations. The larger positional variance penalty would prohibit most additional candidate barcodes found with larger search radius.</p><p>First, load the codebook that we will use to decode our sample data.</p><pre><code class="language-julia hljs">cb = DataFrame(CSV.File(&quot;../example_data/full_RS_q11_k7_half_pool_cb.csv&quot;))
+println(first(cb, 5))</code></pre><pre><code class="nohighlight hljs">DataFrame
+Row  │ gene      block1  block2  block3  block4  block5  block6  block7  block8  block9  block10 
+     │ String31  Int64   Int64   Int64   Int64   Int64   Int64   Int64   Int64   Int64   Int64   
+─────┼───────────────────────────────────────────────────────────────────────────────────────────
+   1 │ Aars           2       8       5       0       0       0       0       0       2        0
+   2 │ Aco2          10       7       0       0       0       0       8       0       0        6
+   3 │ Actn4          9       7       0       0       9       2       0       0       0        0
+   4 │ Aebp1          2       0       1       3       0       0       0       2       0        0
+   5 │ Aqp1          10       0       3       0       0       0       9       1       0        0</code></pre><p>Define the <a href="https://en.wikipedia.org/wiki/Parity-check_matrix">parity check matrix</a> for the codebook</p><pre><code class="language-julia hljs">H = readdlm(&quot;../example_data/RS_q11_k7_H.csv&quot;, &#39;,&#39;, UInt8)</code></pre><pre><code class="nohighlight hljs">3×10 Matrix{UInt8}:
+ 0x02  0x04  0x08  0x05  0x0a  0x09  0x07  0x03  0x06  0x01
+ 0x04  0x05  0x09  0x03  0x01  0x04  0x05  0x09  0x03  0x01
+ 0x08  0x09  0x06  0x04  0x0a  0x03  0x02  0x05  0x07  0x01</code></pre><p>We can verify that H is actually the parity check matrix of the codebook.</p><pre><code class="language-julia hljs">all(H * Matrix(cb[:,2:end])&#39; .% 11 .== 0)</code></pre><pre><code class="nohighlight hljs">true</code></pre><p>Next we can load the aligned points from each hybridization for our example cell.</p><pre><code class="language-julia hljs">pnts = DataFrame(CSV.File(&quot;../example_data/example_RS_cell_points.csv&quot;))
+filter!(pnt -&gt; ~ismissing(pnt.pseudocolor), pnts)
+pnts.block = UInt8.(pnts.block)
+select!(pnts, Not([:ch,:hyb]))
+SeqFISHSyndromeDecoding.sort_readouts!(pnts)
+println(first(pnts, 5))</code></pre><pre><code class="nohighlight hljs">DataFrame
+Row  │ Column1  x        y        s        w        z        pos    pseudocolor  block  cellid 
+     │ Int64    Float64  Float64  Float64  Float64  Float64  Int64  Float64?     UInt8  Int64  
+─────┼─────────────────────────────────────────────────────────────────────────────────────────
+   1 │       0   94.938  1884.65  1.21555  267.268      0.0      6          1.0      1       6
+   2 │    3815  105.651  1873.63  1.32669  253.041      0.0      6          1.0      1       6
+   3 │       8  109.834  1836.6   2.0      304.417      0.0      6          1.0      1       6
+   4 │      26  110.489  1873.2   1.47603  884.79       0.0      6          1.0      1       6
+   5 │      33  110.8    1885.17  1.50077  571.21       0.0      6          1.0      1       6</code></pre><p>Next we initialize a <code>DecodeParams</code> object, and set the parameters</p><pre><code class="language-julia hljs">params = DecodeParams()
+
+set_zeros_probed(params, false)
+set_lat_var_cost_coeff(params, 7.0)
+set_z_var_cost_coeff(params, 0.0)
+set_lw_var_cost_coeff(params, 0.0)
+set_s_var_cost_coeff(params, 0.0)
+set_free_dot_cost(params, 1.0)
+set_n_allowed_drops(params, 0)
+
+set_xy_search_radius(params, 2)
+set_z_search_radius(params, 0.0);</code></pre><p>We can then decode</p><pre><code class="language-julia hljs">barcodes = decode_syndromes!(pnts, cb, H, params);
+println(first(barcodes, 5))</code></pre><pre><code class="nohighlight hljs"> DataFrame
+ Row │ gene              gene_number  cpath                         cost      x        y        z    cc     cc_size 
+     │ String31?         Any         Any                          Float64  Any     Any     Any Int64 Int64   
+─────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   1 │ St13              220          [7127, 9160, 11942, 13432]    0.209086  114.12   1890.67  0.0      1       11
+   2 │ Ybx1              263          [13625, 16733, 21893, 24052]  0.621507  113.441  1891.12  0.0      1       11
+   3 │ negative_control  299          [6, 7923, 10905, 16128]       0.790891  110.843  1889.99  0.0      1       11
+   4 │ Msn               112          [5598, 7267, 19024, 23060]    3.25967   111.708  1890.39  0.0      1       11
+   5 │ Rarg              179          [11, 4496, 16538, 22858]      1.42675   114.981  1918.55  0.0      2        1</code></pre><p>Alternatively, if we aren&#39;t sure what parameters we want to use, we can save time by splitting decode<em>syndromes! into its two steps. First we can identify barcode candidates with the ```get</em>codepaths``` (named for the paths that candidate barcodes take the the decoding graph in figure 1a) function using the least strict parameter set that we are interested in.</p><pre><code class="language-julia hljs">candidates = get_codepaths(pnts, cb, H, params);
+println(first(candidates, 5))
+</code></pre><pre><code class="nohighlight hljs">1m5×7 DataFrame
+Row  │ gene              gene_number  cpath                        cost      x        y        z  
+     │ String31?         Any          Any                          Any       Any      Any      Any
+─────┼─────────────────────────────────────────────────────────────────────────────────────────────
+   1 │ Ercc1             40           [4965, 12136, 16528, 19370]  0.286652  106.317  1843.72  0.0
+   2 │ Vim               261          [9474, 14973, 16125, 21132]  0.651009  108.019  1846.97  0.0
+   3 │ Ercc1             40           [4971, 12138, 16529, 19371]  1.27286   108.758  1849.4   0.0
+   4 │ negative_control  971          [763, 4117, 6469, 19371]     3.28321   108.719  1849.74  0.0
+   5 │ Slc38a2           209          [1571, 7619, 12630, 14130]   1.16154   108.261  1854.62  0.0</code></pre><p>We can then use the <code>choose_optimal_codepaths</code> function to find the same barcodew that we found earlier</p><pre><code class="language-julia hljs">barcodes_again = choose_optimal_codepaths(pnts, cb, H, params, candidates, GLPK.Optimizer)
+barcodes == barcodes_again</code></pre><pre><code class="nohighlight hljs">true</code></pre><p>We can now also try choosing candidates using stricter parameters. This saves computation time by reducing the number of times that we have to run <code>get_codepaths</code>.</p><pre><code class="language-julia hljs">strict_params = DecodeParams()
+
+set_zeros_probed(strict_params, false)
+set_lat_var_cost_coeff(strict_params, 10.0)
+set_z_var_cost_coeff(strict_params, 0.0)
+set_lw_var_cost_coeff(strict_params, 0.0)
+set_s_var_cost_coeff(strict_params, 0.0)
+set_free_dot_cost(strict_params, 1.0)
+set_n_allowed_drops(strict_params, 0)
+
+set_xy_search_radius(strict_params, 2)
+set_z_search_radius(strict_params, 0.0);
+
+stricter_barcodes = choose_optimal_codepaths(pnts, cb, H, strict_params, candidates, GLPK.Optimizer)
+println(first(stricter_barcodes, 5))</code></pre><pre><code class="nohighlight hljs">DataFrame
+ Row │ gene              gene_number  cpath                      cost      x        y        z    cc     cc_size
+     │ String31?         Any          Any                        Float64   Any      Any      Any  Int64  Int64   
+─────┼───────────────────────────────────────────────────────────────────────────────────────────────────────────
+   1 │ negative_control  299          [6, 7923, 10905, 16128]    1.12984   110.843  1889.99  0.0      1        2
+   2 │ Rarg              179          [11, 4496, 16538, 22858]   2.03821   114.981  1918.55  0.0      2        1
+   3 │ Khdrbs1           73           [13, 15343, 19604, 23071]  0.231704  117.603  1892.83  0.0      3        1
+   4 │ Spp1              214          [18, 10922, 11844, 14141]  2.79514   119.057  1867.67  0.0      4        1
+   5 │ Spp1              214          [19, 10921, 11846, 14142]  2.42644   119.15   1862.08  0.0      5        2</code></pre><p>We can compare the decoding results using the two different sets of parameters. For brevity, we use gene encoding barcodes found in decoding runs that include searches for negative control barcodes, which differs from the procedure described in our manuscript in which datasets are also decoded with the negative control codewords ommitted from the codebook.</p><pre><code class="language-julia hljs">println(&quot;Number of gene encoding barcodes: &quot;, sum(barcodes.gene .!= &quot;negative_control&quot;))
+estimated_false_discovery_rate = sum(barcodes.gene .== &quot;negative_control&quot;)*sum(cb.gene .!= &quot;negative_control&quot;)/sum(cb.gene .== &quot;negative_control&quot;)/sum(barcodes.gene .!= &quot;negative_control&quot;)
+println(&quot;Estimated False Discovery rate: &quot;, estimated_false_discovery_rate)</code></pre><pre><code class="nohighlight hljs">Number of gene encoding barcodes: 1737
+Estimated False Discovery rate: 0.01654845665984571</code></pre><pre><code class="language-julia hljs">println(&quot;Number of gene encoding barcodes: &quot;, sum(stricter_barcodes.gene .!= &quot;negative_control&quot;))
+estimated_false_discovery_rate = sum(stricter_barcodes.gene .== &quot;negative_control&quot;)*sum(cb.gene .!= &quot;negative_control&quot;)/sum(cb.gene .== &quot;negative_control&quot;)/sum(stricter_barcodes.gene .!= &quot;negative_control&quot;)
+println(&quot;Estimated False Discovery rate: &quot;, estimated_false_discovery_rate)</code></pre><pre><code class="nohighlight hljs">Number of gene encoding barcodes: 1303
+Estimated False Discovery rate: 0.011712467380864363</code></pre><p>The less strict parameter set decodes about 40% more gene encoding barcodes at a cost of having twice the estimated false discovery rate. Since the estimated false positive rate is still small, it is probably an acceptable trade off.</p><p>To save your results, use the <code>CSV.write</code> command.</p><pre><code class="language-julia hljs">CSV.write(&quot;example_RS_results.csv&quot;, barcodes)</code></pre><pre><code class="nohighlight hljs">&quot;example_RS_results.csv&quot;</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="example_decode.html">« Decoding Example: SeqFISH+</a><a class="docs-footer-nextpage" href="api_reference.html">API Reference »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.10.1 on <span class="colophon-date" title="Tuesday 15 April 2025 16:07">Tuesday 15 April 2025</span>. Using Julia version 1.10.9.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
