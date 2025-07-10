@@ -436,7 +436,11 @@ function get_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: D
     println("pnts")
     println(pnts)
     """
-    return cpath_df_tiled
+    if typeof(cpath_df_tiled) == DataFrame
+        return cpath_df_tiled
+    else
+        return DataFrame(Dict("cpath"=>[],"cost"=>[],"gene_number"=>[],"x"=>[],"y"=>[],"z"=>[]))
+    end
 end
 
 
@@ -567,7 +571,12 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, 
             end
         end
     end
-    return mpaths, dense_cpaths
+    
+    if typeof(mpaths) == DataFrame
+        return mpaths, dense_cpaths
+    else
+        return DataFrame(Dict("cpath"=>[],"cost"=>[],"gene_number"=>[],"x"=>[],"y"=>[],"z"=>[],"cc"=>[],"cc_size"=>[])), dense_cpaths
+    end
 end
 
 
