@@ -276,6 +276,10 @@ function get_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: D
 
     pnts[!, "dotID"] .= 1:nrow(pnts)
 
+    if nrow(pnts) == 0
+        return DataFrame(Dict("cpath"=>[],"cost"=>[],"gene_number"=>[],"x"=>[],"y"=>[],"z"=>[]))
+    end
+
     """
     #break into clusters
     if nrow(pnts) > 3
@@ -535,6 +539,11 @@ function choose_optimal_codepaths(pnts :: DataFrame, cb :: Matrix, H :: Matrix, 
 
     mpaths = cpath_df[1:0, :]
     dense_cpaths = cpath_df[1:0, :]
+
+    if nrow(cpath_df) == 0
+        return DataFrame(Dict("cpath"=>[],"cost"=>[],"gene_number"=>[],"x"=>[],"y"=>[],"z"=>[],"cc"=>[],"cc_size"=>[])), dense_cpaths
+    end
+
     nmpaths = 0
     for (cc_i, cc) in enumerate(ccs)
         cpath_df[cc, "cc"] .= cc_i
