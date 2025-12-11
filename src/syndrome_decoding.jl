@@ -138,9 +138,11 @@ function check_inputs(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: De
         @assert all(alphabet .>= 0)
     end
     if "hyb" in names(pnts)
-        @assert maximum(pnts[!,"hyb"]) <= q*n
-        @assert minimum(pnts[!,"hyb"]) > 0
-    else
+        if nrow(pnts)> 0
+            @assert maximum(pnts[!,"hyb"]) <= q*n
+            @assert minimum(pnts[!,"hyb"]) > 0
+        end
+    elseif nrow(pnts) > 0
         @assert "block" in names(pnts)
         @assert "pseudocolor" in names(pnts)
     end
@@ -150,10 +152,10 @@ function check_inputs(pnts :: DataFrame, cb :: Matrix, H :: Matrix, params :: De
             error("Reed-Solomon Codes require 2 parity check symbols for every error corrected. Your code has ", size(H)[1], " parity check symbols, but you requested correction of up to ", params.ndrops, " errors.")
         end
     end
-    if "block" in names(pnts)
+    if ("block" in names(pnts)) & (nrow(pnts) > 0)
         @assert maximum(pnts.block) <= n
     end
-    if "pseudocolor" in names(pnts)
+    if ("pseudocolor" in names(pnts)) & (nrow(pnts) > 0)
         if params.zeros_probed
             @assert maximum(pnts.pseudocolor) <= q
         else
