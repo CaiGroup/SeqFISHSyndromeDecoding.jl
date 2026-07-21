@@ -30,7 +30,7 @@ and press enter. Exit the Julia package manager by pressing the backspace key.
 A third installation is to type from a regular julia session:
 ```
 using Pkg
-Pkg.add("https://github.com/CaiGroup/SeqFISHSyndromeDecoding")
+Pkg.add(url="https://github.com/CaiGroup/SeqFISHSyndromeDecoding")
 ```
 
 # Example notebooks
